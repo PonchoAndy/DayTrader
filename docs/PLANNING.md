@@ -157,15 +157,25 @@ Blizzard API ──hourly──► Collector ──► Raw snapshots (JSON/Parqu
 
 ---
 
-## 5. Open questions for you
+## 5. Decisions made
 
-1. **Region and faction?** (US/EU? Alliance/Horde?) — decides which house we track first.
-2. **Where should it run?** Your PC, GitHub Actions, or a cheap cloud server?
-3. **How do you want to view it?** Web dashboard, spreadsheet, Discord alerts, phone?
-4. **Your professions / play style?** Crafting margins only matter for what you can craft.
-5. **Language comfort?** Python is the suggestion; tell us if you'd prefer something else.
+- **Region: US only** (no EU). API host `us.api.blizzard.com`. — PonchoAndy/DayTrader#2
+- **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
+  ruleset returns the same houses, so "all rulesets" is the same data as one.
+- **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API
+  cost is small (about 30 calls an hour for all 15 houses, far under the limit); the real cost
+  is storage and run time, roughly 3x a Horde-only pull, which per-item hourly summaries keep
+  manageable. Build everything with faction as a setting, so views can switch factions
+  without code changes.
 
-## 6. Suggested next steps
+## 6. Open questions for you
+
+1. **Where should it run?** Your PC, GitHub Actions, or a cheap cloud server?
+2. **How do you want to view it?** Web dashboard, spreadsheet, Discord alerts, phone?
+3. **Your professions / play style?** Crafting margins only matter for what you can craft.
+4. **Language comfort?** Python is the suggestion; tell us if you'd prefer something else.
+
+## 7. Suggested next steps
 
 1. You: create a Battle.net API client (step 2.1 above) and keep the ID/secret handy.
 2. Us: write a tiny "probe" script that hits the endpoints above, confirms they work, and
