@@ -35,5 +35,9 @@ replies"):
 2. Refresh issues: list all issues (open and closed) and their comments, then `set` one doc
    per issue in collection `issues`, id `i<number>`:
    `{number, title, body, state ("OPEN"/"CLOSED"), updated_at, comments: [{user, created_at, body}], syncedAt}`.
-3. Set `meta/sync` to `{syncedAt: <now ISO>}`.
+3. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
+   `{state: "done", finishedAt: <now ISO>}` so the page's "Sync now" button resets.
 Use one `batch` write where possible.
+
+The page's **Sync now** button fires a saved Claude task that does the same steps in a fresh
+session (details in `tools/issue-deck/README.md`).
