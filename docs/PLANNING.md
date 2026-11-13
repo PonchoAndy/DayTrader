@@ -28,15 +28,25 @@ confirm it ourselves with our own key.
 | One house's commodities | `GET /data/wow/ruleset/{rulesetId}/auctions/{auctionHouseId}/commodities` |
 | Item details | `GET /data/wow/item/{itemId}` (static namespace) |
 
-How the Forever AH is organized (per community reports — verify):
-- No realms. Auctions are grouped by **ruleset** and **region**, with Alliance, Horde and a
-  neutral (Blackwater) house.
-- Right now every ruleset in a region returns the **same** houses and auctions; the ruleset ID
-  must be valid but doesn't filter anything.
-- Responses are big (tens of thousands of auctions, several MB).
+How the Forever AH is organized (per the forum thread, checked 2026-11-13 — verify):
+- No realms. Rulesets replace them: `/data/wow/ruleset/index`. US/EU have 1 PvP, 2 Normal,
+  3 Roleplay, 15 Roleplay PvP; KR/TW have 1 and 2.
+- Auction data went live **2026-11-06**. Each ruleset lists **15 auction houses** (IDs 110–121
+  and 123–125): five each of Alliance, Horde and Blackwater (neutral). Why five of each is
+  unknown — open question.
+- Houses 112, 115, 118 were empty (no `auctions` field at all — treat it as optional).
+- Every ruleset in a region returns the **same** houses and auctions; the ruleset ID must be
+  valid but doesn't filter anything. **Don't sum across rulesets** or you'll multiply counts.
+- Responses are big: the busiest houses hold 50–68k auctions, **~9 MB per response**. A full
+  pull of all houses could be ~50–100 MB. We can't keep every raw hourly pull forever; plan to
+  store per-item hourly summaries and keep raw pulls only briefly.
+- Auctions: `id, item{id, context, bonus_lists, modifiers}, buyout, bid?, quantity, time_left`.
+  Commodities: `id, item, quantity, unit_price, time_left`. The old
+  `/data/wow/auctions/commodities` returns 404.
 - ~43% of item IDs seen on one EU house returned 404 from the item endpoint. We'll need a
   fallback for item names/metadata (e.g. scrape from in-game via addon, or Wowhead-style DBs).
-- Retail's AH API refreshes roughly **hourly**. Assume the same until we measure it.
+- wowauctionhouse.com says it scans Forever hourly from every house (it also takes
+  player-uploaded scans). Assume hourly refresh until we measure it.
 - Realm and WoW Token endpoints reportedly 404 for Forever.
 
 **What the API gives us:** a snapshot of every listing (item, quantity, buyout/unit price,
