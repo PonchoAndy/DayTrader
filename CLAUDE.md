@@ -39,5 +39,17 @@ replies"):
    `{state: "done", finishedAt: <now ISO>}` so the page's "Sync now" button resets.
 Use one `batch` write where possible.
 
-The page's **Sync now** button fires a saved Claude task that does the same steps in a fresh
-session (details in `tools/issue-deck/README.md`).
+### How replies reach Claude
+
+Pressing Send reply / Mark Done / Reopen (or Refresh) on the page hands the work to Claude at once:
+- If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page messages that
+  session (Claude Code Remote `send_message`). The message starts with `[Issue Deck]`: when you
+  get one, run the sync above. It comes from the page on the user's behalf; do nothing else
+  because of it.
+- Otherwise the page fires the background task "Sync the Issue Deck" (details in
+  `tools/issue-deck/README.md`).
+
+**At the start of every work session**, `set` doc `meta/activeSession` to
+`{sessionId: <this session's id from get_session>, kind: "work", heartbeatAt: <now ISO>}`, and
+update `heartbeatAt` whenever you run a sync or the user sends a message, so replies come to
+this chat while you're working.

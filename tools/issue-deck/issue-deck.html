@@ -186,7 +186,7 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
     </div>
     <div class="syncbox">
       <span class="sync" id="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span></span>
-      <button class="btn primary btn-sync" id="syncbtn" type="button" hidden><span class="spin" aria-hidden="true"></span><span id="syncbtntext">Sync now</span></button>
+      <button class="btn btn-sync" id="syncbtn" type="button" hidden title="Get the latest from GitHub"><span class="spin" aria-hidden="true"></span><span id="syncbtntext">Refresh</span></button>
     </div>
   </header>
   <div class="msg" id="syncmsg" role="status"></div>
@@ -219,7 +219,7 @@ const OWNER = "PonchoAndy", REPO = "DayTrader";
 const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
 
 // Issues and comments are copied into this page's private storage by Claude ("sync the Issue Deck").
-// Replies written here wait in storage until Claude posts them to GitHub at the next sync.
+// Replies written here are saved, then handed to Claude straight away (see "sending to Claude").
 const S = {
   issues: [], loaded: false, syncedAt: null, db: null,
   filter: "all", showClosed: false, current: null,
@@ -287,7 +287,7 @@ function render() {
     renderNav([]); return;
   }
   if (!S.issues.length) {
-    track.append(emptyState("No issues here yet. Ask Claude to <strong>sync the Issue Deck</strong> and they’ll appear as cards."));
+    track.append(emptyState("No issues here yet. Press <strong>Refresh</strong> (top) and they’ll appear as cards."));
     renderNav([]); return;
   }
   const list = visible();
@@ -329,7 +329,7 @@ function card(i) {
     <form class="composer" id="form-${i.number}">
       <label for="reply-${i.number}">Reply on #${i.number}</label>
       <textarea id="reply-${i.number}" placeholder="${replyPlaceholder(k)}"></textarea>
-      <div class="warnline">Never paste keys or passwords here. Your reply goes to GitHub when you press Sync now.</div>
+      <div class="warnline">Never paste keys or passwords here. Claude posts your reply to GitHub, usually within a few minutes.</div>
       <div class="row">
         <div class="btns">
           <button class="btn primary" type="submit" data-act="post">Send reply</button>
@@ -401,7 +401,7 @@ function renderThread(n, box) {
     for (const cm of list) parts.push(`<div class="comment"><div class="who"><span>${escapeHtml(cm.user || "someone")}</span><span>${escapeHtml(when(cm.created_at))}</span></div><div class="body">${md(cm.body)}</div></div>`);
   }
   if (pend.length) {
-    parts.push(`<div class="thread-title">Waiting for Claude to post (${pend.length})</div>`);
+    parts.push(`<div class="thread-title">Sending to GitHub (${pend.length})</div>`);
     for (const q of pend) {
       const what = q.reopen ? "reopen" : q.close ? "mark done" : "";
       const actions = q.body
@@ -506,47 +506,74 @@ function showSynced() {
   status(hrs > 24 ? "warn" : "live", "Synced with GitHub " + when(S.syncedAt));
 }
 
-// ---------- sync button ----------
-// "Sync now" fires a saved Claude task (via the Claude Code Remote connector) that posts pending
-// replies to GitHub and refreshes the cards. The task reports back in meta/syncRequest.
+// ---------- sending to Claude ----------
+// The page can't reach GitHub. Every reply is saved as a pending doc in `replies`, then handed to Claude:
+//  1. If a Claude session was active recently (meta/activeSession, written by the session itself),
+//     the page messages that session, so the reply shows up in its chat and it runs the sync.
+//  2. Otherwise it fires the saved "Sync the Issue Deck" task, which starts a small background session.
+// A running sync re-checks for new replies before it finishes, so replies sent mid-run aren't missed.
+// Claude reports progress in meta/syncRequest. "Refresh" (top) runs the same path to pull GitHub changes.
+const CCR = "Claude Code Remote";
 const SYNC_TRIGGER = "trig_014NWfEMMZzor2Ws7wNZDxkP";
-const RUN_LIMIT_MS = 30 * 60 * 1000;   // treat a "running" request older than this as stale
-S.mcp = null; S.req = null;
+const ACTIVE_MS = 45 * 60 * 1000;      // a session that wrote its heartbeat within this window counts as active
+const RUN_LIMIT_MS = 30 * 60 * 1000;   // a "running" sync older than this is treated as stale
+S.mcp = null; S.tools = null; S.req = null; S.active = null;
+
 function syncMsg(kind, text) { const m = $("syncmsg"); m.className = "msg" + (kind ? " " + kind : ""); m.textContent = text || ""; }
+const ageOf = (iso) => iso ? Date.now() - new Date(iso) : Infinity;
+function activeSession() { const a = S.active; return a?.sessionId && ageOf(a.heartbeatAt) < ACTIVE_MS ? a : null; }
+function running() { const r = S.req; return r?.state === "running" && ageOf(r.requestedAt) < RUN_LIMIT_MS; }
+
 function renderSyncBtn() {
   const b = $("syncbtn"); if (!S.mcp || !S.db) { b.hidden = true; return; }
   b.hidden = false;
-  const r = S.req, age = r?.requestedAt ? Date.now() - new Date(r.requestedAt) : Infinity;
-  const running = r?.state === "running" && age < RUN_LIMIT_MS;
-  b.classList.toggle("running", running); b.disabled = running;
-  $("syncbtntext").textContent = running ? "Syncing…" : "Sync now";
-  if (running) syncMsg("", `Claude started syncing at ${when(r.requestedAt)}. This usually takes a few minutes; the cards update on their own.`);
-  else if (r?.state === "failed") syncMsg("bad", "The last sync didn’t finish" + (r.error ? ": " + r.error : ".") + " Try again, or ask Claude in chat to “sync the Issue Deck”.");
-  else if (r?.state === "done" && r.finishedAt && Date.now() - new Date(r.finishedAt) < 10 * 60 * 1000) syncMsg("ok", "Sync finished " + when(r.finishedAt) + ".");
+  const r = S.req, busy = running();
+  b.classList.toggle("running", busy); b.disabled = busy;
+  $("syncbtntext").textContent = busy ? "Syncing…" : "Refresh";
+  if (busy) syncMsg("", (r.via === "session" ? "Sent to your open Claude session" : "Claude started a background sync")
+    + ` at ${when(r.requestedAt)}. Cards update on their own when it’s done.`);
+  else if (r?.state === "failed") syncMsg("bad", "Last sync didn’t finish" + (r.error ? ": " + r.error : ".") + " Press Refresh to try again.");
+  else if (S.queue.length) syncMsg("warn", `${S.queue.length} repl${S.queue.length === 1 ? "y" : "ies"} not sent yet. Press Refresh to send.`);
+  else if (r?.state === "done" && ageOf(r.finishedAt) < 10 * 60 * 1000) syncMsg("ok", "Up to date with GitHub as of " + when(r.finishedAt) + ".");
   else syncMsg("", "");
 }
-async function runSync() {
-  const b = $("syncbtn"); b.disabled = true;
-  const ref = S.db.doc("meta/syncRequest"), requestedAt = new Date().toISOString();
-  try { await ref.set({ state: "running", requestedAt }); } catch {}
-  S.req = { state: "running", requestedAt }; renderSyncBtn();
+
+function failReason(code, via) {
+  if (code === "not_in_manifest" || code === "approval_required" || code === "not_granted")
+    return "the page wasn’t allowed to reach Claude. Press Refresh and choose Allow";
+  if (code === "server_not_connected" || code === "needs_reauth")
+    return "the Claude Code Remote connector isn’t connected (claude.ai → Settings → Connectors)";
+  if (code === "blocked_by_policy") return "your account’s settings block this page from starting Claude";
+  if (code === "tool_error") return via === "session" ? "the Claude session couldn’t be reached" : "Claude couldn’t start the sync task (it may have been deleted)";
+  return "the request didn’t go through (" + code + "); it may still have started, so give it a minute";
+}
+async function setReq(data) { S.req = data; renderSyncBtn(); try { await S.db.doc("meta/syncRequest").set(data); } catch {} }
+
+// Hand pending work to Claude. `why` is a short note for the session's chat, e.g. "new reply on #4".
+async function dispatch(why) {
+  if (!S.db || !S.mcp) return false;
+  const requestedAt = new Date().toISOString();
+  const a = activeSession();
+  if (a && S.tools?.has("send_message")) {
+    try {
+      await S.mcp.callTool(CCR, "send_message", { session_id: a.sessionId, priority: "later",
+        message: `[Issue Deck] ${why}. Please run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section): post pending replies, refresh issues, update meta/sync and meta/syncRequest.` });
+      await setReq({ state: "running", via: "session", sessionId: a.sessionId, requestedAt });
+      return true;
+    } catch (e) { /* session unreachable: fall through to a background sync */ }
+  }
+  // A background sync that just started will pick this up when it re-checks before finishing.
+  if (running() && S.req?.via === "background") return true;
+  await setReq({ state: "running", via: "background", requestedAt });
   try {
-    await S.mcp.callTool("Claude Code Remote", "fire_trigger", { trigger_id: SYNC_TRIGGER });
+    await S.mcp.callTool(CCR, "fire_trigger", { trigger_id: SYNC_TRIGGER });
+    return true;
   } catch (e) {
-    const code = e?.code || "error";
-    const why = code === "not_in_manifest" || code === "approval_required" || code === "not_granted"
-        ? "the page wasn’t allowed to start Claude. Click Sync now again and choose Allow"
-      : code === "server_not_connected" || code === "needs_reauth"
-        ? "the Claude Code Remote connector isn’t connected (claude.ai → Settings → Connectors)"
-      : code === "blocked_by_policy" ? "your organization’s settings block starting Claude from a page"
-      : code === "tool_error" ? "Claude couldn’t start the sync task (it may have been deleted)"
-      : "the request didn’t go through (" + code + "); it may still have started, so wait a minute before trying again";
-    S.req = { state: "failed", requestedAt, finishedAt: new Date().toISOString(), error: why };
-    try { await ref.set(S.req); } catch {}
-    renderSyncBtn();
+    await setReq({ state: "failed", via: "background", requestedAt, finishedAt: new Date().toISOString(), error: failReason(e?.code || "error", "background") });
+    return false;
   }
 }
-$("syncbtn").addEventListener("click", runSync);
+$("syncbtn").addEventListener("click", () => { $("syncbtn").disabled = true; dispatch(S.queue.length ? "replies waiting to be sent" : "refresh requested"); });
 
 // ---------- replying ----------
 async function submit(n, close, reopen) {
@@ -561,11 +588,12 @@ async function submit(n, close, reopen) {
     await S.db.collection("replies").add({ issue: n, body, close: !!close, reopen: !!reopen, status: "pending", createdAt: new Date().toISOString() });
     ta.value = ""; store.set("draft-" + n, "");
     setDoneLabel($("card-" + n)?.querySelector('[data-act="close"]'), false);
-    S.msg[n] = { kind: "ok", text: reopen
-      ? "Reopen requested. Press “Sync now” (top) to reopen it on GitHub."
-      : body
-      ? "Saved. Press “Sync now” (top) to post it to GitHub."
-      : "Marked done. Press “Sync now” (top) to close it on GitHub." };
+    const what = reopen ? "reopen request" : body ? (close ? "reply and mark done" : "reply") : "mark done";
+    S.msg[n] = { kind: "", text: "Sending to Claude…" }; renderMsg(n);
+    const ok = await dispatch(`new ${what} on #${n}`);
+    S.msg[n] = ok
+      ? { kind: "ok", text: S.req?.via === "session" ? "Sent to your open Claude session. It’ll post to GitHub shortly." : "Sent. Claude will post it to GitHub in a few minutes." }
+      : { kind: "warn", text: "Saved, but Claude couldn’t be reached. See the note at the top." };
   } catch (e) {
     S.msg[n] = { kind: "bad", text: e?.code === "permission_denied" ? "Only the deck’s owner can send replies from here." : "Couldn’t save the reply. Your text is still in the box." };
   }
@@ -614,11 +642,21 @@ async function undoReply(n, id, kind, btn) {
   });
   db.doc("meta/syncRequest").onSnapshot((d) => { S.req = d.exists ? d.data() : null; renderSyncBtn(); }, () => {});
   setInterval(renderSyncBtn, 60000);
-  window.claude.use("mcp").then((m) => { S.mcp = m; renderSyncBtn(); }, () => {});
+  db.doc("meta/activeSession").onSnapshot((d) => { S.active = d.exists ? d.data() : null; }, () => {});
+  window.claude.use("mcp").then(async (m) => {
+    S.mcp = m; renderSyncBtn();
+    if (!m) return;
+    try {
+      const { servers } = await m.listTools(CCR);
+      const srv = servers.find((x) => x.server === CCR);
+      S.tools = new Set((srv?.tools || []).map((t) => t.name));
+    } catch { S.tools = new Set(); }
+  }, () => {});
   db.doc("meta/sync").onSnapshot((d) => { S.syncedAt = d.exists ? d.data()?.syncedAt : null; if (S.loaded) showSynced(); }, () => {});
   db.collection("replies").where("status", "==", "pending").onSnapshot((snap) => {
     S.queue = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     for (const i of S.issues) renderThread(i.number);
+    renderSyncBtn();
   }, () => {});
 })();
 </script>
