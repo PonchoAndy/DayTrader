@@ -11,6 +11,7 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
 - When a decision is made (in an issue or chat), write an ADR in `docs/adr/` from
   `template.md`, add it to the index in `docs/adr/README.md`, and update the summary in
   `docs/PLANNING.md` section 5. Never delete an ADR; supersede it with a new one.
+- Session recaps: `docs/sessions/` — read the latest one first.
 - The user is not deeply technical: explain steps plainly and say where to click.
 - Never commit secrets. Keys live in GitHub Actions secrets or the cloud environment's
   network secrets, never in files.
@@ -20,7 +21,7 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
 The user reads and replies to issues in a private claude.ai artifact:
 https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
 
-It has no GitHub connection of its own; Claude keeps it in sync using the artifact database
+Page source and data model: `tools/issue-deck/`. It has no GitHub connection of its own; Claude keeps it in sync using the artifact database
 (ArtifactData tool, same URL). When the user says "sync the Issue Deck" (or "post my Issue Deck
 replies"):
 
