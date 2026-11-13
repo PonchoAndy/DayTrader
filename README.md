@@ -2,4 +2,4 @@
 
 Tools to collect, analyze and display WoW Forever auction house data.
 
-Status: planning. See [docs/PLANNING.md](docs/PLANNING.md) and the [setup checklist issue](https://github.com/PonchoAndy/DayTrader/issues/1).
+Status: planning. See [docs/PLANNING.md](docs/PLANNING.md), the [open issues](https://github.com/PonchoAndy/DayTrader/issues) and [how we work](docs/WORKFLOW.md).
