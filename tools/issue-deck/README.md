@@ -19,11 +19,16 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
     "Don't reopen" clears `reopen`, "Delete reply" / "Undo" deletes the doc.
 - Sync steps are in the repo's `CLAUDE.md` ("Issue Deck" section).
 - **Sending:** Send reply / Mark Done / Reopen save a `replies` doc, then hand it to Claude at once.
-  If `meta/activeSession` was updated in the last 45 minutes, the page sends that session an
-  `[Issue Deck] …` message (lands in its chat). Otherwise it fires the on-demand task
-  "Sync the Issue Deck" (`trig_014NWfEMMZzor2Ws7wNZDxkP`, no schedule), which starts a small
-  background session that registers itself in `meta/activeSession`, so follow-up replies go to it.
-  Syncs re-check for pending replies before finishing. If `send_message` isn't available or
-  fails, the page falls back to the task. **Refresh** (top) runs the same path to pull changes.
-  If the task is deleted or recreated, update `SYNC_TRIGGER` in the page; keep the task's
-  self-contained prompt in step with `CLAUDE.md` when the sync steps change.
+  - If `meta/activeSession` was updated in the last 45 minutes (an interactive work session
+    writes it), the page sends that session an `[Issue Deck] …` message, which lands in its chat.
+  - Otherwise, or if that message fails, the page fires the task "Sync the Issue Deck"
+    (`trig_01Qgigo8czoeUjryZZug8zxo`, no schedule). It wakes one long-lived session,
+    **"Issue Deck sync (background)"** (`session_015bLnKyEsmDdphwzHN668bv`), which has the repo
+    attached and standing sync instructions. (Tasks that start a fresh session each time don't
+    get the repo, so they have no GitHub access. That's why the first version failed.)
+  - The background session never writes `meta/activeSession`.
+  - `meta/syncRequest.sessionNote` records why a reply didn't go to the active session
+    (useful for debugging).
+  - **Refresh** (top) runs the same path to pull changes from GitHub.
+  - If the background session is archived or recreated, create a new task with
+    `persistent_session_id` pointing at it and update `SYNC_TRIGGER` in the page.

@@ -510,11 +510,12 @@ function showSynced() {
 // The page can't reach GitHub. Every reply is saved as a pending doc in `replies`, then handed to Claude:
 //  1. If a Claude session was active recently (meta/activeSession, written by the session itself),
 //     the page messages that session, so the reply shows up in its chat and it runs the sync.
-//  2. Otherwise it fires the saved "Sync the Issue Deck" task, which starts a small background session.
+//  2. Otherwise it fires the saved "Sync the Issue Deck" task, which wakes a long-lived background
+//     session that has the repo attached (fresh task sessions get no GitHub access).
 // A running sync re-checks for new replies before it finishes, so replies sent mid-run aren't missed.
 // Claude reports progress in meta/syncRequest. "Refresh" (top) runs the same path to pull GitHub changes.
 const CCR = "Claude Code Remote";
-const SYNC_TRIGGER = "trig_014NWfEMMZzor2Ws7wNZDxkP";
+const SYNC_TRIGGER = "trig_01Qgigo8czoeUjryZZug8zxo";   // wakes the long-lived "Issue Deck sync (background)" session
 const ACTIVE_MS = 45 * 60 * 1000;      // a session that wrote its heartbeat within this window counts as active
 const RUN_LIMIT_MS = 30 * 60 * 1000;   // a "running" sync older than this is treated as stale
 S.mcp = null; S.tools = null; S.req = null; S.active = null;
@@ -554,22 +555,24 @@ async function dispatch(why) {
   if (!S.db || !S.mcp) return false;
   const requestedAt = new Date().toISOString();
   const a = activeSession();
+  let sessionNote = a ? null : "no active session";
+  if (a && !S.tools?.has("send_message")) sessionNote = S.tools ? "send_message not available to this page (tools: " + [...S.tools].join(", ") + ")" : "connector tools not loaded yet";
   if (a && S.tools?.has("send_message")) {
     try {
       await S.mcp.callTool(CCR, "send_message", { session_id: a.sessionId, priority: "later",
         message: `[Issue Deck] ${why}. Please run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section): post pending replies, refresh issues, update meta/sync and meta/syncRequest.` });
       await setReq({ state: "running", via: "session", sessionId: a.sessionId, requestedAt });
       return true;
-    } catch (e) { /* session unreachable: fall through to a background sync */ }
+    } catch (e) { sessionNote = "send_message failed: " + (e?.code || "error") + (e?.message ? " — " + String(e.message).slice(0, 160) : ""); }
   }
   // A background sync that just started will pick this up when it re-checks before finishing.
   if (running() && S.req?.via === "background") return true;
-  await setReq({ state: "running", via: "background", requestedAt });
+  await setReq({ state: "running", via: "background", requestedAt, sessionNote });
   try {
     await S.mcp.callTool(CCR, "fire_trigger", { trigger_id: SYNC_TRIGGER });
     return true;
   } catch (e) {
-    await setReq({ state: "failed", via: "background", requestedAt, finishedAt: new Date().toISOString(), error: failReason(e?.code || "error", "background") });
+    await setReq({ state: "failed", via: "background", requestedAt, sessionNote, finishedAt: new Date().toISOString(), error: failReason(e?.code || "error", "background") });
     return false;
   }
 }
