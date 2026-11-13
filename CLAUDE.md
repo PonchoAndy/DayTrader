@@ -11,3 +11,22 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
 - The user is not deeply technical: explain steps plainly and say where to click.
 - Never commit secrets. Keys live in GitHub Actions secrets or the cloud environment's
   network secrets, never in files.
+
+## Issue Deck (swipeable issue cards)
+
+The user reads and replies to issues in a private claude.ai artifact:
+https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
+
+It has no GitHub connection of its own; Claude keeps it in sync using the artifact database
+(ArtifactData tool, same URL). When the user says "sync the Issue Deck" (or "post my Issue Deck
+replies"):
+
+1. Post replies: query collection `replies` where `status == "pending"`. For each, post
+   `body` as a comment on issue `issue` (GitHub MCP `add_issue_comment`); if `close` is true,
+   also close the issue as completed. Then update the reply doc to `status: "posted"`
+   (pin with `if_version`). Replies are the user's own words: post them as-is, no footer.
+2. Refresh issues: list all issues (open and closed) and their comments, then `set` one doc
+   per issue in collection `issues`, id `i<number>`:
+   `{number, title, body, state ("OPEN"/"CLOSED"), updated_at, comments: [{user, created_at, body}], syncedAt}`.
+3. Set `meta/sync` to `{syncedAt: <now ISO>}`.
+Use one `batch` write where possible.
