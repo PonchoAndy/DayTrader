@@ -7,7 +7,7 @@ All work is tracked as **GitHub issues**: https://github.com/PonchoAndy/DayTrade
 | Prefix | Meaning |
 |---|---|
 | `Tracking:` | Groups related issues as sub-issues. Closes when all of them are done. |
-| `Decide:` | A choice only you can make. Answer in a comment, then close it. |
+| `Decide:` | A choice only you can make. Answer in a comment, then close it. Claude records the outcome as an ADR in `docs/adr/`. |
 | `Setup:` | An account, credential or service to set up. |
 | `Build:` | Code to write. Usually Claude. |
 | `Research:` | Something to find out. Results go into `docs/PLANNING.md`. |

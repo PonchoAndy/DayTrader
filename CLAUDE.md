@@ -2,12 +2,15 @@
 
 Tool to collect, analyze and display WoW Forever auction house data. Planning stage.
 
-- Background and findings: `docs/PLANNING.md`. Workflow: `docs/WORKFLOW.md`.
+- Background and findings: `docs/PLANNING.md`. Decisions: `docs/adr/`. Workflow: `docs/WORKFLOW.md`.
 - Work is tracked in GitHub issues on `PonchoAndy/DayTrader`. At the start of a task, read
   the relevant issue; if the user asks "what's next?", list open issues and suggest the first
   unblocked one.
 - Reference the issue in commit messages (`Refs #N`); in PR descriptions use `Closes #N`.
-- Record research results and decisions in `docs/PLANNING.md`, and comment on the issue.
+- Record research results in `docs/PLANNING.md`, and comment on the issue.
+- When a decision is made (in an issue or chat), write an ADR in `docs/adr/` from
+  `template.md`, add it to the index in `docs/adr/README.md`, and update the summary in
+  `docs/PLANNING.md` section 5. Never delete an ADR; supersede it with a new one.
 - The user is not deeply technical: explain steps plainly and say where to click.
 - Never commit secrets. Keys live in GitHub Actions secrets or the cloud environment's
   network secrets, never in files.

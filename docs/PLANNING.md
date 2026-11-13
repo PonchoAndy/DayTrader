@@ -159,6 +159,8 @@ Blizzard API ──hourly──► Collector ──► Raw snapshots (JSON/Parqu
 
 ## 5. Decisions made
 
+The full records live in [`docs/adr/`](adr/README.md). Summary:
+
 - **Region: US only** (no EU). API host `us.api.blizzard.com`. — PonchoAndy/DayTrader#2
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
