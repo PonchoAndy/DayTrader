@@ -1,6 +1,6 @@
 # 0005. Hourly collection on GitHub Actions, data in object storage
 
-- **Status:** Proposed — waiting on PonchoAndy/DayTrader#5 and PonchoAndy/DayTrader#6
+- **Status:** Partly accepted. **Storage: Accepted** (2026-11-13, PonchoAndy/DayTrader#6). Scheduler, language and dashboard: Proposed, waiting on PonchoAndy/DayTrader#5.
 - **Date:** 2026-11-13
 
 ## Context
@@ -18,6 +18,20 @@ about hourly. We want months of history without running a server.
   - Per-item hourly summaries (min buyout, quantiles, quantity, listing count per house) as
     Parquet, kept indefinitely. These are small and are what analysis reads.
 - **Dashboard:** Streamlit, reading the summaries.
+
+## Storage: what's been confirmed (2026-11-13)
+
+- Cloudflare R2 is set up: bucket `daytrader-data`, a key scoped to Object Read & Write on that
+  bucket only, card on file. You're fine paying small overage charges above the free 10 GB
+  (roughly $0.015 per GB per month).
+- GitHub Actions secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` (the full
+  jurisdiction-specific endpoint, which already contains the account ID).
+- Retention, in three layers (sizes are estimates until #9 measures real pulls):
+  - **Raw pulls**, gzipped: ~7 days, deleted automatically by an R2 lifecycle rule.
+  - **Hourly per-item summaries** (Parquet): a few months.
+  - **Daily per-item summaries**: kept indefinitely. This is the long-term history.
+- R2 keys can't be used from Claude's cloud sessions through the network-secret proxy (R2
+  needs request signing), so anything touching R2 runs in GitHub Actions.
 
 ## Consequences
 

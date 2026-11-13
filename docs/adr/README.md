@@ -12,7 +12,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0002](0002-blizzard-api-as-primary-data-source.md) | Blizzard Game Data API as the primary data source | Accepted |
 | [0003](0003-us-region-horde-primary-collect-all-houses.md) | US region, Horde primary, collect every auction house | Accepted |
 | [0004](0004-github-issues-and-issue-deck-workflow.md) | GitHub issues as the work tracker, with the Issue Deck | Accepted |
-| [0005](0005-hourly-collection-on-github-actions-with-object-storage.md) | Hourly collection on GitHub Actions, data in object storage | Proposed |
+| [0005](0005-hourly-collection-on-github-actions-with-object-storage.md) | Hourly collection on GitHub Actions, data in object storage | Partly accepted (storage) |
 
 ## Statuses
 

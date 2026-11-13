@@ -169,6 +169,8 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   is storage and run time, roughly 3x a Horde-only pull, which per-item hourly summaries keep
   manageable. Build everything with faction as a setting, so views can switch factions
   without code changes.
+- **Storage: Cloudflare R2** (bucket `daytrader-data`), small overage charges OK. Raw pulls
+  kept ~7 days; hourly summaries a few months; daily summaries indefinitely. (ADR 0005, #6)
 
 ## 6. Open questions for you
 
