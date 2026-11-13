@@ -155,6 +155,12 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) { .btn-done, .done-pre, .btn-done.has-text .done-pre { transition: none; } }
 .ext { font-size: 13px; color: var(--muted); }
 .ext a { color: inherit; }
+.pend-actions { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+.linkbtn { background: none; border: 0; padding: 2px 0; font: 600 13px/1.2 var(--f-body); color: var(--setup); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn.quiet { color: var(--muted); font-weight: 500; }
+.linkbtn:disabled { opacity: .5; cursor: default; }
+.linkbtn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
 .msg { font-size: 13px; } .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); } .msg.warn { color: var(--warn); }
 .warnline { font-size: 12.5px; color: var(--warn); }
 
@@ -316,7 +322,7 @@ function card(i) {
       <div class="row">
         <div class="btns">
           <button class="btn primary" type="submit" data-act="post">Send reply</button>
-          ${isOpen(i) ? `<button class="btn btn-done" type="button" data-act="close" aria-label="Mark Done"><span class="done-pre" aria-hidden="true">Send and&nbsp;</span><span>Mark Done</span></button>` : ""}
+          ${isOpen(i) ? `<button class="btn btn-done" type="button" data-act="close" aria-label="Mark Done"><span class="done-pre" aria-hidden="true">Send and&nbsp;</span><span>Mark Done</span></button>` : `<button class="btn" type="button" data-act="reopen">Reopen</button>`}
         </div>
         <span class="ext"><a href="${REPO_URL}/issues/${i.number}" target="_blank" rel="noopener">Open on GitHub ↗</a></span>
       </div>
@@ -341,6 +347,7 @@ function card(i) {
   const form = el.querySelector("form");
   form.addEventListener("submit", (e) => { e.preventDefault(); submit(i.number, false); });
   form.querySelector('[data-act="close"]')?.addEventListener("click", () => submit(i.number, true));
+  form.querySelector('[data-act="reopen"]')?.addEventListener("click", () => submit(i.number, false, true));
 
   renderThread(i.number, el.querySelector(".thread"));
   renderMsg(i.number, el.querySelector(".msg"));
@@ -384,9 +391,18 @@ function renderThread(n, box) {
   }
   if (pend.length) {
     parts.push(`<div class="thread-title">Waiting for Claude to post (${pend.length})</div>`);
-    for (const q of pend) parts.push(`<div class="comment pending"><div class="who"><span>you${q.close && q.body ? " · and mark done" : ""}</span><span>${escapeHtml(when(q.createdAt))}</span></div><div class="body">${q.body ? md(q.body) : "<p><em>Mark as done</em></p>"}</div></div>`);
+    for (const q of pend) {
+      const what = q.reopen ? "reopen" : q.close ? "mark done" : "";
+      const actions = q.body
+        ? (q.close ? `<button type="button" class="linkbtn" data-undo="keep" data-id="${q.id}">Keep it open</button>` : "")
+          + (q.reopen ? `<button type="button" class="linkbtn" data-undo="noreopen" data-id="${q.id}">Don’t reopen</button>` : "")
+          + `<button type="button" class="linkbtn quiet" data-undo="delete" data-id="${q.id}">Delete reply</button>`
+        : `<button type="button" class="linkbtn" data-undo="delete" data-id="${q.id}">${q.reopen ? "Undo reopen" : "Undo mark done"}</button>`;
+      parts.push(`<div class="comment pending"><div class="who"><span>you${what && q.body ? " · and " + what : ""}</span><span>${escapeHtml(when(q.createdAt))}</span></div><div class="body">${q.body ? md(q.body) : `<p><em>${q.reopen ? "Reopen this issue" : "Mark as done"}</em></p>`}</div><div class="pend-actions">${actions}</div></div>`);
+    }
   }
   box.innerHTML = parts.join("");
+  box.querySelectorAll("[data-undo]").forEach((b) => b.addEventListener("click", () => undoReply(n, b.dataset.id, b.dataset.undo, b)));
   box.hidden = !parts.length;
 }
 function renderMsg(n, el) {
@@ -480,25 +496,46 @@ function showSynced() {
 }
 
 // ---------- replying ----------
-async function submit(n, close) {
+async function submit(n, close, reopen) {
   const ta = $("reply-" + n), body = (ta?.value || "").trim();
-  if (!body && !close) { S.msg[n] = { kind: "warn", text: "Write a reply first." }; renderMsg(n); ta?.focus(); return; }
+  if (!body && !close && !reopen) { S.msg[n] = { kind: "warn", text: "Write a reply first." }; renderMsg(n); ta?.focus(); return; }
   if (body && /(client[_ ]?secret|secret access key|password)\s*[:=]/i.test(body)) {
     S.msg[n] = { kind: "bad", text: "That looks like it contains a secret. Remove it before sending." }; renderMsg(n); return;
   }
   if (!S.db) { S.msg[n] = { kind: "bad", text: "Can’t save replies in this view. Use “Open on GitHub” to reply there." }; renderMsg(n); return; }
   S.busy[n] = true; setBusy(n); S.msg[n] = { kind: "", text: "Saving…" }; renderMsg(n);
   try {
-    await S.db.collection("replies").add({ issue: n, body, close: !!close, status: "pending", createdAt: new Date().toISOString() });
+    await S.db.collection("replies").add({ issue: n, body, close: !!close, reopen: !!reopen, status: "pending", createdAt: new Date().toISOString() });
     ta.value = ""; store.set("draft-" + n, "");
     setDoneLabel($("card-" + n)?.querySelector('[data-act="close"]'), false);
-    S.msg[n] = { kind: "ok", text: body
+    S.msg[n] = { kind: "ok", text: reopen
+      ? "Reopen requested. Ask Claude to “sync the Issue Deck” to reopen it on GitHub."
+      : body
       ? "Saved. Ask Claude to “sync the Issue Deck” to post it to GitHub."
       : "Marked done. Ask Claude to “sync the Issue Deck” to close it on GitHub." };
   } catch (e) {
     S.msg[n] = { kind: "bad", text: e?.code === "permission_denied" ? "Only the deck’s owner can send replies from here." : "Couldn’t save the reply. Your text is still in the box." };
   }
   S.busy[n] = false; setBusy(n); renderMsg(n);
+}
+
+// Undo a reply that hasn't been synced yet: keep the text but drop "mark done"/"reopen", or remove it.
+async function undoReply(n, id, kind, btn) {
+  if (!S.db || !id) return;
+  if (btn) btn.disabled = true;
+  const ref = S.db.collection("replies").doc(id);
+  try {
+    if (kind === "keep") await ref.update({ close: false });
+    else if (kind === "noreopen") await ref.update({ reopen: false });
+    else await ref.delete();
+    S.msg[n] = { kind: "ok", text: kind === "keep" ? "Done. The reply will post, and the issue stays open."
+      : kind === "noreopen" ? "Done. The reply will post, and the issue stays closed."
+      : "Removed. Nothing will be sent for it." };
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    S.msg[n] = { kind: "bad", text: "Couldn’t change it. Try again." };
+  }
+  renderMsg(n);
 }
 
 // ---------- boot ----------

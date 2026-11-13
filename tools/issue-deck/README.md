@@ -10,8 +10,10 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
 - The page has no GitHub access. Its data lives in the artifact database:
   - `issues/i<N>`: `{number, title, body, state, updated_at, comments: [{user, created_at, body}], syncedAt}`
   - `meta/sync`: `{syncedAt}`
-  - `replies/<auto-id>`: `{issue, body, close, status: "pending" | "posted", createdAt}`
-    (empty `body` + `close: true` = "Mark Done" with no comment)
+  - `replies/<auto-id>`: `{issue, body, close, reopen, status: "pending" | "posted", createdAt}`
+    (empty `body` + `close: true` = "Mark Done" with no comment; `reopen: true` = reopen a
+    closed issue). Until synced, the page lets the user undo: "Keep it open" clears `close`,
+    "Don't reopen" clears `reopen`, "Delete reply" / "Undo" deletes the doc.
 - Sync steps are in the repo's `CLAUDE.md` ("Issue Deck" section).
 - Local preview: the page needs `window.claude.use("db")`; mock it and serve marked/DOMPurify
   locally (the CDN may be blocked in cloud sessions).
