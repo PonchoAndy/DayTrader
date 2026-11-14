@@ -12,6 +12,10 @@ on:
         description: "Collect even if Blizzard hasn't published new data"
         type: boolean
         default: false
+      report:
+        description: "Don't collect; print an overview of the stored data (collector/report.py)"
+        type: boolean
+        default: false
 
 concurrency:
   group: collect
@@ -40,4 +44,4 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: python collector/collect.py ${{ inputs.force && '--force' || '' }}
+        run: python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
