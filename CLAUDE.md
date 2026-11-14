@@ -13,6 +13,8 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
   `docs/PLANNING.md` section 5. Never delete an ADR; supersede it with a new one.
 - Session recaps: `docs/sessions/` — read the latest one first.
 - The user is not deeply technical: explain steps plainly and say where to click.
+- When listing issues in chat, link each issue number to its Issue Deck card, e.g.
+  [#30](https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL#i30). The `#i<N>` suffix opens that card.
 - Never commit secrets. Keys live in GitHub Actions secrets or the cloud environment's
   network secrets, never in files.
 

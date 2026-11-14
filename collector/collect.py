@@ -7,10 +7,13 @@ Each run:
        raw/<YYYY-MM-DD>/<HH>/<snapshot>/house-<id>-<kind>.json.gz   (deleted after ~7 days by an R2 rule)
 3. Writes one per-item summary table for the snapshot (Parquet):
        hourly/<YYYY-MM-DD>/<snapshot>.parquet
-   One row per (house, kind, item): listings, total quantity, min / p10 / p25 / median / max unit price.
+   One row per (house, kind, item, variant): listings, total quantity, min / p10 / p25 / median / max
+   unit price. `variant` = the listing's bonus IDs ("" if none), so "of the Monkey" and "of the Eagle"
+   versions of an item are priced separately (#30). Summaries before 2026-11-14 03:xx lack it.
    Prices are in copper per unit (auctions: buyout ÷ quantity; bid-only auctions are skipped).
    Percentiles are weighted by quantity, so p10 = "the price of the cheapest 10% of units".
-4. Names any item IDs it hasn't seen before and adds them to items/items.parquet (see items.py).
+4. Names any item IDs it hasn't seen before (items/items.parquet, see items.py) and keeps the
+   variant-name table current (items/bonuses.parquet, see bonuses.py).
 5. Saves a run log (runs/<YYYY-MM-DD>/<HHMMSS>.json) and state/latest.json.
 
 <snapshot> is the newest Last-Modified time across houses, formatted YYYYMMDDTHHMMZ.
@@ -37,6 +40,7 @@ from pathlib import Path
 import pandas as pd
 
 from blizzard import Api, faction_of
+import bonuses
 import items
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -108,8 +112,15 @@ class R2Store:
 
 
 # ---------- summaries ----------
-def listing_rows(body: dict, kind: str) -> list[tuple[int, int, int]]:
-    """(item_id, quantity, unit_price) for each priced listing."""
+def variant_key(item: dict) -> str:
+    """Which version of an item a listing is: its bonus IDs, sorted and joined ("12749", "6654:1691").
+    Empty for items without versions (and for all commodities). See #30."""
+    bonus = item.get("bonus_lists") or []
+    return ":".join(str(x) for x in sorted(bonus))
+
+
+def listing_rows(body: dict, kind: str) -> list[tuple[int, str, int, int]]:
+    """(item_id, variant, quantity, unit_price) for each priced listing."""
     rows = []
     for a in body.get("auctions") or []:  # the field is missing entirely on empty houses
         qty = a.get("quantity", 1) or 1
@@ -118,27 +129,30 @@ def listing_rows(body: dict, kind: str) -> list[tuple[int, int, int]]:
         else:
             price = a["buyout"] // qty if a.get("buyout") else None
         if price is not None and "item" in a:
-            rows.append((a["item"]["id"], qty, price))
+            rows.append((a["item"]["id"], variant_key(a["item"]), qty, price))
     return rows
 
 
-def summarize(rows: list[tuple[int, int, int]]) -> pd.DataFrame:
-    """Per-item stats with quantity-weighted percentiles of unit price."""
+SUMMARY_COLUMNS = ["item_id", "variant", "listings", "quantity", "min_price", "p10_price",
+                   "p25_price", "median_price", "max_price"]
+
+
+def summarize(rows: list[tuple[int, str, int, int]]) -> pd.DataFrame:
+    """Per item-version stats with quantity-weighted percentiles of unit price."""
     if not rows:
-        return pd.DataFrame(columns=["item_id", "listings", "quantity", "min_price", "p10_price",
-                                     "p25_price", "median_price", "max_price"])
-    df = pd.DataFrame(rows, columns=["item_id", "qty", "price"]).sort_values(["item_id", "price"])
-    g = df.groupby("item_id", sort=False)
+        return pd.DataFrame(columns=SUMMARY_COLUMNS)
+    keys = ["item_id", "variant"]
+    df = pd.DataFrame(rows, columns=keys + ["qty", "price"]).sort_values(keys + ["price"])
+    g = df.groupby(keys, sort=False)
     df["cum"] = g["qty"].cumsum()
     df["total"] = g["qty"].transform("sum")
     out = g.agg(listings=("qty", "size"), quantity=("qty", "sum"),
                 min_price=("price", "min"), max_price=("price", "max"))
     for name, q in (("p10_price", 0.10), ("p25_price", 0.25), ("median_price", 0.50)):
-        # first listing whose cumulative quantity reaches q of the item's total
+        # first listing whose cumulative quantity reaches q of the version's total
         hit = df[df["cum"] >= q * df["total"]]
-        out[name] = hit.groupby("item_id")["price"].first()
-    return out.reset_index()[["item_id", "listings", "quantity", "min_price", "p10_price",
-                              "p25_price", "median_price", "max_price"]]
+        out[name] = hit.groupby(keys)["price"].first()
+    return out.reset_index()[SUMMARY_COLUMNS]
 
 
 # ---------- main ----------
@@ -220,6 +234,13 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             run["items"] = {"error": f"{type(e).__name__}: {e}"[:300]}
             print(f"Item lookup failed: {run['items']['error']}")
+        try:
+            seen_bonus = {int(b) for v in table["variant"].unique() if v for b in v.split(":")}
+            run["bonuses"] = bonuses.update(store, seen_bonus)
+            print(f"Bonuses: {run['bonuses']}")
+        except Exception as e:  # noqa: BLE001
+            run["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
+            print(f"Bonus lookup failed: {run['bonuses']['error']}")
         store.put("state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
                   "application/json")
         print(f"Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "

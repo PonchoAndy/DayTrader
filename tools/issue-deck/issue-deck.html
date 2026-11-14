@@ -554,6 +554,9 @@ $("track").addEventListener("scroll", () => {
 }, { passive: true });
 $("prev").addEventListener("click", () => step(-1));
 $("next").addEventListener("click", () => step(1));
+window.addEventListener("hashchange", () => {
+  const h = /^#i(\d+)$/.exec(location.hash || ""); if (h && S.loaded) revealIssue(+h[1]);
+});
 document.addEventListener("keydown", (e) => {
   if (/^(TEXTAREA|INPUT|SELECT)$/.test(e.target.tagName)) return;
   if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); }
@@ -721,7 +724,14 @@ async function undoReply(n, id, kind, btn) {
   db.collection("issues").onSnapshot((snap) => {
     clearTimeout(timer); notice("");
     S.issues = snap.docs.map((d) => d.data()).filter((x) => x && typeof x.number === "number");
-    S.loaded = true; showSynced(); safeRender();
+    const firstLoad = !S.loaded;
+    S.loaded = true; showSynced();
+    // A link like …#i30 should land on that card even if it's closed or outside the current filter.
+    if (firstLoad && S.current != null) {
+      const t = S.issues.find((x) => x.number === S.current);
+      if (t && !matches(t)) { S.filter = "all"; if (!isOpen(t)) S.showClosed = true; syncFilterUI(); }
+    }
+    safeRender();
   }, (e) => {
     clearTimeout(timer); S.loaded = true; status("bad", "Couldn’t load");
     notice(`<span>Your issues didn’t load (${escapeHtml(e?.code || "error")}). Reload the page to try again.</span>`); safeRender();
