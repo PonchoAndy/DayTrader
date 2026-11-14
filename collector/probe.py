@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-import os
 import random
 import sys
 import time
@@ -28,43 +27,9 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
+from blizzard import Api, faction_of
 
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def get_token(session: requests.Session) -> str:
-    cid, secret = os.environ.get("BLIZZARD_CLIENT_ID"), os.environ.get("BLIZZARD_CLIENT_SECRET")
-    auth = (cid, secret) if cid and secret else None  # None: the cloud proxy injects the key
-    r = session.post("https://oauth.battle.net/token", data={"grant_type": "client_credentials"}, auth=auth, timeout=30)
-    r.raise_for_status()
-    return r.json()["access_token"]
-
-
-class Api:
-    def __init__(self, region: str):
-        self.s = requests.Session()
-        self.base = f"https://{region}.api.blizzard.com"
-        self.dynamic = f"dynamic-forever-{region}"
-        self.static = f"static-forever-{region}"
-        self.s.headers["Authorization"] = f"Bearer {get_token(self.s)}"
-
-    def get(self, path: str, namespace: str, retries: int = 3) -> requests.Response:
-        url = self.base + path
-        for attempt in range(retries):
-            r = self.s.get(url, params={"locale": "en_US"}, headers={"Battlenet-Namespace": namespace}, timeout=120)
-            if r.status_code == 429 or r.status_code >= 500:
-                time.sleep(2 ** attempt)
-                continue
-            return r
-        return r
-
-
-def faction_of(name: str) -> str:
-    for f in ("Alliance", "Horde", "Blackwater"):
-        if f.lower() in name.lower():
-            return f
-    return "Unknown"
 
 
 def save(path: Path, raw: bytes) -> int:

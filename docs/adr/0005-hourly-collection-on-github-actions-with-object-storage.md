@@ -1,6 +1,6 @@
 # 0005. Hourly collection on GitHub Actions, data in object storage
 
-- **Status:** Partly accepted. **Storage: Accepted** (2026-11-13, PonchoAndy/DayTrader#6). Scheduler, language and dashboard: Proposed, waiting on PonchoAndy/DayTrader#5.
+- **Status:** Partly accepted. **Storage: Accepted** (2026-11-13, PonchoAndy/DayTrader#6). Scheduler and language: Accepted in [0006](0006-private-repo-hourly-collector-on-github-actions.md) (2026-11-14). Dashboard: Proposed.
 - **Date:** 2026-11-13
 
 ## Context

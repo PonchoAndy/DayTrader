@@ -211,6 +211,8 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   without code changes.
 - **Storage: Cloudflare R2** (bucket `daytrader-data`), small overage charges OK. Raw pulls
   kept ~7 days; hourly summaries a few months; daily summaries indefinitely. (ADR 0005, #6)
+- **Collector: private repo, Python, GitHub Actions hourly at :27** (Blizzard refreshes at ~:17).
+  Raw pulls ~10 MB gzipped per snapshot; per-item summaries ~0.6 MB Parquet. (ADR 0006, #5, #9)
 
 ## 6. Open questions for you
 
