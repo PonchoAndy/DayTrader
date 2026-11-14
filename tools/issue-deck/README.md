@@ -35,3 +35,4 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
   - **Refresh** (top) runs the same path to pull changes from GitHub.
   - If the background session is archived or recreated, create a new task with
     `persistent_session_id` pointing at it and update `SYNC_TRIGGER` in the page.
+- **Deep links:** `…/artifact/RpKHZGqfrwCjAqB9tDBDvL#i<N>` opens issue N's card, revealing it even if it's closed or filtered out.
