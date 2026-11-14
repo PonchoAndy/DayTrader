@@ -150,12 +150,17 @@ footer.src { font-size: 12.5px; color: var(--muted); }
       <p class="note">Blackwater, the neutral auction house, is open to both factions, so it's a second market you can always reach. These items cost less in one market than they sell for in the other, after the auction house's cut.</p>
     </header>
     <div class="tabs" role="group" aria-label="Direction">
-      <button type="button" class="tab" data-dir="fromBW" aria-pressed="true">Buy in Blackwater, sell at home</button>
-      <button type="button" class="tab" data-dir="toBW" aria-pressed="false">Buy at home, sell in Blackwater</button>
+      <button type="button" class="tab" data-dir="bridge" aria-pressed="true">Sell to the other faction via Blackwater</button>
+      <button type="button" class="tab" data-dir="fromBW" aria-pressed="false">Buy in Blackwater, sell at home</button>
     </div>
-    <div class="field" style="max-width:280px"><label for="sel-bw">Blackwater house</label><select id="sel-bw"></select></div>
+    <p class="note" id="bw-explain"></p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px 14px">
+      <div class="field" id="f-other"><label for="sel-other">Their faction's house</label><select id="sel-other"></select></div>
+      <div class="field"><label for="sel-bw">Blackwater house</label><select id="sel-bw"></select></div>
+    </div>
     <div class="list" id="l-bw"></div>
-    <p class="flag">Profit assumes a 5% cut at faction houses and 15% at Blackwater, which fan sites report but we haven't confirmed (#13). "Sells for" is the price a quarter of the way up that market's listings, so it's what you could realistically list at, not a lucky high.</p>
+    <p class="note" id="bw-hidden"></p>
+    <p class="flag">We don't know yet which houses share a world, so the other faction's house and the Blackwater house default to the ones of the same size; change them if you know better. Profit assumes a 5% cut at faction houses and 15% at Blackwater, which fan sites report but we haven't confirmed (#13). "Sells for" is the price a quarter of the way up that market's listings, so it's what you could realistically list at, not a lucky high.</p>
   </section>
 
   <section class="panel" aria-labelledby="h-same">
@@ -208,22 +213,34 @@ function showTip(e, text) { tip.textContent = text; tip.hidden = false; const x 
 for (const ev of ["pointermove", "pointerdown"]) document.addEventListener(ev, (e) => { const t = e.target.closest && e.target.closest("[data-tip]"); if (t) showTip(e, t.dataset.tip); else tip.hidden = true; });
 
 // ---- state ----
-const S = { ruleset: store.get("ruleset") || "2", faction: store.get("faction") || "Horde", house: +store.get("house") || 0, bw: store.get("bw") || "all", dir: "fromBW" };
+const S = { ruleset: store.get("ruleset") || "2", faction: store.get("faction") || "Horde", house: +store.get("house") || 0, bw: store.get("bw") || "", other: +store.get("other") || 0, dir: "bridge" };
+const otherFaction = () => (S.faction === "Horde" ? "Alliance" : "Horde");
+const rankOf = (h) => FAC[S.faction].indexOf(h);
+function defaultsForHouse() { const i = Math.max(0, rankOf(S.house)); S.other = FAC[otherFaction()][i]; S.bw = String(BW[i]); }
 if (!FAC[S.faction]) S.faction = "Horde";
 if (!FAC[S.faction].includes(S.house)) S.house = FAC[S.faction][0];
+if (!FAC[otherFaction()].includes(S.other) || !(S.bw === "all" || BW.includes(+S.bw))) defaultsForHouse();
 
 function fillHouses() {
   $("sel-house").innerHTML = FAC[S.faction].map((h) => `<option value="${h}">House ${h} · ${sizeLabel(h)}</option>`).join("");
   $("sel-house").value = S.house;
-  $("sel-bw").innerHTML = `<option value="all">All Blackwater houses</option>` + BW.map((h) => `<option value="${h}">Blackwater ${h} · ${sizeLabel(h)}</option>`).join("");
+  $("sel-other").innerHTML = FAC[otherFaction()].map((h, i) => `<option value="${h}">${otherFaction()} ${h} · ${sizeLabel(h)}${i === rankOf(S.house) ? " (same size)" : ""}</option>`).join("");
+  $("sel-other").value = S.other;
+  const bwOpts = BW.map((h, i) => `<option value="${h}">Blackwater ${h} · ${sizeLabel(h)}${i === rankOf(S.house) ? " (same size)" : ""}</option>`).join("");
+  $("sel-bw").innerHTML = (S.dir === "fromBW" ? `<option value="all">All Blackwater houses</option>` : "") + bwOpts;
+  if (S.dir === "bridge" && S.bw === "all") S.bw = String(BW[Math.max(0, rankOf(S.house))]);
   $("sel-bw").value = S.bw;
+  $("f-other").hidden = S.dir !== "bridge";
 }
 function syncControls() { $("sel-ruleset").value = S.ruleset; $("sel-faction").value = S.faction; fillHouses(); }
 $("sel-ruleset").addEventListener("change", (e) => { S.ruleset = e.target.value; store.set("ruleset", S.ruleset); render(); });
-$("sel-faction").addEventListener("change", (e) => { S.faction = e.target.value; S.house = FAC[S.faction][0]; store.set("faction", S.faction); store.set("house", S.house); fillHouses(); render(); });
-$("sel-house").addEventListener("change", (e) => { S.house = +e.target.value; store.set("house", S.house); render(); });
-$("sel-bw").addEventListener("change", (e) => { S.bw = e.target.value; store.set("bw", S.bw); renderBW(); });
-document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { S.dir = b.dataset.dir; document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", String(t === b))); renderBW(); }));
+function saveSel() { store.set("faction", S.faction); store.set("house", S.house); store.set("other", S.other); store.set("bw", S.bw); }
+$("sel-faction").addEventListener("change", (e) => { S.faction = e.target.value; S.house = FAC[S.faction][0]; defaultsForHouse(); saveSel(); fillHouses(); render(); });
+$("sel-house").addEventListener("change", (e) => { S.house = +e.target.value; defaultsForHouse(); saveSel(); fillHouses(); render(); });
+$("sel-other").addEventListener("change", (e) => { S.other = +e.target.value; saveSel(); renderBW(); });
+$("sel-bw").addEventListener("change", (e) => { S.bw = e.target.value; saveSel(); renderBW(); });
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { S.dir = b.dataset.dir; document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", String(t === b))); fillHouses(); renderBW(); }));
+const named = (key) => U.names[key] && !/^Item \d+$/.test(U.names[key].display);
 
 // ---- pieces ----
 function nameHTML(key) {
@@ -270,7 +287,7 @@ function moverRows(listId, rows, kind) {
   const box = $(listId);
   if (!rows || !rows.length) { box.innerHTML = `<div class="empty">Nothing stands out in this house right now.</div>`; return; }
   box.replaceChildren();
-  for (const r of rows.slice(0, 8)) {
+  for (const r of rows.filter((r) => named(r.key)).slice(0, 8)) {
     const s = r.series, first = s.find((x) => x[0] != null), last = s[3];
     const dp = pct(first[0], last[0]), dq = pct(first[1], last[1]);
     const row = document.createElement("div"); row.className = "row";
@@ -290,18 +307,39 @@ function oppRows(box, list, homeLabel) {
     <div class="nums"><b class="pos">+${fmtG(o.net)}</b><div class="muted">per unit</div></div></div>`).join("");
 }
 function renderBW() {
-  const C = U.cross[S.house], dir = S.dir, sets = C[dir], keys = S.bw === "all" ? BW : [+S.bw];
-  const home = `house ${S.house}`;
+  const home = `your house (${S.house})`;
+  if (S.dir === "bridge") {
+    const them = otherFaction(), list = ((U.bridge[S.house] || {})[S.other] || {})[S.bw] || [];
+    $("bw-explain").innerHTML = `Buy cheaply at home and list in Blackwater just below what the ${them} pay at their own house. They save by buying yours; you profit after Blackwater's 15% cut. Both sides win, so these should actually sell.`;
+    const shown = list.filter((o) => named(o.key)), hidden = list.length - shown.length;
+    $("bw-hidden").textContent = hidden ? `${hidden} unnamed item${hidden > 1 ? "s" : ""} hidden (no name in Blizzard's databases yet).` : "";
+    const box = $("l-bw");
+    if (!shown.length) { box.innerHTML = `<div class="empty">No matched trades for this combination right now.</div>`; return; }
+    box.innerHTML = shown.slice(0, 10).map((o) => {
+      const save = Math.round((1 - o.list / o.their) * 100);
+      const chips = [o.theirListings < 5 ? `<span class="chip">thin market: ${o.theirListings} listed on their side</span>` : "",
+        o.bwMin != null ? `<span class="chip bw">Blackwater already has ${o.bwQty} at ${fmtG(o.bwMin)}</span>` : `<span class="chip bw">none in Blackwater yet</span>`].join(" ");
+      return `<div class="row"><div>${nameHTML(o.key)}
+        <div class="imeta">You buy at <b>${fmtG(o.buy)}</b> at home (${o.buyQty} available) → list in Blackwater ${S.bw} at <b>${fmtG(o.list)}</b></div>
+        <div class="imeta">${them} pay <b>${fmtG(o.their)}</b> at house ${S.other}, so they save ${save}% buying yours</div>
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${chips}</div></div>
+        <div class="nums"><b class="pos">+${fmtG(o.net)}</b><div class="muted">your profit per unit</div></div></div>`;
+    }).join("");
+    return;
+  }
+  $("bw-explain").textContent = "Items listed in Blackwater for less than they sell for in your house. Buy there, list at home.";
+  const sets = U.cross[S.house].fromBW, keys = S.bw === "all" ? BW : [+S.bw];
   let all = [];
-  for (const b of keys) for (const o of sets[b] || []) all.push({ ...o, buyAt: dir === "fromBW" ? `Blackwater ${b}` : home, sellAt: dir === "fromBW" ? home : `Blackwater ${b}` });
+  for (const b of keys) for (const o of sets[b] || []) all.push({ ...o, buyAt: `Blackwater ${b}`, sellAt: home });
   all.sort((p, q) => q.net - p.net);
-  const seen = new Set(); all = all.filter((o) => (seen.has(o.key) ? false : (seen.add(o.key), true)));
+  const seen = new Set(); all = all.filter((o) => named(o.key) && (seen.has(o.key) ? false : (seen.add(o.key), true)));
+  $("bw-hidden").textContent = "";
   oppRows($("l-bw"), all, home);
 }
 function renderSame() {
   const C = U.cross[S.house].fromSame; let all = [];
   for (const [h, list] of Object.entries(C)) for (const o of list) all.push({ ...o, buyAt: `house ${h}`, sellAt: `house ${S.house}` });
-  all.sort((p, q) => q.net - p.net); const seen = new Set(); all = all.filter((o) => (seen.has(o.key) ? false : (seen.add(o.key), true)));
+  all.sort((p, q) => q.net - p.net); const seen = new Set(); all = all.filter((o) => named(o.key) && (seen.has(o.key) ? false : (seen.add(o.key), true)));
   oppRows($("l-same"), all);
 }
 function renderWhich() {
