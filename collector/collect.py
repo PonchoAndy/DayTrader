@@ -58,6 +58,27 @@ class LocalStore:
         return str(self.root)
 
 
+def r2_endpoint(raw: str, bucket: str) -> str:
+    """Tidy the R2_ENDPOINT secret: trim spaces/newlines, add https:// if missing, and drop a
+    trailing /<bucket> path (Cloudflare shows the endpoint both with and without it)."""
+    from urllib.parse import urlsplit
+
+    v = raw.strip().strip('"').strip("'").strip()
+    if "://" not in v:
+        v = "https://" + v
+    u = urlsplit(v)
+    path = u.path.strip("/")
+    # Describe the shape without revealing the value (GitHub masks it in logs anyway).
+    print(f"R2 endpoint: scheme={u.scheme or '-'} host=*{(u.hostname or '')[-24:]} "
+          f"path={'/' + path if path else '(none)'} length={len(raw)} had_whitespace={raw != raw.strip()}")
+    if path == bucket:
+        path = ""
+    if not u.hostname or path:
+        raise SystemExit("R2_ENDPOINT doesn't look like https://<account-id>.r2.cloudflarestorage.com "
+                         "(see the shape above). Fix the GitHub secret and re-run.")
+    return f"{u.scheme}://{u.netloc}"
+
+
 class R2Store:
     def __init__(self, bucket: str):
         import boto3  # only needed when writing to R2
@@ -65,7 +86,7 @@ class R2Store:
         self.bucket = bucket
         self.s3 = boto3.client(
             "s3",
-            endpoint_url=os.environ["R2_ENDPOINT"],
+            endpoint_url=r2_endpoint(os.environ["R2_ENDPOINT"], bucket),
             aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
             aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
             region_name="auto",
