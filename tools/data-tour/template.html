@@ -1,0 +1,323 @@
+<title>DayTrader Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sticky "where you trade" bar (ruleset, faction, house) drives every panel below: your market, floods & shortages, Blackwater trades, other houses. Shares the Issue Deck's palette and type. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a; --series: #6250d6; --series-soft: #e6e2fb;
+  --up: #006300; --down: #b3261e;
+  --q-poor: #7a7a7a; --q-common: #3d4650; --q-uncommon: #1a8f00; --q-rare: #0062c4; --q-epic: #8a2bd1;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font: 15px/1.55 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 22px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 18px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 26px/1.15 var(--f-display); margin: 4px 0 0; }
+h2 { font: 600 19px/1.25 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 15px/1.3 var(--f-display); margin: 0; }
+p { margin: 0; max-width: 70ch; }
+.muted, .note { color: var(--muted); }
+.note { font-size: 13.5px; }
+/* where-you-trade bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; box-shadow: 0 6px 18px rgba(20,30,40,.06); }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font: 600 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.field select { font: 500 14.5px var(--f-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 30px 8px 10px; min-width: 9.5em; max-width: 100%; }
+.field select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.barnote { flex: 1 1 220px; font-size: 12.5px; color: var(--muted); }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+/* panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel > header { display: flex; flex-direction: column; gap: 4px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; }
+.stat b { font: 600 20px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.action { font: 600 10.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px; border-radius: 5px; align-self: flex-start; }
+.action.buy { color: var(--up); background: color-mix(in srgb, var(--up) 14%, transparent); }
+.action.sell { color: var(--down); background: color-mix(in srgb, var(--down) 13%, transparent); }
+/* item rows */
+.list { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.iname { font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
+.iname .qdot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; vertical-align: 1px; }
+.imeta { font-size: 12.5px; color: var(--muted); }
+.nums { text-align: right; font-variant-numeric: tabular-nums; font-size: 13.5px; white-space: nowrap; }
+.nums b { font-size: 14.5px; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.spark { grid-column: 1 / -1; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); align-items: center; }
+.spark svg { width: 120px; height: 28px; overflow: visible; }
+.empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+.chip { font: 500 12px/1 var(--f-mono); padding: 3px 6px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.bw { color: var(--blackwater); border-color: color-mix(in srgb, var(--blackwater) 40%, transparent); }
+.flag { font-size: 13px; background: var(--gold-soft); border-radius: 8px; padding: 8px 12px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.t { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.t th, .t td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.t th { background: var(--surface-2); color: var(--muted); font-weight: 500; font-size: 12.5px; }
+.t td.num, .t th.num { text-align: right; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font-family: var(--f-body); fill: var(--tick); font-size: 11px; }
+svg.chart text.lbl { fill: var(--fg); font-size: 12px; }
+svg.chart text.val { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg.chart .grid { stroke: var(--grid); stroke-width: 1; }
+svg.chart .axis { stroke: var(--axis); stroke-width: 1; }
+svg .hit { fill: transparent; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--fg); color: var(--bg); font: 12.5px/1.4 var(--f-body);
+  padding: 6px 9px; border-radius: 7px; max-width: 260px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.tip[hidden] { display: none; }
+details summary { cursor: pointer; font-size: 13.5px; color: var(--gold); }
+details summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { font: 500 13px/1 var(--f-body); padding: 7px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.tab[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+footer.src { font-size: 12.5px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DayTrader · WoW Forever · prototype</div>
+    <h1>Your market</h1>
+    <p class="muted">An early sketch of the app, built on the first four hourly snapshots (13–14 Nov 2026, 23:17 to 03:17 UTC). Choose where you trade; everything below follows.</p>
+  </header>
+
+  <form class="bar" id="bar" aria-label="Where you trade" onsubmit="return false">
+    <div class="field"><label for="sel-ruleset">Ruleset</label>
+      <select id="sel-ruleset"><option value="2">Normal</option><option value="1">PvP</option><option value="3">Roleplay</option><option value="15">Roleplay PvP</option></select></div>
+    <div class="field"><label for="sel-faction">Faction</label>
+      <select id="sel-faction"><option>Horde</option><option>Alliance</option></select></div>
+    <div class="field"><label for="sel-house">Auction house</label><select id="sel-house"></select></div>
+    <p class="barnote" id="barnote"></p>
+  </form>
+
+  <section class="panel" aria-labelledby="h-glance">
+    <header><h2 id="h-glance">At a glance</h2><p class="note" id="glance-note"></p></header>
+    <div class="stats">
+      <div class="stat"><b id="g-list"></b><span>listings</span></div>
+      <div class="stat"><b id="g-items"></b><span>products on sale</span></div>
+      <div class="stat"><b id="g-value"></b><span>gold of goods listed</span></div>
+    </div>
+    <div><div class="note" style="margin-bottom:6px">Where the gold is (by category)</div><svg class="chart" id="c-cats" role="img" aria-label="Gold listed by category in your house"></svg></div>
+  </section>
+
+  <div class="two">
+    <section class="panel" aria-labelledby="h-flood">
+      <header><span class="action buy">Buy signal</span><h2 id="h-flood">Supply floods</h2>
+        <p class="note">More stock than usual just arrived and the price dropped. Good moments to stock up, if you expect supply to dry up again.</p></header>
+      <div class="list" id="l-flood"></div>
+    </section>
+    <section class="panel" aria-labelledby="h-short">
+      <header><span class="action sell">Sell signal</span><h2 id="h-short">Shortages</h2>
+        <p class="note">Stock is running out and the price is rising. Good moments to list what you're holding.</p></header>
+      <div class="list" id="l-short"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-bw">
+    <header>
+      <h2 id="h-bw">Trades with Blackwater</h2>
+      <p class="note">Blackwater, the neutral auction house, is open to both factions, so it's a second market you can always reach. These items cost less in one market than they sell for in the other, after the auction house's cut.</p>
+    </header>
+    <div class="tabs" role="group" aria-label="Direction">
+      <button type="button" class="tab" data-dir="fromBW" aria-pressed="true">Buy in Blackwater, sell at home</button>
+      <button type="button" class="tab" data-dir="toBW" aria-pressed="false">Buy at home, sell in Blackwater</button>
+    </div>
+    <div class="field" style="max-width:280px"><label for="sel-bw">Blackwater house</label><select id="sel-bw"></select></div>
+    <div class="list" id="l-bw"></div>
+    <p class="flag">Profit assumes a 5% cut at faction houses and 15% at Blackwater, which fan sites report but we haven't confirmed (#13). "Sells for" is the price a quarter of the way up that market's listings, so it's what you could realistically list at, not a lucky high.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-same">
+    <header>
+      <h2 id="h-same">Your faction's other houses</h2>
+      <p class="note">Same idea, between the houses of your own faction. Only useful if one character can reach more than one of them, which we don't know yet.</p>
+    </header>
+    <details id="d-same"><summary>Show the gaps anyway</summary><div class="list" id="l-same" style="margin-top:8px"></div></details>
+  </section>
+
+  <section class="panel" aria-labelledby="h-which">
+    <header>
+      <h2 id="h-which">Which house are you in?</h2>
+      <p class="note">Each faction has five auction houses in the data (one always empty), and we don't yet know what separates them: different cities, different servers, or something else. You can tell us in two minutes in-game.</p>
+    </header>
+    <ol class="note" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+      <li>At an auction house, search for one of the items below and note the cheapest price per unit.</li>
+      <li>Do the same at an auction house in another city.</li>
+      <li>Tell Claude the prices and where you were. Claude matches them to fresh data from that hour.</li>
+    </ol>
+    <div class="tablewrap"><table class="t" id="t-which"></table></div>
+    <p class="note">Prices shown are from 03:17 UTC and will have moved. They show the idea: each house has its own distinct price.</p>
+  </section>
+
+  <footer class="src">Source: Blizzard Game Data API (WoW Forever, US) hourly snapshots 23:17, 00:17, 02:17, 03:17 UTC; names from Blizzard's item databases and WoW Forever's game files. Floods and shortages compare 23:17 with 03:17, for items worth at least 5 g listed. Market size = units × typical price, capped at 3× the item's typical price across houses.</footer>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script>
+const U = __UXDATA__;
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const FAC = { Alliance: [110, 111, 123, 119], Horde: [113, 114, 124, 120] };
+const BW = [116, 117, 121, 125];
+const FCOL = { Alliance: "var(--alliance)", Horde: "var(--horde)", Blackwater: "var(--blackwater)" };
+const QCOL = { POOR: "var(--q-poor)", COMMON: "var(--q-common)", UNCOMMON: "var(--q-uncommon)", RARE: "var(--q-rare)", EPIC: "var(--q-epic)" };
+const g = (c) => c / 10000;
+const fmtG = (c) => { const v = g(c); return (v >= 100 ? Math.round(v).toLocaleString() : v >= 1 ? v.toFixed(2) : v.toFixed(3)) + " g"; };
+const gsc = (c) => { c = Math.round(c); const G = Math.floor(c / 10000), S = Math.floor(c % 10000 / 100), C = c % 100; return [G && G.toLocaleString() + "g", (G || S) && S + "s", C + "c"].filter(Boolean).join(" "); };
+const k = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(Math.round(n));
+const pct = (a, b) => Math.round(((b - a) / a) * 100);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const [a, v] of Object.entries(attrs || {})) e.setAttribute(a, v); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+function sizeLabel(h) { const v = U.houses[h].value; return v > 150000 ? "large" : v > 25000 ? "medium" : "small"; }
+
+// ---- tooltip ----
+const tip = $("tip");
+function showTip(e, text) { tip.textContent = text; tip.hidden = false; const x = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8), y = Math.max(8, e.clientY - tip.offsetHeight - 10); tip.style.left = x + "px"; tip.style.top = y + "px"; }
+for (const ev of ["pointermove", "pointerdown"]) document.addEventListener(ev, (e) => { const t = e.target.closest && e.target.closest("[data-tip]"); if (t) showTip(e, t.dataset.tip); else tip.hidden = true; });
+
+// ---- state ----
+const S = { ruleset: store.get("ruleset") || "2", faction: store.get("faction") || "Horde", house: +store.get("house") || 0, bw: store.get("bw") || "all", dir: "fromBW" };
+if (!FAC[S.faction]) S.faction = "Horde";
+if (!FAC[S.faction].includes(S.house)) S.house = FAC[S.faction][0];
+
+function fillHouses() {
+  $("sel-house").innerHTML = FAC[S.faction].map((h) => `<option value="${h}">House ${h} · ${sizeLabel(h)}</option>`).join("");
+  $("sel-house").value = S.house;
+  $("sel-bw").innerHTML = `<option value="all">All Blackwater houses</option>` + BW.map((h) => `<option value="${h}">Blackwater ${h} · ${sizeLabel(h)}</option>`).join("");
+  $("sel-bw").value = S.bw;
+}
+function syncControls() { $("sel-ruleset").value = S.ruleset; $("sel-faction").value = S.faction; fillHouses(); }
+$("sel-ruleset").addEventListener("change", (e) => { S.ruleset = e.target.value; store.set("ruleset", S.ruleset); render(); });
+$("sel-faction").addEventListener("change", (e) => { S.faction = e.target.value; S.house = FAC[S.faction][0]; store.set("faction", S.faction); store.set("house", S.house); fillHouses(); render(); });
+$("sel-house").addEventListener("change", (e) => { S.house = +e.target.value; store.set("house", S.house); render(); });
+$("sel-bw").addEventListener("change", (e) => { S.bw = e.target.value; store.set("bw", S.bw); renderBW(); });
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { S.dir = b.dataset.dir; document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", String(t === b))); renderBW(); }));
+
+// ---- pieces ----
+function nameHTML(key) {
+  const n = U.names[key] || { display: key };
+  const meta = [n.sub || n.cls].filter(Boolean).join(" · ");
+  return `<div class="iname"><span class="qdot" style="background:${QCOL[n.q] || "var(--muted)"}" title="${esc((n.q || "").toLowerCase())} quality"></span>${esc(n.display)}</div>${meta ? `<div class="imeta">${esc(meta)}</div>` : ""}`;
+}
+function spark(vals, color, label) {
+  const svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", "0 0 120 28");
+  const xs = [0, 1, 3, 4].map((h) => 4 + (h / 4) * 112); const v = vals.map((x) => (x == null ? null : x));
+  const nums = v.filter((x) => x != null), lo = Math.min(...nums), hi = Math.max(...nums), ys = (x) => 24 - ((x - lo) / (hi - lo || 1)) * 20;
+  const pts = v.map((x, i) => (x == null ? null : [xs[i], ys(x)])).filter(Boolean);
+  el("polyline", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  const last = pts[pts.length - 1]; el("circle", { cx: last[0], cy: last[1], r: 3, fill: color }, svg);
+  el("rect", { x: 0, y: 0, width: 120, height: 28, class: "hit", "data-tip": label }, svg);
+  return svg;
+}
+function hbars(svgId, rows, fmt, color) {
+  const svg = $(svgId); svg.replaceChildren();
+  const W = Math.max(280, Math.round(svg.parentElement.getBoundingClientRect().width)), labelW = 118, padR = 58, rowH = 24, h = rows.length * rowH + 20;
+  svg.setAttribute("viewBox", `0 0 ${W} ${h}`);
+  const max = Math.max(...rows.map((r) => r.value), 1), x = (v) => labelW + (v / max) * (W - labelW - padR);
+  rows.forEach((r, i) => {
+    const y = i * rowH + 3, bh = rowH - 9, w = Math.max(2, x(r.value) - labelW);
+    el("text", { x: labelW - 8, y: y + bh / 2 + 4, "text-anchor": "end", class: "lbl" }, svg, r.label);
+    el("path", { d: `M${labelW},${y} h${Math.max(0, w - 4)} q4,0 4,4 v${bh - 8} q0,4 -4,4 h${-Math.max(0, w - 4)} z`, fill: color }, svg);
+    el("text", { x: labelW + w + 6, y: y + bh / 2 + 4, class: "val" }, svg, fmt(r.value));
+    el("rect", { x: 0, y: y - 3, width: W, height: rowH, class: "hit", "data-tip": `${r.label}: ${r.value.toLocaleString()} g listed` }, svg);
+  });
+  el("line", { x1: labelW, x2: labelW, y1: 0, y2: h - 16, class: "axis" }, svg);
+}
+
+// ---- renderers ----
+function renderGlance() {
+  const H = U.houses[S.house];
+  $("g-list").textContent = H.listings.toLocaleString();
+  $("g-items").textContent = H.items.toLocaleString();
+  $("g-value").textContent = k(H.value) + " g";
+  const share = Math.round((H.value / FAC[S.faction].reduce((s, h) => s + U.houses[h].value, 0)) * 100);
+  $("glance-note").innerHTML = `<span class="swatch" style="background:${FCOL[S.faction]}"></span>${S.faction} house ${S.house}: ${share}% of your faction's market by value.`;
+  hbars("c-cats", H.cats.map(([n, v]) => ({ label: n, value: v })), (v) => k(v) + " g", FCOL[S.faction]);
+}
+function moverRows(listId, rows, kind) {
+  const box = $(listId);
+  if (!rows || !rows.length) { box.innerHTML = `<div class="empty">Nothing stands out in this house right now.</div>`; return; }
+  box.replaceChildren();
+  for (const r of rows.slice(0, 8)) {
+    const s = r.series, first = s.find((x) => x[0] != null), last = s[3];
+    const dp = pct(first[0], last[0]), dq = pct(first[1], last[1]);
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<div>${nameHTML(r.key)}</div><div class="nums"><b>${fmtG(last[0])}</b><div class="${dp < 0 ? "neg" : "pos"}">${dp > 0 ? "+" : ""}${dp}% price</div></div><div class="spark"></div>`;
+    const sp = row.querySelector(".spark");
+    const times = U.times;
+    const lblP = "Typical price: " + s.map((x, i) => `${times[i]} ${x[0] == null ? "–" : fmtG(x[0])}`).join(", ");
+    const lblQ = "Units listed: " + s.map((x, i) => `${times[i]} ${x[1] == null ? "–" : x[1].toLocaleString()}`).join(", ");
+    const a = document.createElement("span"); a.textContent = "price"; sp.append(a, spark(s.map((x) => x[0]), "var(--horde)", lblP));
+    const b = document.createElement("span"); b.textContent = `stock ${first[1].toLocaleString()} → ${last[1].toLocaleString()} (${dq > 0 ? "+" : ""}${dq}%)`; sp.append(b, spark(s.map((x) => x[1]), "var(--series)", lblQ));
+    box.append(row);
+  }
+}
+function oppRows(box, list, homeLabel) {
+  if (!list.length) { box.innerHTML = `<div class="empty">No trades clear the bar (at least 20% and 0.20 g profit per unit) for this combination right now.</div>`; return; }
+  box.innerHTML = list.slice(0, 10).map((o) => `<div class="row"><div>${nameHTML(o.key)}<div class="imeta">Buy at <b>${fmtG(o.buy)}</b> in ${o.buyAt} (${o.buyQty} available) → sells for <b>${fmtG(o.sell)}</b> in ${o.sellAt} (${o.sellListings} listed)</div></div>
+    <div class="nums"><b class="pos">+${fmtG(o.net)}</b><div class="muted">per unit</div></div></div>`).join("");
+}
+function renderBW() {
+  const C = U.cross[S.house], dir = S.dir, sets = C[dir], keys = S.bw === "all" ? BW : [+S.bw];
+  const home = `house ${S.house}`;
+  let all = [];
+  for (const b of keys) for (const o of sets[b] || []) all.push({ ...o, buyAt: dir === "fromBW" ? `Blackwater ${b}` : home, sellAt: dir === "fromBW" ? home : `Blackwater ${b}` });
+  all.sort((p, q) => q.net - p.net);
+  const seen = new Set(); all = all.filter((o) => (seen.has(o.key) ? false : (seen.add(o.key), true)));
+  oppRows($("l-bw"), all, home);
+}
+function renderSame() {
+  const C = U.cross[S.house].fromSame; let all = [];
+  for (const [h, list] of Object.entries(C)) for (const o of list) all.push({ ...o, buyAt: `house ${h}`, sellAt: `house ${S.house}` });
+  all.sort((p, q) => q.net - p.net); const seen = new Set(); all = all.filter((o) => (seen.has(o.key) ? false : (seen.add(o.key), true)));
+  oppRows($("l-same"), all);
+}
+function renderWhich() {
+  const rows = U.houseCheck[S.faction], hs = FAC[S.faction];
+  $("t-which").innerHTML = `<thead><tr><th>Item</th>${hs.map((h) => `<th class="num">House ${h}${h === S.house ? " (yours)" : ""}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${esc(r.name)}</td>${hs.map((h) => `<td class="num">${gsc(r.prices[h])}</td>`).join("")}</tr>`).join("") + "</tbody>";
+}
+function render() {
+  $("barnote").textContent = S.ruleset === "2"
+    ? "Every ruleset currently sees the same auction houses, so changing ruleset won't change the numbers yet."
+    : "Heads-up: every ruleset currently sees the same auction houses, so these are the same numbers as Normal.";
+  renderGlance();
+  moverRows("l-flood", U.movers[S.house].flood, "flood");
+  moverRows("l-short", U.movers[S.house].short, "short");
+  renderBW(); renderSame(); renderWhich();
+}
+syncControls(); render();
+let lastW = innerWidth, rz; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rz); rz = setTimeout(renderGlance, 150); });
+</script>
