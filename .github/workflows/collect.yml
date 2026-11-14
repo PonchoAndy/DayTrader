@@ -12,10 +12,6 @@ on:
         description: "Collect even if Blizzard hasn't published new data"
         type: boolean
         default: false
-      dump_bonuses:
-        description: "Instead of collecting, print the version-name table (temporary, for the data tour)"
-        type: boolean
-        default: false
 
 concurrency:
   group: collect
@@ -35,12 +31,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Print version names
-        if: ${{ inputs.dump_bonuses }}
-        working-directory: collector
-        run: python -c "import bonuses, json; t = bonuses.fetch(); print('BONUSJSON' + t[['bonus_id','suffix','stats']].to_json(orient='values'))"
       - name: Collect
-        if: ${{ !inputs.dump_bonuses }}
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
