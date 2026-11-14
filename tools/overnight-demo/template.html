@@ -103,7 +103,7 @@ tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--surface-2); }
   <section aria-labelledby="ex-h">
     <div class="sechead">
       <h2 id="ex-h">Item explorer</h2>
-      <p class="muted">About a hundred trade goods picked from the night's data for being interesting. Pick one to see its price and supply hour by hour on the two big houses of each faction, plus Blackwater.</p>
+      <p class="muted"><span id="nitems"></span> trade goods picked from the data for being interesting. Pick one to see its price and supply hour by hour on the two big houses of each faction, plus Blackwater.</p>
     </div>
     <div class="explorer">
       <div class="side">
@@ -162,7 +162,7 @@ function niceTicks(lo, hi, n) {
   if (hi <= lo) hi = lo + 1;
   const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
-  const out = []; for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(+v.toFixed(10));
+  const out = [], end = Math.ceil(hi / step - 1e-9) * step; for (let v = Math.floor(lo / step) * step; v <= end + step * 1e-9; v += step) out.push(+v.toFixed(10));
   return out;
 }
 function lineChart({ series, height = 220, yFmt, yMin0 = true }) {
@@ -202,7 +202,10 @@ document.getElementById("tide").innerHTML = lineChart({
   const h = facTot.horde, iMax = h.indexOf(Math.max(...h));
   const drop = Math.round((1 - h[h.length - 1] / h[iMax]) * 100);
   document.getElementById("tide-note").textContent = drop > 3
-    ? `Horde listings peaked at ${num(h[iMax])} around ${fmtTime(T[iMax])} and are ${drop}% lower now. Supply builds while people play in the evening, then drains as auctions sell or expire overnight. A few more days will show whether this repeats every day.`
+    ? (() => { const lo = Math.min(...h), iLo = h.indexOf(lo), back = Math.round((h[h.length - 1] / lo - 1) * 100);
+        return `Horde listings peaked at ${num(h[iMax])} around ${fmtTime(T[iMax])}, fell ${Math.round((1 - lo / h[iMax]) * 100)}% to ${num(lo)} by ${fmtTime(T[iLo])}` +
+          (back > 3 ? `, and have climbed ${back}% since as players come back online.` : ".") +
+          " Auctions sell or expire while fewer people post overnight. A few more days will show whether this repeats every day."; })()
     : `Horde listings now: ${num(h[h.length - 1])}.`;
 }
 
@@ -210,6 +213,7 @@ document.getElementById("tide").innerHTML = lineChart({
 const TAGS = [["all", "All"], ["demand", "Bought up"], ["volatile", "Jumpy price"], ["big market", "Big market"], ["faction gap", "Faction gap"]];
 const TAGTEXT = { "demand": "bought up", "volatile": "jumpy price", "big market": "big market", "faction gap": "faction gap" };
 let tag = "all", sel = null;
+document.getElementById("nitems").textContent = D.items.length;
 const items = D.items.map(it => {
   const h = it.s["113"] || Object.values(it.s)[0];
   return { ...it, now: lastOf(h.p10), then: firstOf(h.p10), qNow: lastOf(h.qty), qThen: firstOf(h.qty) };
@@ -253,7 +257,7 @@ function select(it) {
 }
 function note(it, p, q) {
   const bits = [];
-  if (q != null && q <= -50 && p != null && p > -15) bits.push(`Supply fell ${-q}% while the price held, so people were buying it.`);
+  if (q != null && q <= -50 && p != null && p > -15) bits.push(q <= -97 ? "Almost every unit sold out while the price held, so people were buying it." : `Supply fell ${-q}% while the price held, so people were buying it.`);
   if (q != null && q >= 50) bits.push(`Supply grew ${q}%: sellers piled in.`);
   if (p != null && Math.abs(p) >= 50) bits.push(`The price moved ${signed(p)} in one night.`);
   if (it.tags.includes("faction gap")) bits.push("Horde and Alliance price it very differently, so a Blackwater trade might bridge the gap.");
@@ -263,7 +267,7 @@ function note(it, p, q) {
 /* ---------- drain board ---------- */
 {
   const rows = items.filter(i => i.qThen >= 300 && i.qNow != null).map(i => ({ i, q: pct(i.qThen, i.qNow), p: pct(i.then, i.now) }))
-    .filter(r => r.q < 0).sort((a, b) => a.q - b.q).slice(0, 15);
+    .filter(r => r.q <= -20).sort((a, b) => a.q - b.q).slice(0, 15);
   document.getElementById("drain").innerHTML =
     `<thead><tr><th>Item</th><th class="num">Units then</th><th class="num">Units now</th><th style="width:22%">Drained</th><th class="num">Price</th><th class="num">Price change</th></tr></thead><tbody>` +
     rows.map(r => `<tr class="pick" data-id="${esc(r.i.label)}"><td>${esc(r.i.label)}</td><td class="num">${num(r.i.qThen)}</td><td class="num">${num(r.i.qNow)}</td>
