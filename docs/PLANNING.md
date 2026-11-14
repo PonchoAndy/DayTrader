@@ -1,7 +1,7 @@
 # DayTrader — Planning Notes
 
 Status: **planning / research**. No requirements or MVP yet.
-Last updated: 2026-11-13
+Last updated: 2026-11-14
 
 Goal for now: **grab, analyze, and display** WoW Forever auction house data, so we can find
 profitable trades. Trading/posting automation is out of scope (and against the game's rules).
@@ -53,6 +53,46 @@ How the Forever AH is organized (per the forum thread, checked 2026-11-13 — ve
 time-left bucket). **What it doesn't:** who posted it, and what actually *sold*. Sales have to
 be inferred by diffing snapshots (listing disappeared before its time ran out ≈ probably sold,
 or was cancelled — this is noisy).
+
+### First real snapshot (2026-11-14, `collector/probe.py`, PonchoAndy/DayTrader#9)
+
+Verified with our own key, US region, ruleset 2 (Normal). One full pull of all 15 houses
+(auctions + commodities):
+
+| | |
+|---|---|
+| Time to pull everything | **~13 seconds** |
+| Size | **85 MB raw JSON, 9.3 MB gzipped** (gzip ≈ 9x) |
+| Listings | ~485k auctions + ~448k commodity listings |
+| Distinct items | 6,952 across all houses |
+| Data age | `Last-Modified` 23:17 UTC when pulled at 00:08 UTC → consistent with an hourly refresh (to confirm by pulling over a day) |
+
+Per house (auctions / commodities):
+
+| Faction | Big houses | Medium houses | Empty house |
+|---|---|---|---|
+| Alliance | 110 (88k / 82k), 111 (99k / 78k) | 119 (22k / 24k), 123 (21k / 21k) | 112 |
+| Horde | 113 (104k / 90k), 114 (99k / 81k) | 120 (17k / 16k), 124 (22k / 24k) | 115 |
+| Blackwater | 116 (6k / 13k), 117 (7k / 15k) | 121 (0.4k / 1k), 125 (0.4k / 1.5k) | 118 |
+
+What we learned:
+- Each faction has **two big, two medium and one empty** house. The houses within a faction
+  carry mostly the same items (house 114 shares 93% of 113's items), so they look like separate
+  markets (perhaps separate server groups), not splits of one market. Why there are five is still unknown.
+- **Auctions and commodities are separate**: no shared item IDs or listing IDs between the two
+  endpoints. Both must be pulled.
+- Auction listings: `id, item{id, ...}, buyout, quantity, time_left` (`bid` on only ~0.2%).
+  Commodity listings: `id, item{id}, quantity, unit_price, time_left`.
+- `time_left` buckets: SHORT / MEDIUM / LONG / VERY_LONG.
+- **Item names: only 52.5% of sampled item IDs resolve** (105 of 200; the rest 404). Close to
+  the community's 43% failure figure. We need another source for names (see #9 follow-ups).
+
+Implications:
+- **Storage:** ~9 MB per hourly pull gzipped ≈ 220 MB/day. Keeping 7 days of raw pulls ≈ 1.6 GB,
+  well inside R2's free 10 GB. Summaries will be far smaller.
+- **GitHub Actions minutes:** a pull takes seconds, so an hourly run is ~1 minute including
+  setup, roughly 720 minutes a month. That fits the **private** repo's 2,000 free minutes, so
+  #5 no longer forces a choice between public and every-2-hours.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
