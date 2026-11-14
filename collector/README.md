@@ -11,8 +11,8 @@
 
 | Path | What | Kept |
 |---|---|---|
-| `raw/<YYYY-MM-DD>/<HH>/<snapshot>/house-<id>-<auctions\|commodities>.json.gz` | Blizzard's responses, gzipped (~10 MB per snapshot) | ~7 days (R2 lifecycle rule on `raw/`) |
-| `hourly/<YYYY-MM-DD>/<snapshot>.parquet` | One row per house × kind × item × **variant**: listings, quantity, min / p10 / p25 / median / max unit price (copper). `variant` = the listing's bonus IDs joined with `:` (`""` = no variant; always `""` for commodities). Files before 2026-11-14 ~04:00 UTC have no `variant` column (variants merged). | a few months |
+| `raw/<YYYY-MM-DD>/<HH>/<snapshot>/house-<id>-<auctions\|commodities>.json.gz` | Blizzard's responses, gzipped (~10 MB per snapshot) | 7 days (R2 rule `expire-raw-pulls-7d`) |
+| `hourly/<YYYY-MM-DD>/<snapshot>.parquet` | One row per house × kind × item × **variant**: listings, quantity, min / p10 / p25 / median / max unit price (copper). `variant` = the listing's bonus IDs joined with `:` (`""` = no variant; always `""` for commodities). Files before 2026-11-14 ~04:00 UTC have no `variant` column (variants merged). | 90 days (R2 rule `expire-hourly-summaries-90d`; ADR 0007) |
 | `items/items.parquet` | Item names: `item_id, name, quality, item_class, item_subclass, inventory_type, source, checked_at`. `source` = `forever` / `retail` / `missing`. Join it to the summaries on `item_id`. | indefinitely (~0.3 MB) |
 | `items/bonuses.parquet` | Variant names: `bonus_id, suffix, stats, source_build, fetched_at`, e.g. 12718 → "of the Eagle", "Intellect + Stamina". From WoW Forever's game data on wago.tools (branch `wowf`), refreshed weekly. | replaced weekly |
 | `runs/<YYYY-MM-DD>/<HHMMSS>.json` | Log of each run: result, sizes, timings, errors | indefinitely (tiny) |

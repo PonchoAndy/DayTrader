@@ -24,7 +24,8 @@ The question was how long the detailed hourly tables are worth keeping.
 ## Consequences
 
 - Storage is about 1.6 GB raw + 2.7 GB hourly + small daily files, within R2's free 10 GB.
-- A lifecycle rule on `hourly/` (90 days) is needed. It's set in the Cloudflare dashboard.
+- R2 lifecycle rules, set 2026-11-14: `expire-raw-pulls-7d` (prefix `raw/`, 7 days) and
+  `expire-hourly-summaries-90d` (prefix `hourly/`, 90 days).
 - The review becomes a follow-up around 2027-02-14.
 
 ## Alternatives considered
