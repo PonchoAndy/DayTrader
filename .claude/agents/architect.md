@@ -25,6 +25,9 @@ designing, read what the task touches:
 - `docs/adr/README.md` and every **Accepted** ADR the work touches. These are binding.
   "Proposed" ADRs are not decided yet; you may build on them only if you say so.
 - `docs/PLANNING.md`: research findings, measured data sizes, open questions.
+- `docs/designs/`: earlier designs, and the Strategist's **data requirements** documents. When a
+  requirements document covers your task, design against it: say which requirements your design
+  meets, which it defers, and why.
 - The newest file in `docs/sessions/`: recent state, and the "Gotchas" section (hard-won limits
   of the environment).
 - `collector/README.md`: what's stored, where, and in what shape. Then the code in `collector/`
