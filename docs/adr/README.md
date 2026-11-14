@@ -14,6 +14,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0004](0004-github-issues-and-issue-deck-workflow.md) | GitHub issues as the work tracker, with the Issue Deck | Accepted |
 | [0005](0005-hourly-collection-on-github-actions-with-object-storage.md) | Hourly collection on GitHub Actions, data in object storage | Partly accepted (storage, scheduler, language; dashboard proposed) |
 | [0006](0006-private-repo-hourly-collector-on-github-actions.md) | Private repo; hourly Python collector on GitHub Actions | Accepted |
+| [0007](0007-keep-hourly-summaries-three-months-then-review.md) | Keep hourly summaries 3 months, review their value | Accepted |
 
 ## Statuses
 

@@ -232,6 +232,9 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Collector: private repo, Python, GitHub Actions hourly at :27** (Blizzard refreshes at ~:17).
   Raw pulls ~10 MB gzipped per snapshot; per-item summaries ~0.6 MB Parquet. (ADR 0006, #5, #9)
 
+- **Retention:** raw pulls 7 days; **hourly summaries 3 months**, reviewed for usefulness during
+  that time (shorten if rarely needed); daily summaries indefinitely. (ADR 0007, #26)
+
 ## 6. Open questions for you
 
 1. **Where should it run?** Your PC, GitHub Actions, or a cheap cloud server?
