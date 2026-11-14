@@ -65,6 +65,7 @@ def main() -> int:
             continue  # early files merged variants; skip for comparability
         frames.append(df)
     print(f"{len(files)} hourly files, {len(frames)} with variants")
+    want_demo = "--demo" in sys.argv
     if not frames:
         return 0
     t = pd.concat(frames, ignore_index=True)
@@ -72,7 +73,7 @@ def main() -> int:
     gaps = pd.Series(snaps).diff().dt.total_seconds().div(3600).round(2)
     print(f"From {snaps[0]} to {snaps[-1]}; gaps between snapshots (hours): {gaps.dropna().value_counts().to_dict()}")
 
-    names = pd.read_parquet(io.BytesIO(store.get("items/items.parquet")))[["item_id", "name"]]
+    names = pd.read_parquet(io.BytesIO(store.get("items/items.parquet")))[["item_id", "name", "item_class"]]
     bon = pd.read_parquet(io.BytesIO(store.get("items/bonuses.parquet")))[["bonus_id", "suffix"]]
     suffix = dict(zip(bon["bonus_id"].astype(str), bon["suffix"]))
     t = t.merge(names, on="item_id", how="left")
@@ -116,7 +117,69 @@ def main() -> int:
           f"90th pct {swing.quantile(.9):.0f}%")
     churn = h.groupby("snapshot")["label"].nunique()
     print("Distinct items listed per snapshot (house 113 commodities):\n" + churn.to_string())
+    if want_demo:
+        demo(t, snaps)
     return 0
+
+
+def demo(t: pd.DataFrame, snaps: list) -> None:
+    """Print a compact JSON of the overnight series for the demo page, in DEMO| lines."""
+    big = [113, 114, 110, 111, 116, 117]
+    c = t[t["kind"] == "commodities"]
+    idx = {s: i for i, s in enumerate(snaps)}
+    n = len(snaps)
+
+    def series(df, col):
+        out = [None] * n
+        for s, v in zip(df["snapshot"], df[col]):
+            out[idx[s]] = int(v)
+        return out
+
+    h = c[c["house_id"] == 113]
+    first, last = snaps[0], snaps[-1]
+    a = h[h["snapshot"] == first].set_index("label")
+    b = h[h["snapshot"] == last].set_index("label")
+    present = h.groupby("label")["snapshot"].nunique()
+    ok = present[present >= n - 1].index
+    j = a.loc[a.index.intersection(b.index).intersection(ok), ["quantity", "p10_price", "median_price"]].join(
+        b[["quantity", "p10_price"]].add_suffix("_1"))
+    j = j[j["p10_price"] >= 500]  # at least 5 silver, so % moves mean something
+    pick = {}
+    def add(labels, tag):
+        for l in labels:
+            pick.setdefault(l, []).append(tag)
+    j["drain"] = 1 - j["quantity_1"] / j["quantity"]
+    add(j[j["quantity"] >= 300].sort_values("drain", ascending=False).head(25).index, "demand")
+    sw = h[h["label"].isin(j.index)].groupby("label")["p10_price"].agg(lambda s: s.max() / max(s.min(), 1))
+    add(sw.sort_values(ascending=False).head(20).index, "volatile")
+    j["value"] = j["median_price"] * j["quantity"]
+    add(j.sort_values("value", ascending=False).head(25).index, "big market")
+    al = c[(c["house_id"] == 110) & (c["snapshot"] == last)].set_index("label")["p10_price"]
+    g = j.join(al.rename("p10_al"), how="inner")
+    g["gap"] = (g[["p10_price_1", "p10_al"]].max(axis=1) / g[["p10_price_1", "p10_al"]].min(axis=1).clip(lower=1))
+    add(g.sort_values("gap", ascending=False).head(20).index, "faction gap")
+
+    meta = c.drop_duplicates("label").set_index("label")
+    items = []
+    for label, tags in pick.items():
+        ser = {}
+        for hid in big:
+            d = c[(c["label"] == label) & (c["house_id"] == hid)]
+            if len(d):
+                ser[str(hid)] = {"p10": series(d, "p10_price"), "med": series(d, "median_price"), "qty": series(d, "quantity")}
+        items.append({"label": label, "id": int(meta.loc[label, "item_id"]),
+                      "cls": str(meta.loc[label, "item_class"]) if "item_class" in meta else "",
+                      "tags": tags, "s": ser})
+    supply = {}
+    for (hid, fac), d in t.groupby(["house_id", "faction"]):
+        tot = d.groupby("snapshot")["listings"].sum()
+        supply[str(hid)] = {"faction": fac, "listings": [int(tot.get(s, 0)) for s in snaps]}
+    out = json.dumps({"snapshots": [pd.Timestamp(s).isoformat() for s in snaps], "supply": supply, "items": items},
+                     separators=(",", ":"))
+    print(f"DEMO-BEGIN {len(out)} chars, {len(items)} items")
+    for i in range(0, len(out), 3000):
+        print("DEMO|" + out[i:i + 3000])
+    print("DEMO-END")
 
 
 if __name__ == "__main__":
