@@ -103,9 +103,14 @@ Implications:
 - Result on a full snapshot (6,975 IDs): **96.7% of items named** (3,971 from Forever, 2,771 from
   retail), **99.45% of listings**. The 233 unnamed IDs are rare items, about 0.5% of listings,
   retried weekly. Wowhead or wago.tools could fill them if they matter.
-- One ID can have many **variants** (quality or item level via `bonus_lists` / `modifiers`):
-  3,324 auction IDs have them. Names are shared, but prices can differ a lot. The summaries
-  currently merge variants; splitting them is follow-up work.
+- One ID can have many **variants**. In WoW Forever these are the "of the …" suffixes: each
+  listing carries at most one bonus ID, and 3,324 auction IDs have them. Prices differ a lot
+  (Archer's Cloak: 36 variants, medians 0.3 g to 1 g).
+  **Solved (#30):** summaries are keyed by item + `variant` (bonus IDs), and
+  `items/bonuses.parquet` names each bonus ID from WoW Forever's own game data (wago.tools, branch
+  `wowf`; Blizzard's API has no names for them, and retail/Raidbots data lacks Forever's IDs).
+  All 93 bonus IDs seen are named. Hourly summaries grew to ~107k rows / ~1.3 MB
+  (~0.9 GB a month), which makes the daily roll-up (#26) and an hourly retention rule more pressing.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
