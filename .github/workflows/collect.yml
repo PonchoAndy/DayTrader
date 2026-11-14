@@ -17,7 +17,7 @@ on:
         type: boolean
         default: false
       demo:
-        description: "With report: also print the overnight series as JSON for the demo page"
+        description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
         default: false
 
@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   collect:
+    if: ${{ !inputs.demo }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -48,4 +49,33 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }} ${{ (inputs.report && inputs.demo) && '--demo' || '' }}
+        run: python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+
+  # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
+  demo:
+    if: ${{ inputs.demo }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Export demo data
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: python collector/report.py --demo tools/overnight-demo/demo-data.json
+      - name: Commit it to this branch
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/overnight-demo/demo-data.json
+          git commit -m "Demo data export" && git push || echo "Nothing new to commit"

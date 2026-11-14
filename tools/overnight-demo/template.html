@@ -1,0 +1,277 @@
+<title>Overnight Market</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a tide chart, then an explorer (item list + charts), then a ranked board. Same tokens as the DayTrader Prototype. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69; --gap: #e9e6dc;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a;
+  --up: #006300; --down: #b3261e;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b; --gap: #24282c;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b; --gap: #24282c;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 30px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); font-weight: 600; }
+header { display: grid; gap: 8px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--fg); font-family: var(--f-mono); font-weight: 500; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.sechead { display: grid; gap: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 0; border-top: 2.5px solid; display: inline-block; }
+.sw.dash { border-top-style: dashed; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--f-mono); font-size: 10.5px; fill: var(--tick); }
+.explorer { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; }
+@media (max-width: 760px) { .explorer { grid-template-columns: 1fr; } }
+.side { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12px var(--f-body); border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--gold-soft); border-color: var(--gold); color: var(--fg); }
+.chip:focus-visible, .item:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+input[type=search] { width: 100%; font: 14px var(--f-body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--fg); }
+.list { max-height: 460px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; width: 100%; text-align: left; padding: 8px 10px;
+  border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); font: 13px var(--f-body); cursor: pointer; }
+.item:last-child { border-bottom: 0; }
+.item:hover { background: var(--surface-2); }
+.item[aria-current="true"] { background: var(--gold-soft); }
+.item .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .tg { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
+.item .pr { font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.detail { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.dhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.stat .v { font-family: var(--f-mono); font-size: 16px; font-variant-numeric: tabular-nums; }
+.up { color: var(--up); } .down { color: var(--down); }
+.charttitle { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th.num { text-align: right; }
+tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--surface-2); }
+.bar { height: 6px; background: var(--down); border-radius: 3px; opacity: 0.75; }
+.note { font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DayTrader · demo on real data</div>
+    <h1>Overnight Market</h1>
+    <p class="muted" id="intro"></p>
+    <div class="facts" id="facts"></div>
+  </header>
+
+  <section aria-labelledby="tide-h">
+    <div class="sechead">
+      <h2 id="tide-h">The tide: how many things are for sale</h2>
+      <p class="muted">Total listings on every auction house, added up per faction, each hour. Shaded bands are hours we missed because GitHub started our collector too late.</p>
+    </div>
+    <div class="legend" id="tide-legend"></div>
+    <div id="tide"></div>
+    <p class="note" id="tide-note"></p>
+  </section>
+
+  <section aria-labelledby="ex-h">
+    <div class="sechead">
+      <h2 id="ex-h">Item explorer</h2>
+      <p class="muted">About a hundred trade goods picked from the night's data for being interesting. Pick one to see its price and supply hour by hour on the two big houses of each faction, plus Blackwater.</p>
+    </div>
+    <div class="explorer">
+      <div class="side">
+        <div class="chips" id="chips" role="group" aria-label="Filter by why the item was picked"></div>
+        <input type="search" id="q" placeholder="Search items" aria-label="Search items">
+        <div class="list" id="list"></div>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="buy-h">
+    <div class="sechead">
+      <h2 id="buy-h">What got bought: supply that drained overnight</h2>
+      <p class="muted">Horde house 113. Units listed at the first hour versus now. When supply falls but the price holds, buyers are soaking it up, which is a demand signal. Click a row to open it in the explorer.</p>
+    </div>
+    <div class="tablewrap"><table id="drain"></table></div>
+  </section>
+
+  <p class="note">Prices are the cheapest-10% price per unit (what you'd realistically pay buying a handful), in gold. Data: Blizzard's WoW Forever auction API, US, collected hourly. Which houses share a game world is still unknown (#13).</p>
+</div>
+
+<script>
+const D = __DEMODATA__;
+const HOUSES = [
+  { id: "113", f: "horde", name: "Horde 113", dash: false }, { id: "114", f: "horde", name: "Horde 114", dash: true },
+  { id: "110", f: "alliance", name: "Alliance 110", dash: false }, { id: "111", f: "alliance", name: "Alliance 111", dash: true },
+  { id: "116", f: "blackwater", name: "Blackwater 116", dash: false }, { id: "117", f: "blackwater", name: "Blackwater 117", dash: true },
+];
+const T = D.snapshots.map(s => new Date(s).getTime());
+const H = 3600e3;
+const fmtTime = t => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const fmtDay = t => new Date(t).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+const gold = c => c == null ? "–" : (c >= 1e6 ? (c / 1e4).toLocaleString(undefined, { maximumFractionDigits: 0 }) + "g"
+  : (c / 1e4).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: c < 100 ? 4 : 2 }) + "g");
+const num = n => n == null ? "–" : n.toLocaleString();
+const pct = (a, b) => (a && b != null) ? Math.round((b / a - 1) * 100) : null;
+const signed = p => p == null ? "–" : (p > 0 ? "+" : "") + p + "%";
+const cls = p => p == null ? "" : p > 0 ? "up" : p < 0 ? "down" : "";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const lastOf = a => { for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i]; return null; };
+const firstOf = a => { for (const v of a) if (v != null) return v; return null; };
+
+/* ---------- header ---------- */
+document.getElementById("intro").textContent =
+  `Every hour from ${fmtDay(T[0])} to ${fmtDay(T[T.length - 1])} (your time), our collector saved a summary of every listing on all 15 WoW Forever auction houses. This page replays that stretch.`;
+const missed = [];
+for (let i = 1; i < T.length; i++) { const g = Math.round((T[i] - T[i - 1]) / H); for (let k = 1; k < g; k++) missed.push(T[i - 1] + k * H); }
+const totalNow = Object.values(D.supply).reduce((s, h) => s + h.listings[h.listings.length - 1], 0);
+document.getElementById("facts").innerHTML =
+  `<span><b>${T.length}</b> hourly snapshots</span><span><b>${missed.length}</b> hours missed</span>` +
+  `<span><b>${num(totalNow)}</b> listings right now</span><span><b>${D.items.length}</b> items in the explorer</span>`;
+
+/* ---------- generic line chart ---------- */
+function niceTicks(lo, hi, n) {
+  if (hi <= lo) hi = lo + 1;
+  const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const out = []; for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function lineChart({ series, height = 220, yFmt, yMin0 = true }) {
+  const W = 720, L = 62, R = 14, Tp = 10, B = 26, iw = W - L - R, ih = height - Tp - B;
+  const vals = series.flatMap(s => s.v.filter(v => v != null));
+  let lo = yMin0 ? 0 : Math.min(...vals), hi = Math.max(...vals);
+  const ticks = niceTicks(lo, hi, 4); lo = ticks[0]; hi = ticks[ticks.length - 1];
+  const x = t => L + (t - T[0]) / (T[T.length - 1] - T[0]) * iw;
+  const y = v => Tp + ih - (v - lo) / (hi - lo) * ih;
+  let s = `<svg viewBox="0 0 ${W} ${height}" role="img">`;
+  for (const m of missed) s += `<rect x="${x(m - H / 2)}" y="${Tp}" width="${x(m + H / 2) - x(m - H / 2)}" height="${ih}" fill="var(--gap)"/>`;
+  for (const t of ticks) s += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${L - 8}" y="${y(t) + 3.5}" text-anchor="end">${yFmt(t)}</text>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${Tp + ih}" y2="${Tp + ih}" stroke="var(--axis)"/>`;
+  const span = T[T.length - 1] - T[0], every = span > 30 * H ? 6 : span > 14 * H ? 3 : 2;
+  const start = Math.ceil(T[0] / (every * H)) * every * H;
+  for (let t = start; t <= T[T.length - 1]; t += every * H) s += `<text x="${x(t)}" y="${height - 6}" text-anchor="middle">${fmtTime(t)}</text>`;
+  for (const se of series) {
+    let d = "", pen = false;
+    se.v.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? "L" : "M") + x(T[i]).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
+    s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="${se.w || 2}" ${se.dash ? 'stroke-dasharray="5 4"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`;
+    const li = se.v.map((v, i) => v == null ? -1 : i).filter(i => i >= 0).pop();
+    if (li != null && li >= 0) s += `<circle cx="${x(T[li])}" cy="${y(se.v[li])}" r="3" fill="${se.color}"/>`;
+  }
+  return s + "</svg>";
+}
+
+/* ---------- tide ---------- */
+const FAC = [["horde", "Horde"], ["alliance", "Alliance"], ["blackwater", "Blackwater"]];
+const facTot = Object.fromEntries(FAC.map(([k]) => [k, T.map(() => 0)]));
+for (const h of Object.values(D.supply)) { const k = h.faction.toLowerCase(); if (facTot[k]) h.listings.forEach((v, i) => facTot[k][i] += v); }
+document.getElementById("tide-legend").innerHTML = FAC.map(([k, n]) => `<span><i class="sw" style="border-color:var(--${k})"></i>${n}</span>`).join("") +
+  `<span><i style="width:14px;height:10px;background:var(--gap);display:inline-block"></i>missed hour</span>`;
+document.getElementById("tide").innerHTML = lineChart({
+  series: FAC.map(([k]) => ({ v: facTot[k], color: `var(--${k})`, w: 2.5 })),
+  yFmt: v => v >= 1000 ? Math.round(v / 1000) + "k" : v, height: 240 });
+{
+  const h = facTot.horde, iMax = h.indexOf(Math.max(...h));
+  const drop = Math.round((1 - h[h.length - 1] / h[iMax]) * 100);
+  document.getElementById("tide-note").textContent = drop > 3
+    ? `Horde listings peaked at ${num(h[iMax])} around ${fmtTime(T[iMax])} and are ${drop}% lower now. Supply builds while people play in the evening, then drains as auctions sell or expire overnight. A few more days will show whether this repeats every day.`
+    : `Horde listings now: ${num(h[h.length - 1])}.`;
+}
+
+/* ---------- explorer ---------- */
+const TAGS = [["all", "All"], ["demand", "Bought up"], ["volatile", "Jumpy price"], ["big market", "Big market"], ["faction gap", "Faction gap"]];
+const TAGTEXT = { "demand": "bought up", "volatile": "jumpy price", "big market": "big market", "faction gap": "faction gap" };
+let tag = "all", sel = null;
+const items = D.items.map(it => {
+  const h = it.s["113"] || Object.values(it.s)[0];
+  return { ...it, now: lastOf(h.p10), then: firstOf(h.p10), qNow: lastOf(h.qty), qThen: firstOf(h.qty) };
+});
+const chips = document.getElementById("chips");
+chips.innerHTML = TAGS.map(([k, n]) => `<button class="chip" id="chip-${k.replace(" ", "-")}" data-k="${k}" aria-pressed="${k === tag}">${n} <span class="muted">${k === "all" ? items.length : items.filter(i => i.tags.includes(k)).length}</span></button>`).join("");
+chips.addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; tag = b.dataset.k; chips.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c === b)); renderList(); });
+document.getElementById("q").addEventListener("input", renderList);
+function renderList() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const rows = items.filter(i => (tag === "all" || i.tags.includes(tag)) && (!q || i.label.toLowerCase().includes(q)))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const el = document.getElementById("list");
+  el.innerHTML = rows.length ? rows.map(i => {
+    const p = pct(i.then, i.now);
+    return `<button class="item" data-id="${esc(i.label)}" aria-current="${sel === i}"><span class="nm">${esc(i.label)}</span><span class="pr ${cls(p)}">${signed(p)}</span><span class="tg">${i.tags.map(t => TAGTEXT[t]).join(" · ")} · ${gold(i.now)}</span></button>`;
+  }).join("") : `<p class="note" style="padding:12px">No items match.</p>`;
+}
+document.getElementById("list").addEventListener("click", e => { const b = e.target.closest(".item"); if (b) select(items.find(i => i.label === b.dataset.id)); });
+function select(it) {
+  sel = it; renderList();
+  const hs = HOUSES.filter(h => it.s[h.id]);
+  const legend = `<div class="legend">${hs.map(h => `<span><i class="sw ${h.dash ? "dash" : ""}" style="border-color:var(--${h.f})"></i>${h.name}</span>`).join("")}</div>`;
+  const p = pct(it.then, it.now), q = pct(it.qThen, it.qNow);
+  const al = it.s["110"] ? lastOf(it.s["110"].p10) : null;
+  const gap = (al && it.now) ? Math.round((Math.max(al, it.now) / Math.min(al, it.now) - 1) * 100) : null;
+  document.getElementById("detail").innerHTML = `
+    <div class="dhead"><h2>${esc(it.label)}</h2><span class="muted" style="font-size:13px">${esc(it.cls || "")} · item ${it.id}</span></div>
+    <div class="stats">
+      <div class="stat"><span class="k">Price now (Horde 113)</span><span class="v">${gold(it.now)}</span></div>
+      <div class="stat"><span class="k">Price change</span><span class="v ${cls(p)}">${signed(p)}</span></div>
+      <div class="stat"><span class="k">Units listed</span><span class="v">${num(it.qThen)} → ${num(it.qNow)}</span></div>
+      <div class="stat"><span class="k">Horde vs Alliance 110</span><span class="v">${gap == null ? "–" : gap + "% apart"}</span></div>
+    </div>
+    ${legend}
+    <div class="charttitle">Price per unit (cheapest 10%)</div>
+    ${lineChart({ series: hs.map(h => ({ v: it.s[h.id].p10, color: `var(--${h.f})`, dash: h.dash })), yFmt: v => gold(v), height: 200 })}
+    <div class="charttitle">Units listed</div>
+    ${lineChart({ series: hs.map(h => ({ v: it.s[h.id].qty, color: `var(--${h.f})`, dash: h.dash })), yFmt: v => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + "k" : v, height: 160 })}
+    <p class="note">${note(it, p, q)}</p>`;
+}
+function note(it, p, q) {
+  const bits = [];
+  if (q != null && q <= -50 && p != null && p > -15) bits.push(`Supply fell ${-q}% while the price held, so people were buying it.`);
+  if (q != null && q >= 50) bits.push(`Supply grew ${q}%: sellers piled in.`);
+  if (p != null && Math.abs(p) >= 50) bits.push(`The price moved ${signed(p)} in one night.`);
+  if (it.tags.includes("faction gap")) bits.push("Horde and Alliance price it very differently, so a Blackwater trade might bridge the gap.");
+  return bits.join(" ") || "Fairly steady overnight.";
+}
+
+/* ---------- drain board ---------- */
+{
+  const rows = items.filter(i => i.qThen >= 300 && i.qNow != null).map(i => ({ i, q: pct(i.qThen, i.qNow), p: pct(i.then, i.now) }))
+    .filter(r => r.q < 0).sort((a, b) => a.q - b.q).slice(0, 15);
+  document.getElementById("drain").innerHTML =
+    `<thead><tr><th>Item</th><th class="num">Units then</th><th class="num">Units now</th><th style="width:22%">Drained</th><th class="num">Price</th><th class="num">Price change</th></tr></thead><tbody>` +
+    rows.map(r => `<tr class="pick" data-id="${esc(r.i.label)}"><td>${esc(r.i.label)}</td><td class="num">${num(r.i.qThen)}</td><td class="num">${num(r.i.qNow)}</td>
+      <td><div class="bar" style="width:${Math.min(100, -r.q)}%"></div></td><td class="num">${gold(r.i.now)}</td><td class="num ${cls(r.p)}">${signed(r.p)}</td></tr>`).join("") + "</tbody>";
+  document.getElementById("drain").addEventListener("click", e => { const tr = e.target.closest("tr.pick"); if (!tr) return;
+    select(items.find(i => i.label === tr.dataset.id)); document.getElementById("ex-h").scrollIntoView({ behavior: "smooth" }); });
+}
+
+renderList();
+select(items.find(i => i.tags.includes("demand")) || items[0]);
+</script>

@@ -123,7 +123,7 @@ def main() -> int:
 
 
 def demo(t: pd.DataFrame, snaps: list) -> None:
-    """Print a compact JSON of the overnight series for the demo page, in DEMO| lines."""
+    """Write a compact JSON of the overnight series for the demo page (`--demo <path>`), or print it."""
     big = [113, 114, 110, 111, 116, 117]
     c = t[t["kind"] == "commodities"]
     idx = {s: i for i, s in enumerate(snaps)}
@@ -176,10 +176,13 @@ def demo(t: pd.DataFrame, snaps: list) -> None:
         supply[str(hid)] = {"faction": fac, "listings": [int(tot.get(s, 0)) for s in snaps]}
     out = json.dumps({"snapshots": [pd.Timestamp(s).isoformat() for s in snaps], "supply": supply, "items": items},
                      separators=(",", ":"))
-    print(f"DEMO-BEGIN {len(out)} chars, {len(items)} items")
-    for i in range(0, len(out), 3000):
-        print("DEMO|" + out[i:i + 3000])
-    print("DEMO-END")
+    path = Path(sys.argv[sys.argv.index("--demo") + 1]) if len(sys.argv) > sys.argv.index("--demo") + 1 else None
+    if path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(out)
+        print(f"Demo data: {len(out)} chars, {len(items)} items -> {path}")
+    else:
+        print(out)
 
 
 if __name__ == "__main__":
