@@ -43,8 +43,8 @@ How the Forever AH is organized (per the forum thread, checked 2026-11-13 — ve
 - Auctions: `id, item{id, context, bonus_lists, modifiers}, buyout, bid?, quantity, time_left`.
   Commodities: `id, item, quantity, unit_price, time_left`. The old
   `/data/wow/auctions/commodities` returns 404.
-- ~43% of item IDs seen on one EU house returned 404 from the item endpoint. We'll need a
-  fallback for item names/metadata (e.g. scrape from in-game via addon, or Wowhead-style DBs).
+- ~43% of item IDs seen on one EU house returned 404 from the item endpoint. **Solved:** the
+  retail item database names most of them (see "Item names" below).
 - wowauctionhouse.com says it scans Forever hourly from every house (it also takes
   player-uploaded scans). Assume hourly refresh until we measure it.
 - Realm and WoW Token endpoints reportedly 404 for Forever.
@@ -93,6 +93,19 @@ Implications:
 - **GitHub Actions minutes:** a pull takes seconds, so an hourly run is ~1 minute including
   setup, roughly 720 minutes a month. That fits the **private** repo's 2,000 free minutes, so
   #5 no longer forces a choice between public and every-2-hours.
+
+### Item names (2026-11-14, PonchoAndy/DayTrader#27)
+
+- **Item IDs are permanent** and Forever uses retail WoW's IDs (we saw 25 to 289,560). So names
+  are looked up once and cached in `items/items.parquet`.
+- Forever's own item database (`static-forever-us`) knows only ~57% of the IDs on its auction
+  house. **Retail's database (`static-us`) fills most of the gap.**
+- Result on a full snapshot (6,975 IDs): **96.7% of items named** (3,971 from Forever, 2,771 from
+  retail), **99.45% of listings**. The 233 unnamed IDs are rare items, about 0.5% of listings,
+  retried weekly. Wowhead or wago.tools could fill them if they matter.
+- One ID can have many **variants** (quality or item level via `bonus_lists` / `modifiers`):
+  3,324 auction IDs have them. Names are shared, but prices can differ a lot. The summaries
+  currently merge variants; splitting them is follow-up work.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
