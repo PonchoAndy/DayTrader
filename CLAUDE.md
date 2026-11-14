@@ -35,5 +35,26 @@ replies"):
 2. Refresh issues: list all issues (open and closed) and their comments, then `set` one doc
    per issue in collection `issues`, id `i<number>`:
    `{number, title, body, state ("OPEN"/"CLOSED"), updated_at, comments: [{user, created_at, body}], syncedAt}`.
-3. Set `meta/sync` to `{syncedAt: <now ISO>}`.
+3. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
+   `{state: "done", finishedAt: <now ISO>}` so the page's "Sync now" button resets.
 Use one `batch` write where possible.
+
+### How replies reach Claude
+
+Pressing Send reply / Mark Done / Reopen (or Refresh) on the page hands the work to Claude at once:
+- If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page fires that
+  session's own on-demand task (`triggerId`), so an `[Issue Deck] …` turn appears in its chat.
+  When you get one, run the sync above, then carry on. (Messaging via `send_message` is a
+  fallback; the page seems not to be allowed to use it.)
+- Otherwise the page fires the background task "Sync the Issue Deck", which wakes the long-lived
+  "Issue Deck sync (background)" session (details in `tools/issue-deck/README.md`).
+- `meta/route` records which route the last press took and why.
+
+**At the start of every work session:**
+1. Create an on-demand task that fires into this session (`create_trigger`, no schedule,
+   default target = this session), name "Issue Deck → active work session", prompt:
+   `[Issue Deck] A reply was sent or Refresh was pressed on the Issue Deck page. Run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section), then continue what you were doing.`
+2. Read `meta/activeSession`; if it holds an older `triggerId` from a previous work session,
+   delete that task (`delete_trigger`) so they don't pile up.
+3. `set` `meta/activeSession` to `{sessionId, kind: "work", triggerId, heartbeatAt: <now ISO>}`.
+4. Update `heartbeatAt` whenever you run a sync or the user sends a message.
