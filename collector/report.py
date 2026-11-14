@@ -91,9 +91,9 @@ def main() -> int:
     first, last = snaps[0], snaps[-1]
     for house in (113, 114, 110, 111):
         h = t[(t["house_id"] == house) & (t["kind"] == "commodities")]
-        a = h[h["snapshot"] == first].set_index("label")
-        b = h[h["snapshot"] == last].set_index("label")
-        j = a[["quantity", "p10_price"]].join(b[["quantity", "p10_price"]], lsuffix="_0", rsuffix="_1", how="inner")
+        a = h[h["snapshot"] == first].set_index("label")[["quantity", "p10_price"]].add_suffix("_0")
+        b = h[h["snapshot"] == last].set_index("label")[["quantity", "p10_price"]].add_suffix("_1")
+        j = a.join(b, how="inner")
         j = j[(j["quantity_0"] >= 200) & (j["quantity_1"] >= 200) & (j["p10_price_0"] > 0)]
         j["price_change_%"] = ((j["p10_price_1"] / j["p10_price_0"] - 1) * 100).round(0)
         j["qty_change_%"] = ((j["quantity_1"] / j["quantity_0"] - 1) * 100).round(0)

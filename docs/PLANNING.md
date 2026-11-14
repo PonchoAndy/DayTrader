@@ -1,7 +1,7 @@
 # DayTrader — Planning Notes
 
 Status: **planning / research**. No requirements or MVP yet.
-Last updated: 2026-11-14
+Last updated: 2026-11-14 (session 3)
 
 Goal for now: **grab, analyze, and display** WoW Forever auction house data, so we can find
 profitable trades. Trading/posting automation is out of scope (and against the game's rules).
@@ -93,6 +93,28 @@ Implications:
 - **GitHub Actions minutes:** a pull takes seconds, so an hourly run is ~1 minute including
   setup, roughly 720 minutes a month. That fits the **private** repo's 2,000 free minutes, so
   #5 no longer forces a choice between public and every-2-hours.
+
+### First night of hourly data (2026-11-14, `collector/report.py`, PonchoAndy/DayTrader#28)
+
+Read with the workflow's `report` switch (Actions → Collect auctions → Run workflow → tick "report").
+Covers 01:00–16:00 UTC on 2026-11-14: 17 runs, 14 snapshots stored, 0 HTTP errors.
+
+- **Blizzard refreshes at :17 every hour, without fail.** Our pull lands a median 44 min later
+  (GitHub starts scheduled runs late).
+- **We lose an hour when GitHub runs very late.** The 06:27 and 12:27 runs started after the next
+  refresh (07:30, 13:19), so snapshots 06:17 and 12:17 are gone for good: Blizzard only serves
+  the latest data. 2 of 13 hours missed. Fix options in #28.
+- **Supply has a daily rhythm.** Listings peaked ~05:00–07:00 UTC (US late evening: ~548k Horde,
+  ~521k Alliance) and drained ~30% by 15:00 UTC (~387k / ~377k), as auctions expire or sell
+  and fewer people post overnight. Needs a few days to confirm.
+- **Prices move a lot hour to hour.** On Horde house 113, of 1,146 commodities listed every hour,
+  the cheapest-10% price swung by a median 23% over the 12 hours, and 1 in 10 swung more than
+  186%. Many big % moves are on penny items (0.01 g → 0.04 g), so signals need a minimum price.
+- **Bought-up supply is visible.** Leveling and crafting materials drained fastest without the
+  price moving: Copper/Tin Ore -87–89%, Red Wolf Meat -92%, ammunition -84–96%, Mithril Bar -81%.
+  That's the raw material for a sale-rate estimate (#10).
+- The goods-value total is still skewed by absurd listings (Alliance jumped to ~1.0M gold);
+  the 10M-gold cap per unit is too loose for a real metric.
 
 ### Item names (2026-11-14, PonchoAndy/DayTrader#27)
 
