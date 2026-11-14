@@ -12,7 +12,8 @@ Each run:
    versions of an item are priced separately (#30). Summaries before 2026-11-14 03:xx lack it.
    Prices are in copper per unit (auctions: buyout ÷ quantity; bid-only auctions are skipped).
    Percentiles are weighted by quantity, so p10 = "the price of the cheapest 10% of units".
-4. Names any item IDs it hasn't seen before and adds them to items/items.parquet (see items.py).
+4. Names any item IDs it hasn't seen before (items/items.parquet, see items.py) and keeps the
+   variant-name table current (items/bonuses.parquet, see bonuses.py).
 5. Saves a run log (runs/<YYYY-MM-DD>/<HHMMSS>.json) and state/latest.json.
 
 <snapshot> is the newest Last-Modified time across houses, formatted YYYYMMDDTHHMMZ.
@@ -39,6 +40,7 @@ from pathlib import Path
 import pandas as pd
 
 from blizzard import Api, faction_of
+import bonuses
 import items
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -232,6 +234,13 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             run["items"] = {"error": f"{type(e).__name__}: {e}"[:300]}
             print(f"Item lookup failed: {run['items']['error']}")
+        try:
+            seen_bonus = {int(b) for v in table["variant"].unique() if v for b in v.split(":")}
+            run["bonuses"] = bonuses.update(store, seen_bonus)
+            print(f"Bonuses: {run['bonuses']}")
+        except Exception as e:  # noqa: BLE001
+            run["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
+            print(f"Bonus lookup failed: {run['bonuses']['error']}")
         store.put("state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
                   "application/json")
         print(f"Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "
