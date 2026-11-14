@@ -93,7 +93,9 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) { .track { scroll-behavior: auto; } }
 .empty { padding: 32px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; width: 100%; }
 
-.card { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; min-width: 0;
+.slide { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; min-width: 0;
+  display: flex; flex-direction: column; gap: 14px; }
+.card { min-width: 0;
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
   display: flex; flex-direction: column; overflow: hidden; }
 .card.is-closed { opacity: .78; }
@@ -119,8 +121,14 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .body p { margin: 0 0 10px; max-width: 65ch; }
 .body ul { margin: 0 0 10px; padding-left: 22px; }
 .body li { margin: 3px 0; }
-.body li:has(> input[type="checkbox"]) { list-style: none; position: relative; padding-left: 4px; }
-.body li > input[type="checkbox"] { position: absolute; left: -22px; top: .3em; margin: 0; accent-color: var(--gold); }
+/* GitHub task-list items ("- [ ]") render as markers, not dead checkboxes: open ring = to do, filled check = done. */
+.body li.task { list-style: none; position: relative; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.body li.task::before { content: ""; position: absolute; left: -19px; top: .42em; width: 10px; height: 10px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--gold); }
+.body li.task.done { color: var(--muted); }
+.body li.task.done::before { content: "✓"; top: .22em; left: -21px; width: 14px; height: 14px; box-shadow: none; background: var(--gold);
+  color: var(--surface); font: 700 10px/14px var(--f-body); text-align: center; }
 .tag-opt { font: 500 12px/1 var(--f-body); padding: 5px 8px; border-radius: 6px; color: var(--muted); background: var(--surface-2); border: 1px dashed var(--line); }
 .body code { font: 13px var(--f-mono); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
 .body pre { overflow-x: auto; background: var(--surface-2); padding: 10px; border-radius: 8px; }
@@ -171,9 +179,30 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .msg { font-size: 13px; } .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); } .msg.warn { color: var(--warn); }
 .warnline { font-size: 12.5px; color: var(--warn); }
 
+/* Briefing: a plain-language explainer stacked under each issue card. */
+.brief { background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid var(--gold);
+  border-radius: 16px; padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; }
+.brief-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.brief-title { font: 600 11px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.brief-when { font-size: 12px; color: var(--muted); }
+.brief h3 { font: 600 14px/1.3 var(--f-display); margin: 4px 0 4px; }
+.brief .body { padding: 0; font-size: 14.5px; }
+.brief .lede { font-size: 15.5px; line-height: 1.55; }
+.terms { display: grid; grid-template-columns: minmax(90px, max-content) 1fr; gap: 8px 14px; margin: 0; font-size: 14px; }
+.terms dt { font-weight: 600; }
+.terms dd { margin: 0; color: var(--fg); }
+.terms dd p { margin: 0; }
+@media (max-width: 480px) { .terms { grid-template-columns: 1fr; gap: 2px; } .terms dd { margin-bottom: 8px; } }
+.brief .stale { font-size: 12.5px; color: var(--warn); }
+.brief.empty-brief { color: var(--muted); font-size: 14px; }
+.jumplink { margin-left: auto; font: 500 12.5px/1 var(--f-body); color: var(--gold); background: none; border: 0; padding: 4px 0;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.jumplink:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
+
 @media (max-width: 480px) {
   h1 { font-size: 22px; }
   .card-head, .body, .thread, .composer { padding-left: 16px; padding-right: 16px; }
+  .brief { padding-left: 16px; padding-right: 16px; }
   .card h2 { font-size: 18px; }
 }
 </style>
@@ -223,7 +252,7 @@ const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
 const S = {
   issues: [], loaded: false, syncedAt: null, db: null,
   filter: "all", showClosed: false, current: null,
-  queue: [], busy: {}, msg: {},
+  queue: [], busy: {}, msg: {}, briefs: {},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -295,9 +324,44 @@ function render() {
   if (!list.length) {
     track.append(emptyState(S.showClosed ? "No issues match this filter." : "No open issues match this filter. Tick “Show closed” to see finished ones."));
   }
-  for (const i of list) track.append(card(i));
+  for (const i of list) {
+    const slide = document.createElement("div"); slide.className = "slide"; slide.dataset.n = i.number;
+    slide.append(card(i), briefCard(i));
+    track.append(slide);
+  }
   renderNav(list);
   if (S.current != null) jump(S.current, false);
+}
+
+// Briefings are written by Claude during syncs (collection `briefings`, doc b<number>).
+function briefCard(i) {
+  const b = S.briefs[i.number];
+  const el = document.createElement("section");
+  el.id = "brief-" + i.number;
+  el.setAttribute("aria-label", `Briefing for issue ${i.number}`);
+  if (!b) {
+    el.className = "brief empty-brief";
+    el.innerHTML = `<div class="brief-title">Briefing</div><div>No briefing yet. Claude writes one at the next sync; press <strong>Refresh</strong> (top) to ask for it now.</div>`;
+    return el;
+  }
+  el.className = "brief";
+  const stale = b.basedOn && i.updated_at && new Date(i.updated_at) > new Date(b.basedOn);
+  const terms = Array.isArray(b.terms) && b.terms.length
+    ? `<h3>Words to know</h3><dl class="terms">${b.terms.map((t) => `<dt>${escapeHtml(t.term || "")}</dt><dd>${md(t.meaning || "")}</dd>`).join("")}</dl>` : "";
+  el.innerHTML = `
+    <div class="brief-head"><span class="brief-title">Briefing</span><span class="brief-when">Written ${escapeHtml(when(b.writtenAt))}</span></div>
+    ${stale ? `<div class="stale">This issue changed after the briefing was written. Claude will update it at the next sync.</div>` : ""}
+    <div class="body lede">${md(b.summary)}</div>
+    ${b.why ? `<h3>Why it matters now</h3><div class="body">${md(b.why)}</div>` : ""}
+    ${terms}
+    ${b.yourPart ? `<h3>Your part</h3><div class="body">${md(b.yourPart)}</div>` : ""}`;
+  el.querySelectorAll('a[href^="#i"]').forEach((a) => {
+    const n = +a.getAttribute("href").slice(2);
+    const x = document.createElement("button"); x.type = "button"; x.className = "xref"; x.textContent = "#" + n;
+    x.addEventListener("click", () => revealIssue(n)); a.replaceWith(x);
+  });
+  el.querySelectorAll('a[href^="http"]').forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+  return el;
 }
 
 function card(i) {
@@ -319,6 +383,7 @@ function card(i) {
         <span class="kind k-${k}">${k === "other" ? "Issue" : k}</span>
         ${isOptional(i.title) ? `<span class="tag-opt">Optional</span>` : ""}
         <span class="state ${isOpen(i) ? "open" : ""}">${isOpen(i) ? "Open" : "Closed"}</span>
+        <button type="button" class="jumplink" data-brief="${i.number}">Briefing ↓</button>
       </div>
       <h2>${escapeHtml(cleanTitle(i.title))}</h2>
       ${facts ? `<div class="facts">${facts}</div>` : ""}
@@ -340,7 +405,13 @@ function card(i) {
       <div class="msg" id="msg-${i.number}" role="status"></div>
     </form>`;
 
-  el.querySelectorAll('.body input[type="checkbox"]').forEach((c) => { c.disabled = true; });
+  el.querySelector("[data-brief]").addEventListener("click", () =>
+    $("brief-" + i.number)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
+  el.querySelectorAll('.body li > input[type="checkbox"]').forEach((c) => {
+    const li = c.parentElement; li.classList.add("task"); if (c.checked) li.classList.add("done");
+    const sr = document.createElement("span"); sr.className = "sr"; sr.textContent = c.checked ? "Done: " : "To do: ";
+    c.replaceWith(sr);
+  });
   el.querySelectorAll('a[href^="#i"]').forEach((a) => {
     const n = +a.getAttribute("href").slice(2);
     const b = document.createElement("button"); b.type = "button"; b.className = "xref"; b.textContent = "#" + n;
@@ -474,7 +545,7 @@ $("track").addEventListener("scroll", () => {
   scrollTimer = setTimeout(() => {
     const track = $("track"), mid = track.scrollLeft + track.clientWidth / 2;
     let best = null, dist = Infinity;
-    for (const c of track.querySelectorAll(".card")) {
+    for (const c of track.querySelectorAll(".slide")) {
       const d = Math.abs(c.offsetLeft - track.offsetLeft + c.clientWidth / 2 - mid);
       if (d < dist) { dist = d; best = +c.dataset.n; }
     }
@@ -668,6 +739,11 @@ async function undoReply(n, id, kind, btn) {
     } catch { S.tools = new Set(); }
   }, () => {});
   db.doc("meta/sync").onSnapshot((d) => { S.syncedAt = d.exists ? d.data()?.syncedAt : null; if (S.loaded) showSynced(); }, () => {});
+  db.collection("briefings").onSnapshot((snap) => {
+    S.briefs = {};
+    for (const d of snap.docs) { const b = d.data(); if (b && typeof b.number === "number") S.briefs[b.number] = b; }
+    if (S.loaded) safeRender();
+  }, () => {});
   db.collection("replies").where("status", "==", "pending").onSnapshot((snap) => {
     S.queue = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     for (const i of S.issues) renderThread(i.number);

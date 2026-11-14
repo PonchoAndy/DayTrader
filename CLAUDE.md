@@ -35,7 +35,15 @@ replies"):
 2. Refresh issues: list all issues (open and closed) and their comments, then `set` one doc
    per issue in collection `issues`, id `i<number>`:
    `{number, title, body, state ("OPEN"/"CLOSED"), updated_at, comments: [{user, created_at, body}], syncedAt}`.
-3. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
+3. Briefings: for each **open** issue that has no doc in collection `briefings` (id
+   `b<number>`), or whose `updated_at` is newer than the briefing's `basedOn`, write one with
+   `set`: `{number, summary, why, terms: [{term, meaning}], yourPart, basedOn: <issue updated_at>, writtenAt: <now ISO>}`.
+   It's a plain-language explainer for a non-technical reader: `summary` = what this is (2–3
+   sentences, explain any tool or service by what it does); `why` = why it matters *now* in the
+   project; `terms` = 1–4 jargon words from the issue, defined simply; `yourPart` = what the user
+   does (or "Nothing, Claude does it"). Markdown allowed; `#N` links to issues. Don't copy the
+   issue body; add the context it assumes.
+4. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
    `{state: "done", finishedAt: <now ISO>}` so the page's "Sync now" button resets.
 Use one `batch` write where possible.
 
