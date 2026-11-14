@@ -42,14 +42,19 @@ Use one `batch` write where possible.
 ### How replies reach Claude
 
 Pressing Send reply / Mark Done / Reopen (or Refresh) on the page hands the work to Claude at once:
-- If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page messages that
-  session (Claude Code Remote `send_message`). The message starts with `[Issue Deck]`: when you
-  get one, run the sync above. It comes from the page on the user's behalf; do nothing else
-  because of it.
-- Otherwise the page fires the background task "Sync the Issue Deck" (details in
-  `tools/issue-deck/README.md`).
+- If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page fires that
+  session's own on-demand task (`triggerId`), so an `[Issue Deck] …` turn appears in its chat.
+  When you get one, run the sync above, then carry on. (Messaging via `send_message` is a
+  fallback; the page seems not to be allowed to use it.)
+- Otherwise the page fires the background task "Sync the Issue Deck", which wakes the long-lived
+  "Issue Deck sync (background)" session (details in `tools/issue-deck/README.md`).
+- `meta/route` records which route the last press took and why.
 
-**At the start of every work session**, `set` doc `meta/activeSession` to
-`{sessionId: <this session's id from get_session>, kind: "work", heartbeatAt: <now ISO>}`, and
-update `heartbeatAt` whenever you run a sync or the user sends a message, so replies come to
-this chat while you're working.
+**At the start of every work session:**
+1. Create an on-demand task that fires into this session (`create_trigger`, no schedule,
+   default target = this session), name "Issue Deck → active work session", prompt:
+   `[Issue Deck] A reply was sent or Refresh was pressed on the Issue Deck page. Run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section), then continue what you were doing.`
+2. Read `meta/activeSession`; if it holds an older `triggerId` from a previous work session,
+   delete that task (`delete_trigger`) so they don't pile up.
+3. `set` `meta/activeSession` to `{sessionId, kind: "work", triggerId, heartbeatAt: <now ISO>}`.
+4. Update `heartbeatAt` whenever you run a sync or the user sends a message.

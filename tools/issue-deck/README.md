@@ -12,7 +12,7 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
   - `issues/i<N>`: `{number, title, body, state, updated_at, comments: [{user, created_at, body}], syncedAt}`
   - `meta/sync`: `{syncedAt}`
   - `meta/syncRequest`: `{state: "running" | "done" | "failed", via: "session" | "background", requestedAt, finishedAt?, error?}`
-  - `meta/activeSession`: `{sessionId, kind: "work" | "background", heartbeatAt}`, written by Claude sessions
+  - `meta/activeSession`: `{sessionId, kind: "work", triggerId, heartbeatAt}`, written by work sessions
   - `replies/<auto-id>`: `{issue, body, close, reopen, status: "pending" | "posted", createdAt}`
     (empty `body` + `close: true` = "Mark Done" with no comment; `reopen: true` = reopen a
     closed issue). Until synced, the page lets the user undo: "Keep it open" clears `close`,
@@ -20,15 +20,15 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
 - Sync steps are in the repo's `CLAUDE.md` ("Issue Deck" section).
 - **Sending:** Send reply / Mark Done / Reopen save a `replies` doc, then hand it to Claude at once.
   - If `meta/activeSession` was updated in the last 45 minutes (an interactive work session
-    writes it), the page sends that session an `[Issue Deck] …` message, which lands in its chat.
+    writes it), the page fires that session's own task (`triggerId`), which lands in its chat.
+    `send_message` is tried next, but the page doesn't appear to be allowed to use it.
   - Otherwise, or if that message fails, the page fires the task "Sync the Issue Deck"
     (`trig_01Qgigo8czoeUjryZZug8zxo`, no schedule). It wakes one long-lived session,
     **"Issue Deck sync (background)"** (`session_015bLnKyEsmDdphwzHN668bv`), which has the repo
     attached and standing sync instructions. (Tasks that start a fresh session each time don't
     get the repo, so they have no GitHub access. That's why the first version failed.)
   - The background session never writes `meta/activeSession`.
-  - `meta/syncRequest.sessionNote` records why a reply didn't go to the active session
-    (useful for debugging).
+  - `meta/route` `{at, route, notes}` records which route the last press took and why.
   - **Refresh** (top) runs the same path to pull changes from GitHub.
   - If the background session is archived or recreated, create a new task with
     `persistent_session_id` pointing at it and update `SYNC_TRIGGER` in the page.

@@ -508,8 +508,8 @@ function showSynced() {
 
 // ---------- sending to Claude ----------
 // The page can't reach GitHub. Every reply is saved as a pending doc in `replies`, then handed to Claude:
-//  1. If a Claude session was active recently (meta/activeSession, written by the session itself),
-//     the page messages that session, so the reply shows up in its chat and it runs the sync.
+//  1. If a Claude work session was active recently (meta/activeSession, written by the session itself),
+//     the page fires that session's own task (triggerId), so the request shows up in its chat.
 //  2. Otherwise it fires the saved "Sync the Issue Deck" task, which wakes a long-lived background
 //     session that has the repo attached (fresh task sessions get no GitHub access).
 // A running sync re-checks for new replies before it finishes, so replies sent mid-run aren't missed.
@@ -551,28 +551,40 @@ function failReason(code, via) {
 async function setReq(data) { S.req = data; renderSyncBtn(); try { await S.db.doc("meta/syncRequest").set(data); } catch {} }
 
 // Hand pending work to Claude. `why` is a short note for the session's chat, e.g. "new reply on #4".
+// Route: active work session's own task (fire_trigger) → message to it (send_message) → background worker task.
+async function logRoute(route, notes) { try { await S.db.doc("meta/route").set({ at: new Date().toISOString(), route, notes }); } catch {} }
 async function dispatch(why) {
   if (!S.db || !S.mcp) return false;
-  const requestedAt = new Date().toISOString();
+  const requestedAt = new Date().toISOString(), notes = [];
   const a = activeSession();
-  let sessionNote = a ? null : "no active session";
-  if (a && !S.tools?.has("send_message")) sessionNote = S.tools ? "send_message not available to this page (tools: " + [...S.tools].join(", ") + ")" : "connector tools not loaded yet";
-  if (a && S.tools?.has("send_message")) {
-    try {
-      await S.mcp.callTool(CCR, "send_message", { session_id: a.sessionId, priority: "later",
-        message: `[Issue Deck] ${why}. Please run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section): post pending replies, refresh issues, update meta/sync and meta/syncRequest.` });
-      await setReq({ state: "running", via: "session", sessionId: a.sessionId, requestedAt });
-      return true;
-    } catch (e) { sessionNote = "send_message failed: " + (e?.code || "error") + (e?.message ? " — " + String(e.message).slice(0, 160) : ""); }
+  if (!a) notes.push("no active session");
+  else {
+    if (a.triggerId) {
+      try {
+        await S.mcp.callTool(CCR, "fire_trigger", { trigger_id: a.triggerId });
+        await setReq({ state: "running", via: "session", sessionId: a.sessionId, requestedAt });
+        logRoute("session-trigger", notes); return true;
+      } catch (e) { notes.push("session task failed: " + (e?.code || "error")); }
+    } else notes.push("active session has no triggerId");
+    if (S.tools?.has("send_message")) {
+      try {
+        await S.mcp.callTool(CCR, "send_message", { session_id: a.sessionId, priority: "later",
+          message: `[Issue Deck] ${why}. Please run the Issue Deck sync now (CLAUDE.md, "Issue Deck" section).` });
+        await setReq({ state: "running", via: "session", sessionId: a.sessionId, requestedAt });
+        logRoute("session-message", notes); return true;
+      } catch (e) { notes.push("send_message failed: " + (e?.code || "error") + (e?.message ? " — " + String(e.message).slice(0, 160) : "")); }
+    } else notes.push(S.tools ? "send_message not available (tools: " + [...S.tools].join(", ") + ")" : "tool list not loaded");
   }
   // A background sync that just started will pick this up when it re-checks before finishing.
-  if (running() && S.req?.via === "background") return true;
-  await setReq({ state: "running", via: "background", requestedAt, sessionNote });
+  if (running() && S.req?.via === "background") { logRoute("background-already-running", notes); return true; }
+  await setReq({ state: "running", via: "background", requestedAt });
   try {
     await S.mcp.callTool(CCR, "fire_trigger", { trigger_id: SYNC_TRIGGER });
-    return true;
+    logRoute("background", notes); return true;
   } catch (e) {
-    await setReq({ state: "failed", via: "background", requestedAt, sessionNote, finishedAt: new Date().toISOString(), error: failReason(e?.code || "error", "background") });
+    notes.push("background task failed: " + (e?.code || "error"));
+    logRoute("failed", notes);
+    await setReq({ state: "failed", via: "background", requestedAt, finishedAt: new Date().toISOString(), error: failReason(e?.code || "error", "background") });
     return false;
   }
 }
