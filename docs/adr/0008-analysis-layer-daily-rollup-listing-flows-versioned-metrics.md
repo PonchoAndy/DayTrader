@@ -1,10 +1,15 @@
 # 0008. Analysis layer: daily roll-up, listing flows and versioned metrics
 
-- **Status:** Proposed
+- **Status:** Partly accepted (listing flows, kept 90 days: accepted 2026-11-14); the rest proposed
 - **Date:** 2026-11-14
 - **Issue:** PonchoAndy/DayTrader#26, PonchoAndy/DayTrader#10
 
 Extends [0007](0007-keep-hourly-summaries-three-months-then-review.md) with a new 90-day data class.
+**Accepted so far (owner, 2026-11-14):** start saving listing flows, kept 90 days, backfilled
+before the first raw pulls expire; and extend raw-pull retention from 7 to 14 days until the
+backfill has run (then set it back). Still open: day boundary, penny floor, normal-price window,
+page refresh (design report §7, questions 3–6).
+
 Drafted by the Architect agent; full design report in
 [`docs/designs/2026-11-14-analysis-layer.md`](../designs/2026-11-14-analysis-layer.md).
 

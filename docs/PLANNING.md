@@ -256,6 +256,11 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 
 - **Retention:** raw pulls 7 days; **hourly summaries 3 months**, reviewed for usefulness during
   that time (shorten if rarely needed); daily summaries indefinitely. (ADR 0007, #26)
+- **Listing flows (accepted part of ADR 0008):** a daily job matches listing IDs hour to hour in
+  the raw pulls and saves per-item counts of units posted, vanished early (sold or cancelled),
+  vanished near expiry and partly bought. Kept 90 days; it's the basis for sale rate (#10).
+  Backfill must run before the first raw pulls expire, so raw retention goes from 7 to 14 days until
+  it has. The rest of the analysis layer (daily roll-up, metrics, page export) is proposed.
 
 ## 6. Open questions for you
 

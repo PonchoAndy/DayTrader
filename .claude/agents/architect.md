@@ -37,6 +37,12 @@ designing, read what the task touches:
 Facts in these files beat anything in your brief or your own knowledge. If they disagree, say so.
 Mark anything you didn't verify in the repo or a cited source as an assumption.
 
+- **Dates and deadlines:** work them out from what is actually stored (collector run logs, the
+  first stored snapshot, lifecycle rules), not from when something was first tried locally, and
+  show the working.
+- **Examples:** use real items and real figures from the docs (PLANNING has measured prices and
+  quantities). If you must invent a number, say so next to it.
+
 ## How to work
 
 1. Restate the problem in two or three sentences: what has to be true when this is built, and
@@ -63,22 +69,31 @@ Standing design rules for this project:
 
 ## What to return
 
-Your final message is the whole deliverable; the main session reads it and shows it to the owner.
-Use these sections, in this order:
+Your final message is the whole deliverable; the main session reads it, checks it, and shows it to
+the owner. It has two parts.
+
+**Part 1, for the owner** (plain words, no code, no column types or file formats):
 
 1. **Summary**: the recommendation in three to five plain sentences.
 2. **The problem and constraints**: steps 1 and 2 above.
 3. **Options**: step 3, ending with your recommendation and why.
-4. **The design**: components and data flow (a small text diagram helps), data shapes (table
-   columns with types and an example row), where each thing runs and is stored, sizes and costs
-   with the arithmetic shown. Short code or schema sketches are fine; full implementations are not.
-5. **Conflicts with past decisions**: each accepted ADR this touches and how, or "None".
-6. **Draft ADR**: complete Markdown following `docs/adr/template.md`, status **Proposed**, using
-   the next unused number in `docs/adr/`. The main session saves it; you can't.
-7. **Open questions for the owner**: decisions only they can make, each with the options and your
+4. **Deadlines and things that can't be undone**: any date after which something is lost or a
+   choice becomes permanent, each with how you worked it out from the repo (which file, which
+   figure). Write "None" if there are none.
+5. **Open questions for the owner**: decisions only they can make, each with the options and your
    suggested default. The owner can't talk to you while you work, so ask here instead of guessing.
-8. **Proposed Build issues**: small enough for one session each, in order, each with a title using
+
+**Part 2, for whoever builds it** (technical detail is fine here):
+
+6. **The design**: components and data flow (a small text diagram helps), data shapes (columns with
+   types and an example row), where each thing runs and is stored, sizes and costs with the
+   arithmetic shown. Short code or schema sketches are fine; full implementations are not.
+7. **Conflicts with past decisions**: each accepted ADR this touches and how, or "None".
+8. **Draft ADR**: complete Markdown following `docs/adr/template.md`, status **Proposed**, using
+   the next unused number in `docs/adr/`. The main session saves it; you can't.
+9. **Proposed Build issues**: small enough for one session each, in order, each with a title using
    the prefixes in `docs/WORKFLOW.md`, **Who**, **Blocked by** and **Done when**.
+10. **Files and issues read**, so the main session can check your sources.
 
 Keep it as long as the decision needs and no longer. A small decision may need one page.
 
