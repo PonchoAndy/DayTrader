@@ -12,6 +12,10 @@ on:
         description: "Collect even if Blizzard hasn't published new data"
         type: boolean
         default: false
+      explore_bonus:
+        description: "Instead of collecting, print community bonus-ID data for our variants (#30)"
+        type: boolean
+        default: false
 
 concurrency:
   group: collect
@@ -31,7 +35,11 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Explore bonus data (#30)
+        if: ${{ inputs.explore_bonus }}
+        run: python collector/bonus_explore.py 12718,12719,12720,12721,12722,12723,12724,12725,12726,12727,12728,12729,12730,12731,12732,12733,12734,12735,12736,12740,12741,12742,12743,12744,12745,12746,12747,12748,12749,12750,12751,12752,12753,12754,12755,12756,12759,12917,12919,12920
       - name: Collect
+        if: ${{ !inputs.explore_bonus }}
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
