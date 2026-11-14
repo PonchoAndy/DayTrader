@@ -1,0 +1,485 @@
+<title>Auction Data Tour</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; "literal" spreadsheet tables first, then "figurative" chart studies, then a menu of view ideas. Shares the Issue Deck's palette and type. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a; --series: #6250d6; --series-soft: #e6e2fb;
+  --up: #006300; --down: #b3261e;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font: 15px/1.6 var(--f-body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 30px/1.15 var(--f-display); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 600 22px/1.25 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 16px/1.3 var(--f-display); margin: 0; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 16.5px; color: var(--muted); }
+.muted { color: var(--muted); }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+.part { display: flex; flex-direction: column; gap: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.part > header { display: flex; flex-direction: column; gap: 6px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font: 600 22px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel .head { display: flex; flex-direction: column; gap: 4px; }
+.panel .note { font-size: 13.5px; color: var(--muted); }
+.takeaway { font-size: 14px; background: var(--gold-soft); border-radius: 8px; padding: 8px 12px; }
+.takeaway b { color: var(--fg); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.sheet { border-collapse: collapse; font: 12.5px/1.4 var(--f-mono); font-variant-numeric: tabular-nums; min-width: 100%; }
+.sheet th, .sheet td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 5px 9px; text-align: left; white-space: nowrap; }
+.sheet th { background: var(--surface-2); font-weight: 500; color: var(--muted); position: sticky; top: 0; }
+.sheet th.rown, .sheet td.rown { color: var(--muted); text-align: right; background: var(--surface-2); width: 1%; }
+.sheet td.num { text-align: right; }
+.sheet thead tr:first-child th { text-align: center; font-size: 11px; letter-spacing: .06em; }
+.colnote { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13.5px; margin: 0; }
+.colnote dt { font-family: var(--f-mono); font-size: 12.5px; color: var(--gold); }
+.colnote dd { margin: 0; color: var(--fg); }
+@media (max-width: 520px) { .colnote { grid-template-columns: 1fr; } .colnote dd { margin-bottom: 6px; } }
+pre.json { margin: 0; overflow-x: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 12px/1.5 var(--f-mono); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font-family: var(--f-body); fill: var(--tick); font-size: 11px; }
+svg.chart text.lbl { fill: var(--fg); font-size: 12px; }
+svg.chart text.val { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg.chart .grid { stroke: var(--grid); stroke-width: 1; }
+svg.chart .axis { stroke: var(--axis); stroke-width: 1; }
+svg.chart [data-tip] { cursor: default; }
+svg.chart .hit { fill: transparent; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--fg); color: var(--bg); font: 12.5px/1.4 var(--f-body);
+  padding: 6px 9px; border-radius: 7px; max-width: 260px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.tip[hidden] { display: none; }
+.ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.idea { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.idea p { font-size: 14px; }
+.pill { align-self: flex-start; font: 600 10.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px; border-radius: 5px; }
+.pill.now { color: var(--up); background: color-mix(in srgb, var(--up) 14%, transparent); }
+.pill.later { color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); }
+details.tbl summary { cursor: pointer; font-size: 13px; color: var(--gold); }
+details.tbl summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
+footer.src { font-size: 12.5px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DayTrader · WoW Forever · US auction houses</div>
+    <h1>What our auction data looks like</h1>
+    <p class="lede">A tour of the first few hours of collected data, from the literal rows and columns to a few ways of slicing it. Numbers are from real snapshots taken 13–14 Nov 2026 (times in UTC). Prices are shown in gold; 1 g = 100 silver = 10,000 copper.</p>
+  </header>
+
+  <section class="stats" aria-label="One snapshot at a glance (03:17)">
+    <div class="stat"><b id="s-list"></b><span>listings on sale right now</span></div>
+    <div class="stat"><b id="s-items"></b><span>different items</span></div>
+    <div class="stat"><b id="s-value"></b><span>gold of goods listed (outliers capped)</span></div>
+    <div class="stat"><b>15</b><span>auction houses (5 per faction, 3 empty)</span></div>
+  </section>
+
+  <!-- ===================== LITERAL ===================== -->
+  <section class="part" id="literal">
+    <header>
+      <div class="eyebrow">Part 1 · Literally</div>
+      <h2>Four spreadsheets</h2>
+      <p>Everything we store boils down to four tables. If you opened them in Excel, these are the columns you'd see. The rows below are real.</p>
+    </header>
+
+    <div class="panel">
+      <div class="head">
+        <h3>1. Raw listings, straight from Blizzard</h3>
+        <p class="note">Every hour Blizzard hands us one long list per auction house: about 100,000 rows for a busy one. One row is one listing someone posted. We keep these for 7 days. Gear (left) and stackable goods (right) come from two separate lists.</p>
+      </div>
+      <div class="two">
+        <div class="tablewrap"><table class="sheet" id="t-raw-a"></table></div>
+        <div class="tablewrap"><table class="sheet" id="t-raw-c"></table></div>
+      </div>
+      <dl class="colnote">
+        <dt>id</dt><dd>The listing's own number. If it vanishes before its time runs out, it probably sold.</dd>
+        <dt>item_id</dt><dd>Which item. Just a number; names come from table 3.</dd>
+        <dt>bonus</dt><dd>Which version of the item ("of the Eagle", etc.). Blank for most items. Names come from table 4.</dd>
+        <dt>buyout / unit_price</dt><dd>Price in copper. Gear lists a total buyout; stackable goods list a price per unit.</dd>
+        <dt>time_left</dt><dd>Only a rough bucket: SHORT, MEDIUM, LONG or VERY_LONG. No exact times, and no seller names.</dd>
+      </dl>
+      <details class="tbl"><summary>What it looks like before it's a table (JSON)</summary><pre class="json" id="raw-json"></pre></details>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>2. The hourly summary, which is what analysis reads</h3>
+        <p class="note">We boil each hour's ~1 million listings down to one row per house × item × version: how many are listed and what they cost. About 107,000 rows an hour, kept for 90 days.</p>
+      </div>
+      <div class="tablewrap"><table class="sheet" id="t-sum"></table></div>
+      <dl class="colnote">
+        <dt>listings / quantity</dt><dd>How many separate listings, and how many units in total (a stack of 20 cloth = 1 listing, 20 units).</dd>
+        <dt>min_price</dt><dd>The cheapest unit on sale right now.</dd>
+        <dt>p10 / p25 / median</dt><dd>Walk up the price ladder from the cheapest unit: p10 is the price once you've passed 10% of all units, median at 50%. Robust against a few silly listings.</dd>
+        <dt>max_price</dt><dd>The most expensive listing. Often a joke or a mistake (see the fish below).</dd>
+      </dl>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="head">
+          <h3>3. Item names</h3>
+          <p class="note">One row per item, looked up once. 7,065 so far.</p>
+        </div>
+        <div class="tablewrap"><table class="sheet" id="t-items"></table></div>
+      </div>
+      <div class="panel">
+        <div class="head">
+          <h3>4. Version names</h3>
+          <p class="note">One row per bonus ID, from WoW Forever's own game files. 345 rows; 93 are on sale.</p>
+        </div>
+        <div class="tablewrap"><table class="sheet" id="t-bonus"></table></div>
+        <p class="note">Rows shown are the ones confirmed in the first run. The table lives in the cloud bucket, not on this page.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FIGURATIVE ===================== -->
+  <section class="part" id="figurative">
+    <header>
+      <div class="eyebrow">Part 2 · Figuratively</div>
+      <h2>Ways to slice it</h2>
+      <p>The same tables, viewed as a market. Each chart below is one possible view for the app, using the 03:17 snapshot unless it says otherwise. Hover or tap a mark for exact numbers.</p>
+    </header>
+
+    <div class="panel">
+      <div class="head">
+        <h3>The whole market, by category</h3>
+        <p class="note">"Market size" here = units listed × each item's typical price, across all 15 houses. It's the closest thing to a market cap we have, since we can't see actual sales.</p>
+      </div>
+      <div class="two">
+        <div><div class="note" style="margin-bottom:6px">Gold listed</div><svg class="chart" id="c-cat-value" role="img" aria-label="Gold listed by item category"></svg></div>
+        <div><div class="note" style="margin-bottom:6px">Number of listings</div><svg class="chart" id="c-cat-count" role="img" aria-label="Number of listings by item category"></svg></div>
+      </div>
+      <p class="takeaway"><b>Gear is many small sales; materials are a busy market.</b> Armor and Trade Goods are similar in gold, but Trade Goods has only 398 different items to Armor's 3,527, so each material trades in volume. Recipes are few but valuable.</p>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>Raw materials vs. gear</h3>
+        <p class="note">The API itself splits the market in two: stackable goods (herbs, ore, cloth, potions: one shared price per unit) and individual items (gear, recipes: each listing priced on its own).</p>
+      </div>
+      <svg class="chart" id="c-kind" role="img" aria-label="Stackable goods vs individual items"></svg>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>Houses and factions</h3>
+        <p class="note">Each faction has two big houses, two small ones and one empty one. Blackwater (neutral) is a fraction of either.</p>
+      </div>
+      <div class="legend"><span><i style="background:var(--alliance)"></i>Alliance</span><span><i style="background:var(--horde)"></i>Horde</span><span><i style="background:var(--blackwater)"></i>Blackwater</span></div>
+      <svg class="chart" id="c-houses" role="img" aria-label="Gold listed per auction house"></svg>
+      <p class="takeaway"><b>Horde and Alliance are almost the same size</b> (about 520k vs 507k gold), so it's worth keeping both in view, as decided.</p>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>Same item, different house, different price</h3>
+        <p class="note">Typical price in each house. Houses within a faction behave like separate markets, so gaps between them are trading opportunities.</p>
+      </div>
+      <div class="legend"><span><i style="background:var(--alliance)"></i>Alliance</span><span><i style="background:var(--horde)"></i>Horde</span><span><i style="background:var(--blackwater)"></i>Blackwater</span></div>
+      <svg class="chart" id="c-cross" role="img" aria-label="Typical price per house for three items"></svg>
+      <p class="takeaway"><b>Black Lotus: 10 g in Horde house 114, 17.89 g in Horde house 113.</b> If you can trade in both, that's a buy-low, sell-high gap within your own faction. Thin houses (1 lotus listed) are noisy, so supply belongs next to every price.</p>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>Prices over the first hours</h3>
+        <p class="note">Typical price in Horde house 113, as % of where it started at 23:17. The 01:17 snapshot isn't in this local copy, so that stretch is drawn dashed.</p>
+      </div>
+      <div class="legend" id="lg-trend"></div>
+      <svg class="chart" id="c-trend" role="img" aria-label="Price change over four hours for four materials"></svg>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="head">
+          <h3>Supply floods move prices</h3>
+          <p class="note">Essence of Fire, Horde house 113: units listed vs typical price.</p>
+        </div>
+        <div class="note">Units listed</div>
+        <svg class="chart" id="c-flood-q" role="img" aria-label="Essence of Fire units listed per snapshot"></svg>
+        <div class="note">Typical price (gold)</div>
+        <svg class="chart" id="c-flood-p" role="img" aria-label="Essence of Fire typical price per snapshot"></svg>
+        <p class="takeaway"><b>14 → 252 units listed; price 15.26 g → 8.39 g.</b> Someone dumped stock. Buy into floods, sell when supply dries up.</p>
+      </div>
+      <div class="panel">
+        <div class="head">
+          <h3>The price ladder (market depth)</h3>
+          <p class="note">Black Lotus, Horde house 113: how many you could buy up to each price.</p>
+        </div>
+        <svg class="chart" id="c-book" role="img" aria-label="Cumulative Black Lotus units available by price"></svg>
+        <p class="takeaway"><b>A "wall" of 30-odd lotus at 15 g</b>, then it thins out fast. Shows how much you can buy before the price climbs, which is the key question before cornering a market.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>One item, many versions</h3>
+        <p class="note">Archer's Cloak in the two big Horde houses: typical price of each "of the …" version (bonus ID shown; the app would show the suffix name).</p>
+      </div>
+      <svg class="chart" id="c-variants" role="img" aria-label="Typical price per version of Archer's Cloak"></svg>
+      <p class="takeaway"><b>From 0.24 g to 2.93 g for the same cloak</b>, a 12× spread by suffix alone. Pricing versions separately was worth it.</p>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <h3>Watch out for silly listings</h3>
+        <p class="note">Before capping outliers, the "market size" came out at <b id="s-raw-value"></b> gold, almost all of it from one line in house 123:</p>
+      </div>
+      <div class="tablewrap"><table class="sheet" id="t-fish"></table></div>
+      <p class="takeaway"><b>3 Sickly Looking Fish at 9,999,999 g each.</b> Every view needs outlier protection: use p10/p25/median, never the average or the max.</p>
+    </div>
+  </section>
+
+  <!-- ===================== IDEAS ===================== -->
+  <section class="part" id="ideas">
+    <header>
+      <div class="eyebrow">Part 3 · For the app</div>
+      <h2>Views worth building</h2>
+      <p>Ideas for the dashboard (#11), and whether today's data can already support them.</p>
+    </header>
+    <div class="ideas">
+      <div class="idea"><span class="pill now">Data ready</span><h3>Deals board</h3><p>Listings priced well below the item's typical price in that house, with supply alongside so thin markets don't fool you.</p></div>
+      <div class="idea"><span class="pill now">Data ready</span><h3>Cross-house gaps</h3><p>Items cheaper in one house than another of the same faction. Today: Black Lotus, Arcanite Bar, Runecloth.</p></div>
+      <div class="idea"><span class="pill now">Data ready</span><h3>Market depth</h3><p>The price ladder for any item: how much is cheap, where the walls are, what it would cost to buy out.</p></div>
+      <div class="idea"><span class="pill now">Data ready</span><h3>Version premiums</h3><p>Which "of the …" suffixes sell high for each piece of gear, so you know which drops to list and which to vendor.</p></div>
+      <div class="idea"><span class="pill later">Needs days</span><h3>Movers</h3><p>Biggest price and supply changes over 24 hours and 7 days: floods to buy into, shortages to sell into.</p></div>
+      <div class="idea"><span class="pill later">Needs a week+</span><h3>Time-of-day patterns</h3><p>A heatmap of price by hour and weekday for each material, to time buying and selling. This is the main use for the hourly data (#33).</p></div>
+      <div class="idea"><span class="pill later">Needs recipes</span><h3>Crafting margins</h3><p>Material cost vs sale price for what you can craft. Needs recipe data and your professions.</p></div>
+      <div class="idea"><span class="pill later">Needs a method</span><h3>Sale rate</h3><p>How often an item actually sells, inferred from listings disappearing between hours (#10). Separates good flips from traps.</p></div>
+    </div>
+  </section>
+
+  <footer class="src">Source: Blizzard Game Data API (WoW Forever, US region, ruleset 2) snapshots at 23:17, 00:17, 02:17 and 03:17 UTC; item names from Blizzard's item databases; version names from WoW Forever game files via wago.tools. Market size uses each item's median price, capped at 3× its typical price across houses.</footer>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script>
+const D = {"categories": [{"name": "Armor", "value": 284980, "listings": 297905, "items": 3527}, {"name": "Trade Goods", "value": 222469, "listings": 308858, "items": 398}, {"name": "Recipe", "value": 177765, "listings": 71956, "items": 698}, {"name": "Weapon", "value": 161413, "listings": 70867, "items": 756}, {"name": "Consumable", "value": 90905, "listings": 195951, "items": 769}, {"name": "Quest", "value": 47342, "listings": 42296, "items": 149}, {"name": "Miscellaneous", "value": 31183, "listings": 26913, "items": 375}, {"name": "Other (6 kinds)", "value": 47453, "listings": 38633, "items": 327}], "kinds": {"auctions": {"value": 734602, "listings": 556259, "items": 5656}, "commodities": {"value": 328909, "listings": 497120, "items": 1343}}, "houses": [{"house": 110, "faction": "Alliance", "value": 253671, "listings": 188177}, {"house": 111, "faction": "Alliance", "value": 171797, "listings": 196634}, {"house": 113, "faction": "Horde", "value": 266707, "listings": 219123}, {"house": 114, "faction": "Horde", "value": 189945, "listings": 210549}, {"house": 116, "faction": "Blackwater", "value": 17130, "listings": 24437}, {"house": 117, "faction": "Blackwater", "value": 16714, "listings": 27360}, {"house": 119, "faction": "Alliance", "value": 32911, "listings": 49816}, {"house": 120, "faction": "Horde", "value": 16640, "listings": 35262}, {"house": 121, "faction": "Blackwater", "value": 857, "listings": 1912}, {"house": 123, "faction": "Alliance", "value": 48838, "listings": 47750}, {"house": 124, "faction": "Horde", "value": 46942, "listings": 49895}, {"house": 125, "faction": "Blackwater", "value": 1359, "listings": 2464}], "trend": {"times": ["23:17", "00:17", "02:17", "03:17"], "series": [{"name": "Runecloth", "median": [1115, 1215, 997, 946], "min": [877, 876, 785, 695], "qty": [18967, 17523, 17982, 17260]}, {"name": "Thorium Bar", "median": [1991, 1986, 2590, 2587], "min": [1950, 1855, 2580, 2586], "qty": [1051, 1011, 2889, 3852]}, {"name": "Black Lotus", "median": [198400, 198400, 179090, 178899], "min": [179090, 149987, 149987, 149950], "qty": [81, 88, 89, 79]}, {"name": "Essence of Fire", "median": [152550, 110000, 88090, 83900], "min": [152550, 99999, 69999, 69999], "qty": [14, 68, 207, 252]}]}, "book": {"item": "Black Lotus", "house": 113, "steps": [[149950, 1], [149950, 2], [149950, 6], [149987, 7], [149987, 8], [149987, 9], [149987, 10], [149987, 11], [149987, 12], [149987, 13], [149987, 14], [149987, 15], [149987, 16], [149987, 17], [149987, 19], [149987, 21], [149987, 24], [149987, 27], [149987, 33], [178888, 35], [178899, 37], [178899, 42], [179090, 43], [179090, 44], [198500, 46], [198800, 47], [198800, 48], [198800, 49], [229948, 50], [229948, 51], [229948, 52], [229948, 53], [229948, 56], [229948, 60], [229948, 65], [229950, 68], [229999, 70], [248888, 71], [298599, 72], [298599, 73], [298599, 79]]}, "variants": [{"variant": "12736", "listings": 2, "median": 2400, "min": 2400}, {"variant": "12743", "listings": 2, "median": 2599, "min": 2400}, {"variant": "12729", "listings": 3, "median": 2700, "min": 2400}, {"variant": "12731", "listings": 5, "median": 2800, "min": 2600}, {"variant": "12719", "listings": 4, "median": 3099, "min": 2600}, {"variant": "12730", "listings": 2, "median": 3149, "min": 2999}, {"variant": "12726", "listings": 2, "median": 3750, "min": 2600}, {"variant": "12724", "listings": 2, "median": 4444, "min": 4444}, {"variant": "12747", "listings": 4, "median": 5800, "min": 5800}, {"variant": "12720", "listings": 2, "median": 6600, "min": 3300}, {"variant": "12732", "listings": 4, "median": 7300, "min": 7000}, {"variant": "12750", "listings": 2, "median": 7500, "min": 7500}, {"variant": "12751", "listings": 6, "median": 7850, "min": 5000}, {"variant": "12718", "listings": 2, "median": 8000, "min": 8000}, {"variant": "12758", "listings": 3, "median": 8249, "min": 7000}, {"variant": "12749", "listings": 7, "median": 8400, "min": 6500}, {"variant": "12733", "listings": 5, "median": 8500, "min": 8415}, {"variant": "12759", "listings": 3, "median": 11000, "min": 10900}, {"variant": "12752", "listings": 8, "median": 11290, "min": 5000}, {"variant": "12748", "listings": 4, "median": 12449, "min": 9900}, {"variant": "12734", "listings": 2, "median": 12898, "min": 12898}, {"variant": "12745", "listings": 3, "median": 15000, "min": 10000}, {"variant": "12746", "listings": 2, "median": 18300, "min": 18300}, {"variant": "12721", "listings": 9, "median": 18433, "min": 9900}, {"variant": "12756", "listings": 2, "median": 29300, "min": 29300}], "crosshouse": [{"name": "Black Lotus", "houses": [{"house": 110, "faction": "Alliance", "median": 109799, "qty": 91}, {"house": 111, "faction": "Alliance", "median": 115000, "qty": 65}, {"house": 113, "faction": "Horde", "median": 178899, "qty": 79}, {"house": 114, "faction": "Horde", "median": 99999, "qty": 88}, {"house": 119, "faction": "Alliance", "median": 351600, "qty": 15}, {"house": 120, "faction": "Horde", "median": 1001600, "qty": 1}, {"house": 123, "faction": "Alliance", "median": 194400, "qty": 17}, {"house": 124, "faction": "Horde", "median": 459900, "qty": 11}]}, {"name": "Runecloth", "houses": [{"house": 110, "faction": "Alliance", "median": 890, "qty": 5443}, {"house": 111, "faction": "Alliance", "median": 1280, "qty": 6396}, {"house": 113, "faction": "Horde", "median": 946, "qty": 17260}, {"house": 114, "faction": "Horde", "median": 729, "qty": 6513}, {"house": 116, "faction": "Blackwater", "median": 1275, "qty": 400}, {"house": 117, "faction": "Blackwater", "median": 1200, "qty": 503}, {"house": 119, "faction": "Alliance", "median": 1520, "qty": 1091}, {"house": 120, "faction": "Horde", "median": 2831, "qty": 544}, {"house": 123, "faction": "Alliance", "median": 914, "qty": 1254}, {"house": 124, "faction": "Horde", "median": 677, "qty": 2318}]}, {"name": "Arcanite Bar", "houses": [{"house": 110, "faction": "Alliance", "median": 539000, "qty": 21}, {"house": 111, "faction": "Alliance", "median": 375000, "qty": 3}, {"house": 113, "faction": "Horde", "median": 650000, "qty": 32}, {"house": 114, "faction": "Horde", "median": 499799, "qty": 26}, {"house": 119, "faction": "Alliance", "median": 400000, "qty": 1}, {"house": 123, "faction": "Alliance", "median": 577600, "qty": 3}, {"house": 124, "faction": "Horde", "median": 889999, "qty": 4}]}], "raw": {"auctions": [{"id": 60178632, "item": {"id": 6605, "bonus_lists": [12751]}, "buyout": 9000, "quantity": 1, "time_left": "MEDIUM"}, {"id": 61475623, "item": {"id": 14109, "bonus_lists": [12725]}, "buyout": 349, "quantity": 1, "time_left": "LONG"}, {"id": 61131592, "item": {"id": 14097, "bonus_lists": [12731]}, "buyout": 235, "quantity": 1, "time_left": "LONG"}, {"id": 63308961, "item": {"id": 4417}, "buyout": 3900, "quantity": 1, "time_left": "LONG"}, {"id": 61249723, "item": {"id": 211785}, "buyout": 100, "quantity": 1, "time_left": "LONG"}, {"id": 62722255, "item": {"id": 286533}, "buyout": 4500, "quantity": 1, "time_left": "LONG"}, {"id": 62233040, "item": {"id": 805}, "buyout": 298, "quantity": 1, "time_left": "LONG"}], "commodities": [{"id": 61497238, "item": {"id": 11137}, "quantity": 9, "unit_price": 1150, "time_left": "LONG"}, {"id": 63284973, "item": {"id": 21153}, "quantity": 23, "unit_price": 216, "time_left": "LONG"}, {"id": 63497753, "item": {"id": 8545}, "quantity": 7, "unit_price": 675, "time_left": "VERY_LONG"}, {"id": 59530062, "item": {"id": 4421}, "quantity": 1, "unit_price": 500, "time_left": "SHORT"}, {"id": 62973194, "item": {"id": 6289}, "quantity": 5, "unit_price": 13, "time_left": "LONG"}]}, "summary_rows": [["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12718", 2, 2, 8000, 8000, 8000, 8000, 8000], ["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12719", 3, 3, 2600, 2600, 2600, 2898, 2900], ["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12720", 1, 1, 9900, 9900, 9900, 9900, 9900], ["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12721", 8, 8, 9900, 9900, 9900, 9900, 20000], ["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12724", 2, 2, 4444, 4444, 4444, 4444, 4444], ["2026-11-14 03:17:50+00:00", "us", 113, "Horde", "auctions", 9860, "12726", 1, 1, 2600, 2600, 2600, 2600, 2600]], "summary_cols": ["snapshot", "region", "house_id", "faction", "kind", "item_id", "variant", "listings", "quantity", "min_price", "p10_price", "p25_price", "median_price", "max_price"], "item_rows": [[6299, "Sickly Looking Fish", "COMMON", "Consumable", "Food & Drink", "NON_EQUIP", "forever", "2026-11-14 02:35:03"], [9860, "Archer's Cloak", "UNCOMMON", "Armor", "Cloth", "CLOAK", "retail", "2026-11-14 02:32:02"], [12360, "Arcanite Bar", "UNCOMMON", "Trade Goods", "Metal & Stone", "NON_EQUIP", "forever", "2026-11-14 02:32:02"], [13468, "Black Lotus", "UNCOMMON", "Trade Goods", "Herb", "NON_EQUIP", "forever", "2026-11-14 02:32:02"], [14047, "Runecloth", "COMMON", "Trade Goods", "Cloth", "NON_EQUIP", "forever", "2026-11-14 02:35:03"], [211785, "Scroll: CWAL", "COMMON", "Consumable", "Scrolls", "NON_EQUIP", "forever", "2026-11-14 02:35:03"]], "item_cols": ["item_id", "name", "quality", "item_class", "item_subclass", "inventory_type", "source", "checked_at"], "stats": {"listings": 1053379, "items": 6999, "rows": 106784, "total_value": 1063511, "raw_value": 31145085}};
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const g = (c) => c / 10000;
+const fmtG = (c) => { const v = g(c); return (v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(2)) + " g"; };
+const gsc = (c) => { c = Math.round(c); const G = Math.floor(c / 10000), S = Math.floor(c % 10000 / 100), C = c % 100; return [G && G.toLocaleString() + "g", (G || S) && S + "s", C + "c"].filter(Boolean).join(" "); };
+const k = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 2) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+const FCOL = { Alliance: "var(--alliance)", Horde: "var(--horde)", Blackwater: "var(--blackwater)" };
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [a, v] of Object.entries(attrs || {})) e.setAttribute(a, v);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const wid = (svg, min = 280) => Math.max(min, Math.round(svg.parentElement.getBoundingClientRect().width));
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; return 10 * p; }
+function ticks(max, n = 4) { return Array.from({ length: n + 1 }, (_, i) => (max / n) * i); }
+
+// ---- tooltip (hover + tap) ----
+const tip = $("tip");
+function showTip(e, text) {
+  tip.textContent = text; tip.hidden = false;
+  const x = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8), y = Math.max(8, e.clientY - tip.offsetHeight - 10);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+document.addEventListener("pointermove", (e) => { const t = e.target.closest && e.target.closest("[data-tip]"); if (t) showTip(e, t.dataset.tip); else tip.hidden = true; });
+document.addEventListener("pointerdown", (e) => { const t = e.target.closest && e.target.closest("[data-tip]"); if (t) showTip(e, t.dataset.tip); else tip.hidden = true; });
+
+// ---- horizontal bars ----
+function hbars(svgId, rows, { fmt, color = () => "var(--series)", labelW = 130, rowH = 26 } = {}) {
+  const svg = $(svgId), W = wid(svg), padR = 54, h = rows.length * rowH + 22;
+  svg.setAttribute("viewBox", `0 0 ${W} ${h}`);
+  const max = niceMax(Math.max(...rows.map((r) => r.value))), x = (v) => labelW + (v / max) * (W - labelW - padR);
+  for (const t of ticks(max)) { el("line", { x1: x(t), x2: x(t), y1: 0, y2: h - 18, class: "grid" }, svg); el("text", { x: x(t), y: h - 4, "text-anchor": "middle" }, svg, k(t)); }
+  rows.forEach((r, i) => {
+    const y = i * rowH + 4, bh = rowH - 10, w = Math.max(2, x(r.value) - labelW);
+    el("text", { x: labelW - 8, y: y + bh / 2 + 4, "text-anchor": "end", class: "lbl" }, svg, r.label);
+    el("path", { d: `M${labelW},${y} h${w - 4} q4,0 4,4 v${bh - 8} q0,4 -4,4 h${-(w - 4)} z`, fill: color(r) }, svg);
+    el("text", { x: labelW + w + 6, y: y + bh / 2 + 4, class: "val" }, svg, fmt(r.value));
+    el("rect", { x: 0, y: y - 3, width: W, height: rowH, class: "hit", "data-tip": r.tip || `${r.label}: ${fmt(r.value)}` }, svg);
+  });
+  el("line", { x1: labelW, x2: labelW, y1: 0, y2: h - 18, class: "axis" }, svg);
+}
+
+// ---- stat tiles ----
+$("s-list").textContent = D.stats.listings.toLocaleString();
+$("s-items").textContent = D.stats.items.toLocaleString();
+$("s-value").textContent = k(D.stats.total_value);
+$("s-raw-value").textContent = D.stats.raw_value.toLocaleString();
+
+// ---- tables ----
+function sheet(id, cols, rows, numCols = []) {
+  const t = $(id), letters = cols.map((_, i) => String.fromCharCode(65 + i));
+  t.innerHTML = `<thead><tr><th class="rown"></th>${letters.map((l) => `<th>${l}</th>`).join("")}</tr><tr><th class="rown">1</th>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead>` +
+    `<tbody>${rows.map((r, i) => `<tr><td class="rown">${i + 2}</td>${r.map((v, j) => `<td class="${numCols.includes(j) ? "num" : ""}">${v == null || v === "" ? "" : String(v).replace(/[&<]/g, (c) => c === "&" ? "&amp;" : "&lt;")}</td>`).join("")}</tr>`).join("")}</tbody>`;
+}
+sheet("t-raw-a", ["id", "item_id", "bonus", "buyout", "quantity", "time_left"],
+  D.raw.auctions.map((a) => [a.id, a.item.id, (a.item.bonus_lists || []).join(","), a.buyout ?? "", a.quantity, a.time_left]), [3, 4]);
+sheet("t-raw-c", ["id", "item_id", "unit_price", "quantity", "time_left"],
+  D.raw.commodities.map((a) => [a.id, a.item.id, a.unit_price, a.quantity, a.time_left]), [2, 3]);
+$("raw-json").textContent = JSON.stringify({ auctions: D.raw.auctions.slice(0, 2), "…": "≈100,000 more" }, null, 2);
+sheet("t-sum", D.summary_cols.map((c) => c.replace("_price", "")), D.summary_rows.map((r) => [r[0].slice(0, 16), ...r.slice(1)]), [7, 8, 9, 10, 11, 12, 13]);
+sheet("t-items", ["item_id", "name", "quality", "class", "subclass"], D.item_rows.map((r) => r.slice(0, 5)));
+sheet("t-bonus", ["bonus_id", "suffix", "stats"], [[12688, "of Intellect", ""], [12689, "of Spirit", ""], [12690, "of Stamina", ""], [12691, "of the Owl", ""], [12718, "of the Eagle", "Intellect + Stamina"]]);
+sheet("t-fish", ["house_id", "item", "listings", "quantity", "unit price", "→ \"value\""], [[123, "Sickly Looking Fish", 2, 3, "9,999,999 g 99s 99c", "30,000,000 g"]]);
+
+function drawAll() {
+document.querySelectorAll("svg.chart").forEach((c) => c.replaceChildren());
+// ---- categories ----
+hbars("c-cat-value", D.categories.map((c) => ({ label: c.name, value: c.value, tip: `${c.name}: ${c.value.toLocaleString()} g listed · ${c.items.toLocaleString()} items` })), { fmt: (v) => k(v) + " g" });
+hbars("c-cat-count", D.categories.map((c) => ({ label: c.name, value: c.listings, tip: `${c.name}: ${c.listings.toLocaleString()} listings` })), { fmt: k });
+
+// ---- kinds ----
+(function () {
+  const a = D.kinds.auctions, c = D.kinds.commodities;
+  hbars("c-kind", [
+    { label: "Individual items", value: a.value, tip: `Individual items (gear, recipes…): ${a.value.toLocaleString()} g · ${a.listings.toLocaleString()} listings · ${a.items.toLocaleString()} items` },
+    { label: "Stackable goods", value: c.value, tip: `Stackable goods (herbs, ore, cloth…): ${c.value.toLocaleString()} g · ${c.listings.toLocaleString()} listings · ${c.items.toLocaleString()} items` },
+  ], { fmt: (v) => k(v) + " g", labelW: 120, rowH: 30 });
+})();
+
+// ---- houses ----
+(function () {
+  const order = ["Alliance", "Horde", "Blackwater"];
+  const rows = D.houses.slice().sort((p, q) => order.indexOf(p.faction) - order.indexOf(q.faction) || q.value - p.value)
+    .map((h) => ({ label: `${h.faction} · ${h.house}`, value: h.value, faction: h.faction, tip: `House ${h.house} (${h.faction}): ${h.value.toLocaleString()} g · ${h.listings.toLocaleString()} listings` }));
+  hbars("c-houses", rows, { fmt: (v) => k(v) + " g", color: (r) => FCOL[r.faction], labelW: 128, rowH: 22 });
+})();
+
+// ---- cross-house strips (one row per item, own scale) ----
+(function () {
+  const svg = $("c-cross"), W = wid(svg), labelW = 92, rowH = 46, h = D.crosshouse.length * rowH + 4;
+  svg.setAttribute("viewBox", `0 0 ${W} ${h}`);
+  D.crosshouse.forEach((it, i) => {
+    const y = i * rowH + 18, vals = it.houses.map((x) => x.median), lo = Math.min(...vals), hi = Math.max(...vals);
+    const x = (v) => labelW + 8 + ((v - lo) / (hi - lo || 1)) * (W - labelW - 40);
+    el("text", { x: 0, y: y + 4, class: "lbl" }, svg, it.name);
+    el("line", { x1: labelW + 8, x2: W - 32, y1: y, y2: y, class: "axis" }, svg);
+    el("text", { x: labelW + 8, y: y + 20, "text-anchor": "start" }, svg, fmtG(lo));
+    el("text", { x: W - 32, y: y + 20, "text-anchor": "end" }, svg, fmtG(hi));
+    it.houses.slice().sort((p, q) => q.qty - p.qty).forEach((hh) => {
+      const r = Math.max(4, Math.min(9, 3 + Math.log10(hh.qty + 1) * 1.8));
+      el("circle", { cx: x(hh.median), cy: y, r, fill: FCOL[hh.faction], stroke: "var(--surface)", "stroke-width": 2,
+        "data-tip": `${it.name}, house ${hh.house} (${hh.faction}): ${fmtG(hh.median)} typical · ${hh.qty.toLocaleString()} listed` }, svg);
+    });
+  });
+})();
+
+// ---- trend (indexed lines) ----
+(function () {
+  const svg = $("c-trend"), W = wid(svg), H = 230, L = 38, R = 140, T = 10, B = 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const hours = [0, 1, 3, 4], xs = (hr) => L + (hr / 4) * (W - L - R);
+  const cols = ["var(--series)", "var(--alliance)", "var(--blackwater)", "var(--horde)"];
+  const series = D.trend.series.map((s, i) => ({ ...s, col: cols[i], idx: s.median.map((v) => (v / s.median[0]) * 100) }));
+  const all = series.flatMap((s) => s.idx), lo = Math.floor(Math.min(...all) / 10) * 10, hi = Math.ceil(Math.max(...all) / 10) * 10;
+  const ys = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  for (let v = lo; v <= hi; v += 10) { el("line", { x1: L, x2: W - R, y1: ys(v), y2: ys(v), class: v === 100 ? "axis" : "grid" }, svg); if ((v - lo) % 20 === 0 || v === 100) el("text", { x: L - 6, y: ys(v) + 4, "text-anchor": "end" }, svg, v + "%"); }
+  D.trend.times.forEach((t, i) => el("text", { x: xs(hours[i]), y: H - 6, "text-anchor": "middle" }, svg, t));
+  el("text", { x: xs(2), y: H - 6, "text-anchor": "middle" }, svg, "01:17 –");
+  const labels = [];
+  series.forEach((s) => {
+    const pts = s.idx.map((v, i) => [xs(hours[i]), ys(v)]);
+    el("polyline", { points: pts.slice(0, 2).map((p) => p.join(",")).join(" "), fill: "none", stroke: s.col, "stroke-width": 2 }, svg);
+    el("polyline", { points: pts.slice(1, 3).map((p) => p.join(",")).join(" "), fill: "none", stroke: s.col, "stroke-width": 2, "stroke-dasharray": "4 4" }, svg);
+    el("polyline", { points: pts.slice(2).map((p) => p.join(",")).join(" "), fill: "none", stroke: s.col, "stroke-width": 2 }, svg);
+    pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 4, fill: s.col, stroke: "var(--surface)", "stroke-width": 2,
+      "data-tip": `${s.name} at ${D.trend.times[i]}: ${fmtG(s.median[i])} typical (${Math.round(s.idx[i])}%) · ${s.qty[i].toLocaleString()} listed` }, svg));
+    labels.push({ y: pts[3][1], s });
+  });
+  labels.sort((p, q) => p.y - q.y); for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 14);
+  labels.forEach(({ y, s }) => el("text", { x: W - R + 8, y: y + 4, class: "lbl" }, svg, `${s.name} ${Math.round(s.idx[3])}%`));
+  $("lg-trend").innerHTML = series.map((s) => `<span><i style="background:${s.col}"></i>${s.name}</span>`).join("");
+})();
+
+// ---- flood: two small charts ----
+(function () {
+  const s = D.trend.series.find((x) => x.name === "Essence of Fire"), times = D.trend.times;
+  function small(id, vals, fmt, kind) {
+    const svg = $(id), W = wid(svg, 240), H = 110, L = 8, R = 8, T = 16, B = 20, n = vals.length, bw = (W - L - R) / n;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const max = niceMax(Math.max(...vals)), ys = (v) => T + (1 - v / max) * (H - T - B);
+    el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, class: "axis" }, svg);
+    const pts = [];
+    vals.forEach((v, i) => {
+      const cx = L + bw * i + bw / 2;
+      if (kind === "bar") { const w = bw * 0.5, y = ys(v), hgt = H - B - y; el("path", { d: `M${cx - w / 2},${H - B} v${-(hgt - 4)} q0,-4 4,-4 h${w - 8} q4,0 4,4 v${hgt - 4} z`, fill: "var(--series)" }, svg); }
+      else pts.push([cx, ys(v)]);
+      el("text", { x: cx, y: (kind === "bar" ? ys(v) : ys(v)) - 6, "text-anchor": "middle", class: "val" }, svg, fmt(v));
+      el("text", { x: cx, y: H - 5, "text-anchor": "middle" }, svg, times[i]);
+      el("rect", { x: cx - bw / 2, y: 0, width: bw, height: H, class: "hit", "data-tip": `${times[i]}: ${fmt(v)}` }, svg);
+    });
+    if (kind === "line") { el("polyline", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "var(--horde)", "stroke-width": 2 }, svg); pts.forEach((p) => el("circle", { cx: p[0], cy: p[1], r: 4, fill: "var(--horde)", stroke: "var(--surface)", "stroke-width": 2 }, svg)); }
+  }
+  small("c-flood-q", s.qty, (v) => v.toLocaleString(), "bar");
+  small("c-flood-p", s.median, fmtG, "line");
+})();
+
+// ---- order book (step chart) ----
+(function () {
+  const svg = $("c-book"), W = wid(svg, 260), H = 200, L = 34, R = 10, T = 10, B = 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const byP = new Map(); D.book.steps.forEach(([p, c]) => byP.set(p, c));
+  const pts = [...byP.entries()].sort((a, b) => a[0] - b[0]);
+  const pMin = pts[0][0], pMax = pts[pts.length - 1][0], qMax = niceMax(pts[pts.length - 1][1]);
+  const xs = (p) => L + ((p - pMin) / (pMax - pMin)) * (W - L - R), ys = (q) => T + (1 - q / qMax) * (H - T - B);
+  for (const t of ticks(qMax)) { el("line", { x1: L, x2: W - R, y1: ys(t), y2: ys(t), class: "grid" }, svg); el("text", { x: L - 6, y: ys(t) + 4, "text-anchor": "end" }, svg, t); }
+  for (const p of [pMin, (pMin + pMax) / 2, pMax]) el("text", { x: xs(p), y: H - 6, "text-anchor": p === pMin ? "start" : p === pMax ? "end" : "middle" }, svg, fmtG(p));
+  let d = `M${xs(pMin)},${ys(0)}`; let prevQ = 0;
+  pts.forEach(([p, q]) => { d += ` L${xs(p)},${ys(prevQ)} L${xs(p)},${ys(q)}`; prevQ = q; });
+  el("path", { d: d + ` L${xs(pMax)},${ys(0)} Z`, fill: "var(--series-soft)" }, svg);
+  el("path", { d, fill: "none", stroke: "var(--series)", "stroke-width": 2 }, svg);
+  pts.forEach(([p, q], i) => { const x0 = i ? xs(pts[i - 1][0]) : L, x1 = xs(p);
+    el("rect", { x: Math.min(x0, x1) - 2, y: T, width: Math.max(6, Math.abs(x1 - x0) + 4), height: H - T - B, class: "hit", "data-tip": `${q} lotus available at ${gsc(p)} or less` }, svg); });
+  el("text", { x: L + 4, y: T + 10 }, svg, "units you could buy");
+})();
+
+// ---- variants (sorted lollipops) ----
+(function () {
+  const vs = D.variants, svg = $("c-variants"), W = wid(svg), L = 80, R = 46, rowH = 16, T = 4, B = 22, H = vs.length * rowH + T + B;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const max = niceMax(Math.max(...vs.map((v) => v.median))), xs = (c) => L + (c / max) * (W - L - R);
+  for (const t of ticks(max)) { el("line", { x1: xs(t), x2: xs(t), y1: T, y2: H - B, class: "grid" }, svg); el("text", { x: xs(t), y: H - 6, "text-anchor": "middle" }, svg, fmtG(t)); }
+  vs.forEach((v, i) => {
+    const y = T + i * rowH + rowH / 2;
+    el("text", { x: L - 6, y: y + 4, "text-anchor": "end" }, svg, "bonus " + v.variant);
+    el("line", { x1: L, x2: xs(v.median), y1: y, y2: y, stroke: "var(--series)", "stroke-width": 1.5, opacity: 0.45 }, svg);
+    el("circle", { cx: xs(v.median), cy: y, r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 1.5 }, svg);
+    el("rect", { x: 0, y: y - rowH / 2, width: W, height: rowH, class: "hit", "data-tip": `Archer's Cloak, bonus ${v.variant}: ${fmtG(v.median)} typical · cheapest ${fmtG(v.min)} · ${v.listings} listed` }, svg);
+  });
+  el("line", { x1: L, x2: L, y1: T, y2: H - B, class: "axis" }, svg);
+})();
+}
+drawAll();
+let rz; let lastW = innerWidth;
+addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rz); rz = setTimeout(drawAll, 150); });
+</script>
