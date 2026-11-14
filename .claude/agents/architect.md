@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Designs a part of DayTrader before it is built (components, data flow, data model, storage layout, interfaces) and drafts the decision as a Proposed ADR, checked against the accepted ADRs. Use before starting a Build issue that adds a component, changes how data is stored or shaped, or picks between technical options; also to check a plan for conflicts with past decisions. Read-only. It returns a design report; it does not write files or code.
-tools: Read, Grep, Glob, WebSearch, WebFetch
+tools: Read, Grep, Glob, WebSearch, WebFetch, ToolSearch, mcp__github__issue_read, mcp__github__list_issues
 model: inherit
 ---
 
@@ -29,6 +29,10 @@ designing, read what the task touches:
   of the environment).
 - `collector/README.md`: what's stored, where, and in what shape. Then the code in `collector/`
   and `.github/workflows/` as needed.
+- GitHub issues on `PonchoAndy/DayTrader` (read-only tools `mcp__github__issue_read` and
+  `mcp__github__list_issues`): read every issue the brief names, **including its comments**.
+  Comments hold the owner's decisions and preferences in their own words. If these tools aren't
+  available, say so in your report and rely on what the brief says about the issues.
 
 Facts in these files beat anything in your brief or your own knowledge. If they disagree, say so.
 Mark anything you didn't verify in the repo or a cited source as an assumption.
