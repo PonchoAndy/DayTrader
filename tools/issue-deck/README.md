@@ -6,10 +6,13 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
 - `issue-deck.html` is the published page. To change it, edit this file and republish it with
   the Artifact tool, passing the URL above as `url` (otherwise a new, separate page is created).
   Keep the declared capabilities when republishing: `db` with rules
-  `issues`, `meta`, `replies` — each `read: "admin", write: "admin"` (owner only) — and
+  `issues`, `meta`, `replies`, `briefings` — each `read: "admin", write: "admin"` (owner only) — and
   `mcp` with `{server: "Claude Code Remote", tools: ["fire_trigger", "send_message"]}`.
 - The page has no GitHub access. Its data lives in the artifact database:
   - `issues/i<N>`: `{number, title, body, state, updated_at, comments: [{user, created_at, body}], syncedAt}`
+  - `briefings/b<N>`: `{number, summary, why, terms: [{term, meaning}], yourPart, basedOn, writtenAt}`.
+    Plain-language explainer shown in a card under each issue, written by Claude during syncs
+    (`CLAUDE.md` step 3). The page flags it as out of date when the issue's `updated_at` > `basedOn`.
   - `meta/sync`: `{syncedAt}`
   - `meta/syncRequest`: `{state: "running" | "done" | "failed", via: "session" | "background", requestedAt, finishedAt?, error?}`
   - `meta/activeSession`: `{sessionId, kind: "work", triggerId, heartbeatAt}`, written by work sessions
