@@ -17,6 +17,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0007](0007-keep-hourly-summaries-three-months-then-review.md) | Keep hourly summaries 3 months, review their value | Accepted |
 | [0008](0008-analysis-layer-daily-rollup-listing-flows-versioned-metrics.md) | Analysis layer: daily roll-up, listing flows, versioned metrics | Partly accepted (listing flows + extra trading and posting-behaviour measures); rest proposed |
 | [0009](0009-collect-europe-in-the-same-hourly-run.md) | Collect Europe's auction data in the same hourly run | Accepted |
+| [0010](0010-build-helper-agents-in-the-repo.md) | Build-helper agents live in the repo, hand off through saved documents | Accepted |
 
 ## Statuses
 
@@ -27,5 +28,5 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 
 ## Adding one
 
-Copy [`template.md`](template.md) to the next number, e.g. `0006-short-title.md`, fill it in,
+Copy [`template.md`](template.md) to the next number, e.g. `0011-short-title.md`, fill it in,
 and add it to the index above. Link the issue where the decision was discussed.
