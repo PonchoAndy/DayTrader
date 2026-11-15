@@ -384,6 +384,8 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   signal for US prices. Korea/Taiwan probed once, decided ~mid-December. (Originally US only, #2.)
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
+- **Home house: 114** (US, Normal, Horde; ADR 0012, #85). Reachable: 114 and Blackwater 117. A row's ruleset
+  comes from its house ID (map in §1), never from the API query.
 - **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API
   cost is small (about 30 calls an hour for all 15 houses, far under the limit); the real cost
   is storage and run time, roughly 3x a Horde-only pull, which per-item hourly summaries keep
