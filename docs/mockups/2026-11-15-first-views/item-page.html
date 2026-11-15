@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayTrader mock-up · T2 Item page · Thorium Bar on 113</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Mock-up for judging the design (2026-11-15). Tokens copied from tools/data-tour/template.html.
+   Shared visual language: solid = firm, dotted underline / dashed = estimate, hatched = missing, dagger = sample value. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a; --series: #6250d6; --series-soft: #e6e2fb;
+  --up: #006300; --down: #b3261e;
+  --q-poor: #7a7a7a; --q-common: #3d4650; --q-uncommon: #1a8f00; --q-rare: #0062c4; --q-epic: #8a2bd1;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+}
+:root { --down-soft: color-mix(in srgb, var(--down) 12%, transparent); --up-soft: color-mix(in srgb, var(--up) 12%, transparent);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--muted) 28%, transparent) 4px 5px); }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); margin: 0; }
+body { font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px max(14px, env(safe-area-inset-left, 0px)) 64px; display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 26px/1.15 var(--f-display); margin: 4px 0 0; }
+h2 { font: 600 18px/1.25 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 15px/1.3 var(--f-display); margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); } .note { color: var(--muted); font-size: 13px; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.num { font-variant-numeric: tabular-nums; }
+a { color: var(--gold); }
+.topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.themebtn { font: 500 12px/1 var(--f-body); padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; white-space: nowrap; }
+.themebtn:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sample-banner { display: flex; gap: 10px; align-items: baseline; font-size: 13px; background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 10px; padding: 9px 12px; }
+.sample-banner b { font: 600 11px/1.4 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
+/* ---------- shared visual language ---------- */
+.ico { width: 11px; height: 11px; flex: none; display: inline-block; vertical-align: -1px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.spd { display: inline-flex; align-items: center; gap: 5px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.spd.fleeting { background: var(--fg); color: var(--bg); }
+.spd.intraday { border: 1px solid var(--series); color: var(--series); padding: 3px 6px; }
+.spd.multiday { background: var(--series-soft); color: var(--series); }
+.spd.trend { border: 1px dashed var(--muted); color: var(--muted); padding: 3px 6px; }
+.age { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.age.aging { color: var(--gold); } .age.stale { color: var(--down); }
+.conf { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--f-body); color: var(--muted); }
+.conf .m { display: inline-flex; gap: 2px; flex: none; } .conf .m i { width: 9px; height: 7px; border-radius: 1.5px; background: var(--line); }
+.conf .m i.on { background: var(--fg); }
+.conf .m.none i { background: var(--hatch); border: 1px dashed var(--muted); }
+.est { border-bottom: 1.5px dotted currentColor; padding-bottom: 1px; }
+.hz { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.hz.hard { color: var(--down); background: var(--down-soft); border: 1px solid color-mix(in srgb, var(--down) 45%, transparent); }
+.hz.caution { color: var(--gold); background: var(--gold-soft); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); }
+.cls { font: 600 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.cls.probable { color: var(--series); border: 1px dashed var(--series); }
+.srcb { font: 600 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; white-space: nowrap; }
+.srcb.real { color: var(--fg); border: 1px solid var(--line); }
+.srcb.sample { color: var(--gold); border: 1px dashed var(--gold); }
+/* ---------- item header ---------- */
+.ihead { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.ihead h2 { font-size: 22px; }
+.qdot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
+.house { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--f-body); padding: 5px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--horde) 50%, transparent); color: var(--fg); }
+.house i { width: 9px; height: 9px; border-radius: 50%; background: var(--horde); }
+/* ---------- verdict ---------- */
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; border-left: 5px dashed var(--series); }
+.vrow { display: grid; grid-template-columns: 150px minmax(0, 260px) minmax(0, 1fr); gap: 8px 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; }
+.vrow:first-of-type { border-top: 0; padding-top: 0; }
+@media (max-width: 760px) { .vrow { grid-template-columns: 1fr; } }
+.vrow .who { font: 600 13px/1.3 var(--f-body); }
+.vrow .who small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.choice { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.choice span { text-align: center; font: 600 12px/1 var(--f-body); letter-spacing: .06em; text-transform: uppercase; padding: 9px 2px; color: var(--muted); background: var(--surface-2); border-left: 1px solid var(--line); }
+.choice span:first-child { border-left: 0; }
+.choice span.on { background: var(--fg); color: var(--bg); }
+.vwhy { font-size: 13.5px; display: flex; flex-direction: column; gap: 5px; }
+.btn { font: 600 13px/1 var(--f-body); padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); text-decoration: none; white-space: nowrap; display: inline-block; }
+/* ---------- panels and cards ---------- */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 0; border-top: 2.5px solid var(--series); display: inline-block; }
+.sw.thin { border-top-width: 1.5px; border-color: var(--muted); }
+.sw.dash { border-top-style: dashed; border-color: var(--fg); border-top-width: 1.5px; }
+.sw.box { width: 12px; height: 10px; border: 0; background: var(--hatch); outline: 1px solid var(--line); }
+.sw.fan { width: 14px; height: 10px; border: 1px dashed var(--series); background: color-mix(in srgb, var(--series) 16%, transparent); }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font: 500 10.5px var(--f-mono); fill: var(--tick); }
+svg.chart text.lbl { font: 600 11px var(--f-body); fill: var(--fg); }
+svg.chart text.red { fill: var(--down); font-weight: 600; }
+.group-h { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.group-h .eyebrow { color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .cards { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px 14px; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.c-head { display: flex; flex-direction: column; gap: 6px; }
+.c-title { display: flex; align-items: baseline; gap: 8px; }
+.sid { font: 600 10.5px/1 var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; flex: none; }
+.c-ans { font: 600 15px/1.35 var(--f-body); }
+.c-note { font-size: 12.5px; color: var(--muted); }
+/* small visuals */
+.bullet { position: relative; height: 54px; margin: 4px 0 0; }
+.bullet .ax { position: absolute; left: 0; right: 0; top: 22px; height: 12px; background: var(--surface-2); border-radius: 3px; }
+.bullet .band { position: absolute; top: 22px; height: 12px; background: color-mix(in srgb, var(--fg) 16%, transparent); }
+.bullet .tick { position: absolute; top: 16px; height: 24px; width: 0; border-left: 2px dashed var(--fg); }
+.bullet .dot { position: absolute; top: 19px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--down); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--down); }
+.bullet .ghost { position: absolute; top: 22px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--muted); background: var(--surface); }
+.bullet .lab { position: absolute; font: 500 10.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; transform: translateX(-50%); }
+.bullet .lab.top { top: 2px; } .bullet .lab.bot { top: 42px; }
+.bullet .lab.strong { color: var(--fg); font-weight: 600; }
+.hbars { display: flex; flex-direction: column; gap: 5px; font: 500 11.5px/1 var(--f-mono); }
+.hb { display: grid; grid-template-columns: 54px minmax(0, 1fr) 46px; gap: 8px; align-items: center; }
+.hb .t { position: relative; height: 12px; background: var(--surface-2); border-radius: 3px; }
+.hb .f { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--axis); }
+.hb .f.red { background: var(--down); } .hb .f.ink { background: var(--fg); }
+.hb .typ { position: absolute; top: -3px; bottom: -3px; border-left: 2px dashed var(--fg); }
+.hb .v { text-align: right; color: var(--fg); }
+.stack { display: flex; height: 22px; border-radius: 5px; overflow: hidden; font: 600 10.5px/22px var(--f-mono); }
+.stack span { text-align: center; white-space: nowrap; overflow: hidden; color: var(--fg); border-right: 2px solid var(--surface); }
+.stack span:last-child { border-right: 0; }
+.stack.est span { outline: 1.5px dashed color-mix(in srgb, var(--fg) 40%, transparent); outline-offset: -3px; }
+.stack-lab { display: flex; justify-content: space-between; font: 500 10.5px/1.3 var(--f-mono); color: var(--muted); gap: 6px; }
+.marker { position: relative; height: 18px; }
+.marker b { position: absolute; transform: translateX(-50%); font: 600 10.5px/1 var(--f-mono); white-space: nowrap; }
+.marker b::after { content: ""; position: absolute; left: 50%; top: 12px; height: 8px; border-left: 2px solid var(--fg); }
+.qdp { display: flex; flex-direction: column; gap: 5px; font: 500 11.5px/1 var(--f-mono); }
+.qdp .r { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; align-items: center; }
+.qdp .d { display: flex; gap: 3px; flex-wrap: wrap; }
+.qdp .d i { width: 11px; height: 11px; border-radius: 50%; background: var(--series); }
+.qdp .d i.x { background: transparent; border: 2px solid var(--down); }
+.rng { position: relative; height: 40px; }
+.rng .ax { position: absolute; left: 0; right: 0; top: 16px; height: 8px; background: var(--surface-2); border-radius: 3px; }
+.rng .r { position: absolute; top: 14px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--series) 30%, transparent); border: 1.5px dashed var(--series); }
+.rng .pin { position: absolute; top: 8px; height: 24px; border-left: 2.5px solid var(--fg); }
+.rng .lab { position: absolute; font: 500 10.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.wf { display: flex; flex-direction: column; gap: 4px; font: 500 11.5px/1 var(--f-mono); }
+.wf .r { display: grid; grid-template-columns: 112px minmax(0, 1fr) 56px; gap: 8px; align-items: center; }
+.wf .t { position: relative; height: 13px; }
+.wf .b { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.wf .b.price { background: var(--axis); } .wf .b.fee { background: var(--down); } .wf .b.net { background: var(--up); }
+.wf .b.netlo { background: transparent; border: 1.5px dashed var(--up); }
+.wf .b.neg { background: transparent; border: 1.5px dashed var(--down); }
+.wf .zero { position: absolute; top: -3px; bottom: -3px; border-left: 1.5px solid var(--fg); }
+.wf .v { text-align: right; }
+.strip { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 2px; }
+.strip i { height: 22px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--line); }
+.strip i.cheap { background: var(--up-soft); border-color: color-mix(in srgb, var(--up) 50%, transparent); }
+.strip i.high { background: var(--down-soft); border-color: color-mix(in srgb, var(--down) 50%, transparent); }
+.strip i.miss { background: var(--hatch); }
+.strip-lab { display: flex; justify-content: space-between; font: 500 10px/1 var(--f-mono); color: var(--muted); }
+.ev { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: start; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.ev .date { font: 600 12px/1.2 var(--f-mono); text-align: center; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.ev .date b { display: block; font: 700 20px/1 var(--f-display); }
+.hours { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; align-items: end; height: 46px; position: relative; }
+.hours i { background: var(--axis); border-radius: 1px; opacity: .55; }
+.hours i.miss { background: var(--hatch); opacity: 1; height: 100% !important; }
+.hours i.none { background: transparent; border: 1px dashed var(--line); height: 100% !important; opacity: 1; }
+.hours .over { position: absolute; inset: 0; display: grid; place-items: center; font: 600 11px/1.2 var(--f-mono); color: var(--fg); text-align: center; letter-spacing: .04em; text-transform: uppercase; }
+.hours .over span { background: var(--surface); padding: 3px 7px; border: 1px dashed var(--muted); border-radius: 4px; }
+.hdots { position: relative; height: 70px; margin-top: 4px; }
+.trust { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 16px; font-size: 13px; }
+.trust div { display: flex; flex-direction: column; gap: 2px; }
+.trust b { font: 600 10.5px/1.2 var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-fleeting" viewBox="0 0 12 12"><path d="M2.5 1h7M2.5 11h7M3.5 1c0 3 2.5 3.6 2.5 5S3.5 8 3.5 11M8.5 1c0 3-2.5 3.6-2.5 5s2.5 2 2.5 5" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="i-intraday" viewBox="0 0 12 12"><path d="M1 6c1.3-4 3.2-4 5 0s3.7 4 5 0" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-multiday" viewBox="0 0 12 12"><rect x="1" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="4.7" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="8.4" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 12 12"><path d="M1.5 10L10 2.5M5.5 2.5H10V7" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 12 12"><path d="M6 1.2L11 10.6H1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 4.6v3M6 8.7v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-care" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.6v3M6 8.2v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="topline">
+    <div>
+      <div class="eyebrow">DayTrader · mock-up · T2 Item page</div>
+      <h1>What's really going on with this item</h1>
+    </div>
+    <button class="themebtn" id="themebtn" type="button">Theme: auto</button>
+  </header>
+
+  <div class="sample-banner"><b>Sample data</b><span>Prices and quantities are <strong>real</strong> (Thorium Bar, 14 Nov 2026, 03:17–18:17 UTC). Cards tagged <span class="srcb sample">sample</span> and values marked <sup class="s">†</sup> are invented to show the design: sale rate, clearing price, depth, lock time and undercut figures aren't collected yet (#37). The verdict is a sample too; the rules behind it aren't built. The page pretends it's 19:09 UTC.</span></div>
+
+  <section class="ihead" aria-label="Item and house">
+    <div>
+      <h2><span class="qdot" style="background:var(--q-common)"></span>Thorium Bar</h2>
+      <p class="note">Commodity · no variants · item 12359</p>
+    </div>
+    <div class="tag-row">
+      <span class="house"><i></i>Horde 113 · your house</span>
+      <span class="age">18:17 snapshot · 52 min old</span>
+      <span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 15 h of history, 2 hours missed</span>
+    </div>
+  </section>
+
+  <!-- ============ VERDICT ============ -->
+  <section class="verdict" aria-labelledby="h-verdict">
+    <div class="tag-row"><span class="cls probable">Probable</span><h2 id="h-verdict" style="font-size:16px">Buy, post, wait or skip?</h2><span class="srcb sample">sample verdict</span></div>
+    <div class="vrow">
+      <div class="who">If you want to buy<small>flip, or reagents for later</small></div>
+      <div class="choice" aria-label="Answer: wait"><span>Buy</span><span>Post</span><span class="on">Wait</span><span>Skip</span></div>
+      <div class="vwhy">
+        <span><b>The price is a reset, not demand.</b> 25.0 s now against 17.0 s normal, right after one buyer cleared the market. Supply is already refilling (+733 units in an hour).</span>
+        <span class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day · look again tomorrow</span><a class="btn" href="#">Alert me under 18 s</a></span>
+      </div>
+    </div>
+    <div class="vrow">
+      <div class="who">If you hold some<small>bought earlier, or from mining</small></div>
+      <div class="choice" aria-label="Answer: post"><span>Buy</span><span class="on">Post</span><span>Wait</span><span>Skip</span></div>
+      <div class="vwhy">
+        <span><b>Sell into the shortage while it lasts</b>, at about 24 s<sup class="s">†</sup>, in lots of 20, up to about 100 today. Expect to sell from the queue, not to stay cheapest.</span>
+        <span class="tag-row"><span class="spd intraday"><svg class="ico"><use href="#i-intraday"/></svg>Hours · window closes as supply refills</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MAIN CHART ============ -->
+  <section class="panel" aria-labelledby="h-chart">
+    <div class="c-title"><h2 id="h-chart">Price and supply today</h2></div>
+    <div class="tag-row"><span class="srcb real">real data</span><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day event</span><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Reset at 17:17</span></div>
+    <div class="legend">
+      <span><i class="sw"></i>cheapest-10% price</span><span><i class="sw thin"></i>median price</span>
+      <span><i class="sw dash"></i>normal / typical (estimate)</span><span><i class="sw box"></i>hour we missed</span><span><i class="sw fan"></i>sample projection</span>
+    </div>
+    <div id="main-chart" role="img" aria-label="Thorium Bar on house 113, 03:17 to 18:17 UTC. Price fell from 25.9 to 16.3 silver by 16:17, then jumped to 25.3 silver at 17:17 while supply fell from 1,210 to 100 units; by 18:17 supply was 833 at 25.0 silver."></div>
+    <p class="c-note">Two panels on one time axis instead of one chart with two scales, so a supply collapse can't be confused with a price move. The price line breaks where we missed an hour rather than drawing a guess across it. No price projection is drawn: whether resets fade (H21) isn't proven yet, so the page says it in words.</p>
+  </section>
+
+  <!-- ============ A. CHEAP? ============ -->
+  <div class="group-h"><span class="eyebrow">Is it cheap, and why?</span></div>
+  <div class="cards">
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S2</span><h3>Is it cheap, and will it stay that way?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: no trend check yet</span><span class="srcb real">real data</span></div></div>
+      <div class="c-ans">No. <span class="neg">47% above normal</span>: 25.0 s against 17.0 s.</div>
+      <div class="bullet" aria-label="Scale 15 to 27 silver. Normal 17.0 s; middle half of today's hours 17.0 to 20.2 s; today's low 16.3; this morning 25.9; now 25.0.">
+        <span class="ax"></span>
+        <span class="band" style="left:16.7%;width:26.7%"></span>
+        <span class="tick" style="left:16.7%"></span>
+        <span class="ghost" style="left:10.4%"></span>
+        <span class="ghost" style="left:90.8%"></span>
+        <span class="dot" style="left:83.3%"></span>
+        <span class="lab top" style="left:16.7%">normal 17.0</span>
+        <span class="lab top strong" style="left:80%">now 25.0 s</span>
+        <span class="lab bot" style="left:8%">low 16.3</span>
+        <span class="lab bot" style="left:30%">usual range</span>
+        <span class="lab bot" style="left:92%">03:17 25.9</span>
+      </div>
+      <p class="c-note">The 3-day against 7-day trend check can't run until 17 Nov. This morning was also near 26 s, so with one day of data we can't tell a daily cycle from a second reset. That's why confidence is low.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S9</span><h3>Is supply piling up or running out?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i></i></span>Medium: counts are firm, "typical" is 15 h</span><span class="srcb real">real data</span></div></div>
+      <div class="c-ans">Short, and refilling fast: 833 listed against 1,535 typical.</div>
+      <div class="hbars" aria-label="Units listed: 16:17 1,210; 17:17 100; 18:17 833; typical 1,535">
+        <div class="hb"><span>16:17</span><span class="t"><span class="f" style="width:31.4%"></span><span class="typ" style="left:39.9%"></span></span><span class="v">1,210</span></div>
+        <div class="hb"><span>17:17</span><span class="t"><span class="f red" style="width:2.6%"></span><span class="typ" style="left:39.9%"></span></span><span class="v">100</span></div>
+        <div class="hb"><span>18:17</span><span class="t"><span class="f ink" style="width:21.6%"></span><span class="typ" style="left:39.9%"></span></span><span class="v">833</span></div>
+        <div class="hb"><span class="muted">dashed</span><span class="note" style="font:500 11px var(--f-mono)">= typical 1,535 (15-h median)</span><span></span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="note">Time left on what's listed now <span class="srcb sample">sample</span></span>
+        <div class="stack est"><span style="width:71%;background:var(--series-soft)">long 71%</span><span style="width:17%;background:var(--surface-2)">med 17%</span><span style="width:12%;background:var(--gold-soft)">short</span></div>
+      </div>
+      <p class="c-note"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Reset</span> A shortage straight after one buyer emptied the market is not demand. Supply fell 92% in an hour while the price rose 55%.</p>
+    </article>
+  </div>
+
+  <!-- ============ B. BUY HOW MUCH ============ -->
+  <div class="group-h"><span class="eyebrow">If I buy: how many, and will it still be there?</span></div>
+  <div class="cards">
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S5</span><h3>How many can I buy at this price?</h3></div>
+        <div class="tag-row"><span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting · this snapshot</span><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i class="on"></i></span>High: counted listings, but 52 min old</span><span class="srcb sample">sample</span></div></div>
+      <div class="c-ans">40 units at the cheapest, 23.8 s<sup class="s">†</sup>. 100 units cost 24.4 g<sup class="s">†</sup>.</div>
+      <div id="depth-chart" role="img" aria-label="Sample depth: 40 units at 23.8 s, 60 within 2%, 95 within 5%, 520 within 10%, 780 within 25%."></div>
+      <div class="tag-row" style="font:500 11.5px var(--f-mono)"><span>100 → 24.4 g<sup class="s">†</sup></span><span>200 → 49.9 g<sup class="s">†</sup></span><span>500 → 126 g<sup class="s">†</sup></span><span class="muted">· bait check passed: not a single cheap unit</span></div>
+      <p class="c-note">Counted from listings, so it's firm for 18:17. Others buy too: it won't still be this deep when you arrive.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S7</span><h3>Will a cheap price still be there?</h3></div>
+        <div class="tag-row"><span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: survival odds need weeks</span><span class="srcb real">real data</span></div></div>
+      <div class="c-ans">No cheap price to catch right now. The 16–17 s supply lasted all day, then went in one hour.</div>
+      <div>
+        <div class="strip" aria-label="Each hour from 03:17 to 18:17: green = at or under 17 s, red = above 20 s, hatched = missed">
+          <i class="high" title="03:17 25.9 s"></i><i class="high" title="04:17 21.0 s"></i><i class="cheap" style="opacity:.6" title="05:17 18.0 s"></i><i class="miss" title="06:17 missed"></i><i class="cheap" title="07:17 17.0 s"></i><i class="cheap" title="08:17 17.0 s"></i><i class="cheap" title="09:17 17.0 s"></i><i class="cheap" style="opacity:.6" title="10:17 18.0 s"></i><i class="cheap" title="11:17 17.0 s"></i><i class="miss" title="12:17 missed"></i><i class="cheap" title="13:17 17.0 s"></i><i class="cheap" title="14:17 17.0 s"></i><i class="cheap" title="15:17 16.3 s"></i><i class="cheap" title="16:17 16.3 s"></i><i class="high" title="17:17 25.3 s"></i><i class="high" title="18:17 25.0 s"></i>
+        </div>
+        <div class="strip-lab"><span>03:17</span><span>missed 06:17, 12:17</span><span>18:17</span></div>
+      </div>
+      <p class="c-note">Green = cheapest-10% price at or near 17 s; red = 21 s or more. When a cheap listing does appear, this card shows how long it has already survived and the odds it's still up when you get there (row S7 on the deal scanner).</p>
+    </article>
+  </div>
+
+  <!-- ============ C. POST ============ -->
+  <div class="group-h"><span class="eyebrow">If I post: at what price, how fast, and will I stay cheapest?</span></div>
+  <div class="cards">
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S4</span><h3>What do buyers actually pay?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: ≈ 2,400 units, sales vs cancels guessed</span><span class="srcb sample">sample</span></div></div>
+      <div class="c-ans">Mostly at the cheapest or within 5% of it. Post at <span class="est">≈ 24 s</span>, not above 25 s.</div>
+      <div>
+        <div class="marker"><b style="left:72%">your 24.0 s</b></div>
+        <div class="stack est" aria-label="Where units that sold early were priced: 58% at the cheapest, 27% within 5%, 11% within 20%, 4% above"><span style="width:58%;background:color-mix(in srgb,var(--up) 38%,transparent)">at cheapest 58%</span><span style="width:27%;background:color-mix(in srgb,var(--up) 20%,transparent)">≤5% 27%</span><span style="width:11%;background:var(--surface-2)">≤20%</span><span style="width:4%;background:var(--down-soft)"></span></div>
+        <div class="stack-lab"><span>at the cheapest</span><span>within 5%</span><span>20%+ above: 4%</span></div>
+      </div>
+      <p class="c-note">Where units sat (against the hour's cheapest) when they vanished early. Early vanishings are mostly sales, some are cancels; that split is an estimate. It's where past units cleared at past volumes, not a promise for everything you post.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S3</span><h3>Will it sell, and how many a day?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 15 h of flows</span><span class="srcb sample">sample</span></div></div>
+      <div class="c-ans">Yes. <span class="est">≈ 1,500–3,000 a day</span>; your 100 is about 3–7% of a day.</div>
+      <div class="rng" aria-label="Sale rate range 1,500 to 3,000 a day on a 0 to 4,000 scale; your 100 marked">
+        <span class="ax"></span><span class="r" style="left:37.5%;width:37.5%"></span><span class="pin" style="left:2.5%"></span>
+        <span class="lab" style="left:0;top:-2px">your 100</span><span class="lab" style="left:37.5%;top:30px">1,500</span><span class="lab" style="left:69%;top:30px">3,000 a day</span><span class="lab" style="right:0;top:-2px">4,000</span>
+      </div>
+      <p class="c-note">Estimated from listing changes, not from real sales records (TSM's come from players' own sales; ours can't). Shown as a range, never one number. Sell-through <span class="est">≈ 0.35–0.55</span><sup class="s">†</sup>.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S6</span><h3>How long is my gold tied up?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: few full listings seen</span><span class="srcb sample">sample</span></div></div>
+      <div class="c-ans">Usually hours. Of 20 listings like yours at the clearing price:</div>
+      <div class="qdp" aria-label="Of 20 similar listings: 8 sold within 2 hours, 6 in 2 to 12 hours, 3 in 12 to 24 hours, 1 in 24 to 48 hours, 2 expired">
+        <div class="r"><span>&lt; 2 h</span><span class="d"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="r"><span>2–12 h</span><span class="d"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="r"><span>12–24 h</span><span class="d"><i></i><i></i><i></i></span></div>
+        <div class="r"><span>24–48 h</span><span class="d"><i></i></span></div>
+        <div class="r"><span class="neg">expired</span><span class="d"><i class="x"></i><i class="x"></i></span></div>
+      </div>
+      <p class="c-note">Then about 60 minutes more for the gold to arrive by mail. Dots instead of "sells in 3.2 h": a single number would claim precision we don't have.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S8</span><h3>Can I stay the cheapest until I'm back?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day pattern</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: reposts are guessed</span><span class="srcb sample">sample</span><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Contested</span></div></div>
+      <div class="c-ans">No, not on one visit a day. The cheapest spot changes hands <span class="est">≈ 3–6 times an hour</span><sup class="s">†</sup>.</div>
+      <div class="hbars" aria-label="On a 24-hour scale: cheapest spot holds about 10 to 20 minutes; your next visit is in about 24 hours">
+        <div class="hb" style="grid-template-columns:96px minmax(0,1fr) 54px"><span>cheapest holds</span><span class="t"><span class="f red" style="width:1.4%;min-width:3px"></span></span><span class="v est">10–20 min</span></div>
+        <div class="hb" style="grid-template-columns:96px minmax(0,1fr) 54px"><span>you're back in</span><span class="t"><span class="f ink" style="width:100%"></span></span><span class="v">~24 h</span></div>
+      </div>
+      <p class="c-note">Don't race the undercutters: undercutting into a crowded spot drives the price down for everyone. Post at the clearing price (S4) and sell from the queue, or post at a quiet hour once we know it (S10).</p>
+    </article>
+  </div>
+
+  <!-- ============ D. PAYS? ============ -->
+  <div class="group-h"><span class="eyebrow">Does it pay?</span></div>
+  <div class="cards">
+    <article class="card wide">
+      <div class="c-head"><div class="c-title"><span class="sid">S1</span><h3>What do I actually make, after fees?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Follows the price</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: cut and deposit unconfirmed (#13), exit price estimated</span></div></div>
+      <div class="c-ans">Selling what you hold: <span class="pos est">≈ +16 to +23 s</span> a bar, after fees. Buying now to flip: <span class="neg est">≈ −9 to −2 s</span> a bar. Don't.</div>
+      <div class="wf" aria-label="Per bar, posting at 24 silver: price 24.0, cut minus 1.2, deposits minus 0.1, net 22.7; if the price returns to 17 silver first, net 16.1. Flip bought at 25.0: minus 9 to minus 2 silver.">
+        <div class="r"><span>post at 24.0 s<sup class="s">†</sup></span><span class="t"><span class="b price" style="left:10%;width:72%"></span></span><span class="v">24.0 s</span></div>
+        <div class="r"><span>5% cut</span><span class="t"><span class="b fee" style="left:78.4%;width:3.6%"></span></span><span class="v neg">−1.2 s</span></div>
+        <div class="r"><span>deposits × relists</span><span class="t"><span class="b fee" style="left:78.1%;width:.6%;min-width:2px"></span></span><span class="v neg">−0.1 s<sup class="s">†</sup></span></div>
+        <div class="r"><span><b>you get</b></span><span class="t"><span class="b netlo" style="left:10%;width:48.3%"></span><span class="b net" style="left:10%;width:68.1%;height:7px;top:3px"></span></span><span class="v pos est">16–23 s</span></div>
+        <div class="r"><span class="muted">flip bought at 25.0</span><span class="t"><span class="zero" style="left:10%"></span><span class="b neg" style="left:-.0%;width:9.9%;left:calc(10% - 9.9%)"></span></span><span class="v neg est">−9 to −2 s</span></div>
+      </div>
+      <p class="c-note">The solid green bar is the expected case (it sells near 24 s); the dashed outline is the worse case (price falls back to 17 s before it sells). Never one exact figure: the cut, deposit rule and exit price are all uncertain. Vendor floor: not collected yet. Your own profit depends on what you paid; the trade journal (T8) fills that in.</p>
+    </article>
+  </div>
+
+  <!-- ============ E. WHEN ============ -->
+  <div class="group-h"><span class="eyebrow">When, and what's coming?</span></div>
+  <div class="cards">
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S10</span><h3>Best hour to buy or sell</h3></div>
+        <div class="tag-row"><span class="spd intraday"><svg class="ico"><use href="#i-intraday"/></svg>Intraday</span><span class="conf"><span class="m none"><i></i><i></i><i></i></span>Not established</span><span class="srcb real">real data</span></div></div>
+      <div class="c-ans">No daily pattern yet: 1 day of the 14 needed (ready about 28 Nov).</div>
+      <div class="hours" id="hours" aria-label="Hours of the day, UTC. Today's cheapest-10% price for each hour we saw; pattern not established."><div class="over"><span>Pattern not established</span></div></div>
+      <div class="strip-lab"><span>00 UTC</span><span>12</span><span>23</span></div>
+      <p class="c-note">Faint bars are today's single observations, not a typical day. Day-of-week patterns need 4 weeks (about 12 Dec). Retail-era guides about "Tuesday dips" don't carry over automatically.</p>
+    </article>
+
+    <article class="card">
+      <div class="c-head"><div class="c-title"><span class="sid">S10</span><h3>Anything about to change the market?</h3></div>
+        <div class="tag-row"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i></i></span>Medium: sources disagree</span></div></div>
+      <div class="ev">
+        <div class="date">TUE<b>17</b>NOV</div>
+        <div><b>Maintenance: minimum deposit 1 s → 1 c</b>
+          <p class="note">In about 2½ days; time not announced. Source: Blizzard staff post (official). Some news says it's already live; an in-game check settles it.</p>
+          <p class="note" style="margin-top:4px"><b style="color:var(--fg)">For Thorium: low impact.</b> A 20-stack is worth about 5 g, so the minimum deposit hardly matters. Cheap goods will see more listings.</p></div>
+      </div>
+    </article>
+  </div>
+
+  <!-- ============ F. ELSEWHERE ============ -->
+  <div class="group-h"><span class="eyebrow">Elsewhere · reference only</span></div>
+  <section class="panel" aria-labelledby="h-other">
+    <div class="c-title"><h3 id="h-other">Other houses, at 18:17</h3></div>
+    <div class="tag-row"><span class="srcb real">real data</span><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Not your price</span></div>
+    <div id="houses" role="img" aria-label="Cheapest-10% price at 18:17: Horde 113 25.0 s (yours), Horde 114 21.8 s, Alliance 110 16.8 s, Alliance 111 20.0 s, Blackwater 116 1.00 g with 264 listed, Blackwater 117 0.95 g with 8 listed."></div>
+    <p class="c-note">You trade on 113. Other houses are separate markets; you can probably reach only your world's Blackwater house (116?), and that isn't confirmed (#13). Blackwater's 1 g price looks tempting for a bridge, but 8–264 units listed and a 15% cut make it a thin market: see the cross-house board (T6), which checks that someone actually buys there.</p>
+  </section>
+
+  <!-- ============ G. TRUST ============ -->
+  <section class="panel" aria-labelledby="h-trust">
+    <h3 id="h-trust">Can I trust this page?</h3>
+    <div class="trust">
+      <div><b>Data</b><span>14 of 16 hours (06:17 and 12:17 missed). Latest snapshot 18:17, seen 52 min ago.</span></div>
+      <div><b>History</b><span>15 hours. "Normal" needs 7 days, the trend check 3 days (from 17 Nov).</span></div>
+      <div><b>Fees</b><span>5% cut (medium confidence). Deposit rule unknown; 1 s minimum per lot until 17 Nov.</span></div>
+      <div><b>Your house</b><span>113, in world 110/113/116 by guess (#13).</span></div>
+      <div><b>Formulas</b><span>version mock-0. If a formula changes, this page says so instead of changing silently.</span></div>
+    </div>
+  </section>
+
+  <footer class="src">
+    <p>Real data: Blizzard Game Data API, WoW Forever US, hourly snapshots 14 Nov 2026 03:17–18:17 UTC (<code>tools/overnight-demo/demo-data.json</code>). Thorium Bar on 113: cheapest-10% price 25.9 → 16.3 s (16:17) → 25.3 s (17:17) → 25.0 s (18:17); units 3,852 → 1,210 → 100 → 833.</p>
+    <p>Sample values: everything tagged sample or marked <sup class="s">†</sup>, the verdict, and the supply projection. Uncertainty shown as dot counts follows Kay et al., "When (ish) is my bus?" (CHI 2016). Design: <a href="visual-language.html">shared visual language</a> · <a href="deal-scanner.html">T1 deal scanner</a>.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const b = document.getElementById("themebtn"), modes = ["auto", "light", "dark"]; let i = 0;
+  b.addEventListener("click", () => { i = (i + 1) % 3; const m = modes[i];
+    if (m === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", m);
+    b.textContent = "Theme: " + m; });
+})();
+
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a, txt) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
+// Real data, house 113. Hours after 03:17; 06:17 (h=3) and 12:17 (h=9) were missed.
+const H = [0, 1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15], MISS = [3, 9];
+const P10 = [2586, 2096, 1798, 1698, 1695, 1695, 1798, 1698, 1695, 1698, 1625, 1625, 2525, 2499];
+const MED = [2587, 2586, 2399, 1798, 1698, 1798, 2097, 1700, 1698, 1698, 1668, 1669, 2525, 2525];
+const QTY = [3852, 3468, 3185, 3350, 3774, 2239, 1276, 1590, 1479, 865, 1308, 1210, 100, 833];
+const hh = h => { const m = (3 + h) % 24; return String(m).padStart(2, "0") + ":17"; };
+
+function path(xs, ys, vals, x, y) { let d = "", prev = null;
+  vals.forEach((v, i) => { if (v == null) { prev = null; return; } const gap = prev != null && xs[i] - xs[prev] > 1;
+    d += (prev == null || gap ? "M" : "L") + x(xs[i]).toFixed(1) + " " + y(v).toFixed(1); prev = i; }); return d; }
+
+function drawMain() {
+  const box = document.getElementById("main-chart"); box.innerHTML = "";
+  const W = Math.max(300, box.clientWidth), narrow = W < 560;
+  const L = narrow ? 34 : 44, R = narrow ? 6 : 12, T = 34, PH = narrow ? 150 : 200, GAP = 30, QH = narrow ? 78 : 100, B = 22;
+  const HT = T + PH + GAP + QH + B, X1 = 18;
+  const x = h => L + h / X1 * (W - L - R);
+  const yP = c => T + (1 - (c / 100 - 15) / (27 - 15)) * PH;
+  const q0 = T + PH + GAP, yQ = v => q0 + (1 - v / 4000) * QH;
+  const s = el("svg", { class: "chart", viewBox: `0 0 ${W} ${HT}`, width: W, height: HT });
+  const defs = el("defs", {}); const pat = el("pattern", { id: "hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  pat.appendChild(el("line", { x1: 0, y1: 0, x2: 0, y2: 6, stroke: "var(--axis)", "stroke-width": 2 })); defs.appendChild(pat); s.appendChild(defs);
+  // future zone
+  s.appendChild(el("rect", { x: x(15), y: T - 6, width: x(18) - x(15), height: PH + GAP + QH + 6, fill: "var(--surface-2)" }));
+  s.appendChild(el("text", { x: x(16.5), y: T + 12, "text-anchor": "middle" }, narrow ? "not seen" : "not seen yet"));
+  // missed hours
+  MISS.forEach(m => { s.appendChild(el("rect", { x: x(m - .5), y: T - 6, width: x(1) - x(0), height: PH + 6, fill: "url(#hatch)" }));
+    s.appendChild(el("rect", { x: x(m - .5), y: q0, width: x(1) - x(0), height: QH, fill: "url(#hatch)" }));
+    s.appendChild(el("text", { x: x(m), y: T - 10, "text-anchor": "middle" }, "missed")); });
+  // grids
+  [16, 20, 24].forEach(v => { s.appendChild(el("line", { x1: L, x2: W - R, y1: yP(v * 100), y2: yP(v * 100), stroke: "var(--grid)" }));
+    s.appendChild(el("text", { x: L - 5, y: yP(v * 100) + 3.5, "text-anchor": "end" }, v + " s")); });
+  [0, 2000, 4000].forEach(v => { s.appendChild(el("line", { x1: L, x2: W - R, y1: yQ(v), y2: yQ(v), stroke: v ? "var(--grid)" : "var(--axis)" }));
+    s.appendChild(el("text", { x: L - 5, y: yQ(v) + 3.5, "text-anchor": "end" }, v ? (v / 1000) + "k" : "0")); });
+  s.appendChild(el("text", { x: L, y: T - 22, class: "lbl" }, "Price per bar"));
+  s.appendChild(el("text", { x: L, y: q0 - 8, class: "lbl" }, "Units listed"));
+  // normal and typical (estimates: dashed)
+  s.appendChild(el("line", { x1: x(0), x2: x(15), y1: yP(1698), y2: yP(1698), stroke: "var(--fg)", "stroke-width": 1.3, "stroke-dasharray": "5 4" }));
+  s.appendChild(el("text", { x: x(5.6), y: yP(1698) + 14, "text-anchor": "middle" }, "normal 17.0 s (15 h so far)"));
+  s.appendChild(el("line", { x1: x(0), x2: x(15), y1: yQ(1535), y2: yQ(1535), stroke: "var(--fg)", "stroke-width": 1.3, "stroke-dasharray": "5 4" }));
+  // qty bars (firm)
+  QTY.forEach((v, i) => { const bw = Math.max(4, (x(1) - x(0)) * .6);
+    s.appendChild(el("rect", { x: x(H[i]) - bw / 2, y: yQ(v), width: bw, height: yQ(0) - yQ(v), rx: 1.5, fill: i === 12 ? "var(--down)" : (i === 13 ? "var(--fg)" : "var(--axis)") })); });
+  s.appendChild(el("text", { x: x(7.6), y: yQ(1535) - 5, "text-anchor": "middle" }, "typical 1,535"));
+  // sample projection fan for supply refill
+  const fx = [15, 16, 17, 18], lo = [833, 900, 1000, 1050], hi = [833, 1700, 2400, 2900], mid = [833, 1300, 1600, 1750];
+  let fan = "M" + fx.map((h, k) => x(h) + " " + yQ(hi[k])).join(" L") + " L" + fx.slice().reverse().map((h, k) => x(h) + " " + yQ(lo[3 - k])).join(" L") + " Z";
+  s.appendChild(el("path", { d: fan, fill: "var(--series)", "fill-opacity": .16, stroke: "var(--series)", "stroke-dasharray": "3 3", "stroke-width": 1 }));
+  s.appendChild(el("path", { d: "M" + fx.map((h, k) => x(h) + " " + yQ(mid[k])).join(" L"), fill: "none", stroke: "var(--series)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  s.appendChild(el("text", { x: x(16.5), y: yQ(3400), "text-anchor": "middle" }, "sample"));
+  s.appendChild(el("text", { x: x(16.5), y: yQ(3400) + 12, "text-anchor": "middle" }, "refill"));
+  // price lines (firm, solid)
+  s.appendChild(el("path", { d: path(H, null, MED, x, yP), fill: "none", stroke: "var(--muted)", "stroke-width": 1.3 }));
+  s.appendChild(el("path", { d: path(H, null, P10, x, yP), fill: "none", stroke: "var(--series)", "stroke-width": 2.6, "stroke-linejoin": "round" }));
+  P10.forEach((v, i) => s.appendChild(el("circle", { cx: x(H[i]), cy: yP(v), r: i >= 12 ? 4 : 2.6, fill: i >= 12 ? "var(--down)" : "var(--series)", stroke: "var(--surface)", "stroke-width": 1.2 })));
+  // reset marker
+  s.appendChild(el("line", { x1: x(14), x2: x(14), y1: T - 26, y2: yQ(0), stroke: "var(--down)", "stroke-width": 1.5 }));
+  const rt = narrow ? ["RESET 17:17", "1,210 → 100 units", "16.3 → 25.3 s"] : ["RESET 17:17", "supply 1,210 → 100", "price 16.3 → 25.3 s"];
+  rt.forEach((t, k) => s.appendChild(el("text", { x: x(14) - 6, y: T - 16 + k * 13 + (k ? 40 : 0), "text-anchor": "end", class: k ? "" : "red" }, t)));
+  // now marker
+  s.appendChild(el("line", { x1: x(15), x2: x(15), y1: T - 6, y2: yQ(0), stroke: "var(--fg)", "stroke-width": 1.2, "stroke-dasharray": "2 2" }));
+  s.appendChild(el("text", { x: x(15) + 4, y: T - 22, class: "lbl" }, "now"));
+  s.appendChild(el("text", { x: x(15) + 4, y: T - 10 }, "52 min old"));
+  // x labels
+  [0, 3, 6, 9, 12, 15, 18].forEach(h => { if (narrow && (h === 3 || h === 9)) return;
+    s.appendChild(el("text", { x: x(h), y: HT - 4, "text-anchor": "middle" }, hh(h))); });
+  box.appendChild(s);
+}
+
+function drawDepth() {
+  const box = document.getElementById("depth-chart"); box.innerHTML = "";
+  const W = Math.max(260, box.clientWidth), HT = 120, L = 36, R = 8, T = 8, B = 20;
+  // sample ladder: [cumulative units, price in silver]
+  const steps = [[0, 23.8], [40, 23.8], [40, 24.3], [60, 24.3], [60, 25.0], [95, 25.0], [95, 25.5], [520, 25.5], [520, 28.0], [780, 28.0], [780, 35], [833, 35]];
+  const x = u => L + u / 833 * (W - L - R), y = p => T + (1 - (p - 23) / (36 - 23)) * (HT - T - B);
+  const s = el("svg", { class: "chart", viewBox: `0 0 ${W} ${HT}`, width: W, height: HT });
+  [24, 28, 32, 36].forEach(v => { s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--grid)" }));
+    s.appendChild(el("text", { x: L - 4, y: y(v) + 3.5, "text-anchor": "end" }, v + " s")); });
+  s.appendChild(el("rect", { x: x(0), y: T, width: x(100) - x(0), height: HT - T - B, fill: "var(--series-soft)" }));
+  s.appendChild(el("text", { x: x(100) + 4, y: T + 10 }, "100 units"));
+  s.appendChild(el("path", { d: "M" + steps.map(p => x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" L"), fill: "none", stroke: "var(--fg)", "stroke-width": 2 }));
+  [0, 200, 400, 600, 833].forEach(u => s.appendChild(el("text", { x: x(u), y: HT - 5, "text-anchor": u === 833 ? "end" : "middle" }, u === 833 ? "833 units" : u)));
+  box.appendChild(s);
+}
+
+function drawHours() {
+  const box = document.getElementById("hours"); const over = box.querySelector(".over");
+  const byHour = {}; H.forEach((h, i) => byHour[(3 + h) % 24] = P10[i]); const miss = [6, 12];
+  for (let hr = 0; hr < 24; hr++) { const i = document.createElement("i");
+    if (miss.includes(hr)) i.className = "miss"; else if (byHour[hr] == null) i.className = "none";
+    else i.style.height = Math.round((byHour[hr] - 1500) / (2700 - 1500) * 100) + "%";
+    box.insertBefore(i, over); }
+}
+
+function drawHouses() {
+  const box = document.getElementById("houses"); box.innerHTML = "";
+  const W = Math.max(280, box.clientWidth), narrow = W < 520, HT = narrow ? 150 : 110, L = 8, R = 8;
+  const rows = [
+    { n: "Horde 113 (yours)", c: "var(--horde)", v: 2499, q: 833, me: 1 }, { n: "Horde 114", c: "var(--horde)", v: 2177, q: 892 },
+    { n: "Alliance 110", c: "var(--alliance)", v: 1676, q: 2770 }, { n: "Alliance 111", c: "var(--alliance)", v: 2000, q: 3426 },
+    { n: "Blackwater 116", c: "var(--blackwater)", v: 10000, q: 264 }, { n: "Blackwater 117", c: "var(--blackwater)", v: 9500, q: 8 }];
+  const x = c => L + (Math.log10(c) - Math.log10(1200)) / (Math.log10(12000) - Math.log10(1200)) * (W - L - R);
+  const s = el("svg", { class: "chart", viewBox: `0 0 ${W} ${HT}`, width: W, height: HT });
+  const yA = HT - 26;
+  s.appendChild(el("line", { x1: L, x2: W - R, y1: yA, y2: yA, stroke: "var(--axis)" }));
+  [1500, 2500, 5000, 10000].forEach(v => { s.appendChild(el("line", { x1: x(v), x2: x(v), y1: yA - 4, y2: yA + 4, stroke: "var(--axis)" }));
+    s.appendChild(el("text", { x: x(v), y: HT - 8, "text-anchor": "middle" }, v >= 10000 ? "1 g" : (v / 100) + " s")); });
+  rows.forEach((r, k) => { const cx = x(r.v);
+    s.appendChild(el("circle", { cx, cy: yA, r: r.me ? 7 : 5, fill: r.me ? r.c : "var(--surface)", stroke: r.c, "stroke-width": 2.2 }));
+    const lane = narrow ? [0, 1, 2, 3, 0, 1][k] : [0, 1, 2, 0, 1, 2][k], ly = 14 + lane * (narrow ? 22 : 20);
+    s.appendChild(el("line", { x1: cx, x2: cx, y1: ly + 4, y2: yA - 8, stroke: "var(--line)" }));
+    const right = cx > W * .6;
+    s.appendChild(el("text", { x: cx + (right ? -4 : 4), y: ly, "text-anchor": right ? "end" : "start", class: r.me ? "lbl" : "" },
+      r.n.replace(" (yours)", narrow ? "" : " (yours)") + " · " + (r.v >= 10000 ? (r.v / 10000).toFixed(2) + " g" : (r.v / 100).toFixed(1) + " s") + (r.q < 300 ? " · " + r.q + " listed" : ""))); });
+  s.appendChild(el("text", { x: W - R, y: HT - 8 + 0, "text-anchor": "end", opacity: 0 }, ""));
+  box.appendChild(s);
+}
+
+function drawAll() { drawMain(); drawDepth(); drawHouses(); }
+drawHours(); drawAll();
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawAll, 120); });
+</script>
+</body>
+</html>

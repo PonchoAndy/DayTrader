@@ -16,6 +16,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0006](0006-private-repo-hourly-collector-on-github-actions.md) | Private repo; hourly Python collector on GitHub Actions | Accepted |
 | [0007](0007-keep-hourly-summaries-three-months-then-review.md) | Keep hourly summaries 3 months, review their value | Accepted |
 | [0008](0008-analysis-layer-daily-rollup-listing-flows-versioned-metrics.md) | Analysis layer: daily roll-up, listing flows, versioned metrics | Partly accepted (listing flows + extra trading and posting-behaviour measures); rest proposed |
+| [0009](0009-collect-europe-in-the-same-hourly-run.md) | Collect Europe's auction data in the same hourly run | Proposed |
 
 ## Statuses
 

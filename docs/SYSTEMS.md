@@ -59,10 +59,10 @@ two years. While raw is at 14 days it's ~9 GB.
 
 | Workload | Minutes a month (est.) |
 |---|---|
-| Hourly collector, US (1 min × 24 × 30) | ~720 |
+| Hourly collector, US (1 min × 24 × 31) | ~744 |
 | Daily flows + roll-up job (#37, #26), US: 10–20 min a day | ~300–600 |
 | Manual report/demo runs | ~20 |
-| **Total, US only** | **~1,050–1,350 of 2,000** |
+| **Total, US only** | **~1,075–1,385 of 2,000** |
 
 - If the free minutes run out, GitHub's default is to **stop running jobs until the next month**
   (unless a spending limit is set; check Settings → Billing). For a collector, that means lost hours
@@ -84,9 +84,9 @@ per hourly pull** (about 1.5× the US's 85 MB; the biggest EU house has ~170k li
 
 | Option for EU | Extra Actions minutes / month | Extra storage | Extra cost / month |
 |---|---|---|---|
-| **A. Same job as US** (one run pulls both) | +720 (run goes over 60 s, billed 2 min) | +~11 GB at steady state | Minutes total ~1,800–2,100: at the edge of free; R2 ~$0.15 |
+| **A. Same job as US** (one run pulls both) | +744 if downloads run one at a time (over 60 s); **~+0 if downloads run in parallel** and the run stays under 60 s (the Architect's recommendation, #51) | +~11 GB at steady state | Minutes total ~1,800–2,100: at the edge of free; R2 ~$0.15 |
 | **B. Separate EU job**, full pipeline (raw + flows) | +720 hourly, +300–600 flows | +~11 GB | Over 2,000 minutes: ~$2–6 overage, or jobs stop; R2 ~$0.15 |
 | **C. EU summaries only** (no raw kept, no flows) | +720 (or +0 if folded into a run that stays under 60 s) | +~4 GB | Likely $0; R2 ~$0.05 |
 | **D. Make the repo public** (any of the above) | Unlimited free minutes | as above | $0 for minutes; exposes code and analysis |
 
-How to choose, and the design for whichever is picked, is the Architect's job (scope issue #51).
+The Architect's design and recommendation: `docs/designs/2026-11-15-other-regions.md`, ADR 0009 (Proposed), #51.
