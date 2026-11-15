@@ -78,6 +78,38 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .mergebar .what a { color: var(--setup); }
 .mergebar .btn[hidden] { display: none; }
 
+/* Tabs: Issues | Changes. Changes is a vertical timeline of merges into main (meta/history). */
+.tabs { display: flex; gap: 2px; margin-top: 16px; border-bottom: 1px solid var(--line); }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 14px;
+  font: 600 14px/1 var(--f-body); color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--gold); }
+.tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.hist-intro { margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+.timeline { list-style: none; margin: 10px 0 0; padding: 0; position: relative; }
+.timeline::before { content: ""; position: absolute; left: 9px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.tl-day { position: relative; padding: 14px 0 8px 32px; font: 600 11px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tl-item { position: relative; padding: 0 0 12px 32px; }
+.tl-dot { position: absolute; left: 2px; top: 15px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 3px var(--gold); }
+.tl-item.latest .tl-dot, .tl-item[data-open] .tl-dot { background: var(--gold); }
+.tl-head { width: 100%; text-align: left; font: inherit; color: var(--fg); cursor: pointer; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 5px; box-shadow: var(--shadow); }
+.tl-head:hover { border-color: var(--gold); }
+.tl-head:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tl-item[data-open] .tl-head { border-color: var(--gold); border-radius: 12px 12px 0 0; box-shadow: none; }
+.tl-when { font: 500 12px/1.2 var(--f-mono); color: var(--muted); }
+.tl-title { font: 600 15px/1.35 var(--f-display); text-wrap: balance; }
+.tl-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tl-area { font: 500 11.5px/1 var(--f-body); padding: 4px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.tl-size { font: 500 12px/1 var(--f-mono); color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.tl-notes { border: 1px solid var(--gold); border-top: 0; border-radius: 0 0 12px 12px; background: var(--surface); padding: 12px 14px 14px;
+  display: flex; flex-direction: column; gap: 10px; animation: deck-in .25s ease-out both; min-width: 0; }
+.tl-notes[hidden] { display: none; }
+.tl-commits { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; overflow-wrap: anywhere; }
+.tl-c-subj { font-weight: 500; }
+.tl-commits .body { padding: 4px 0 0; font-size: 13.5px; color: var(--muted); }
+.timeline .empty { margin-left: 32px; width: auto; }
+@media (prefers-reduced-motion: reduce) { .tl-notes { animation: none; } }
+
 .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font: 500 13px/1 var(--f-body); padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line);
@@ -239,6 +271,12 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
     <button class="btn primary" id="mergebtn" type="button">Merge Now</button>
   </div>
 
+  <nav class="tabs" role="tablist" aria-label="Deck views">
+    <button class="tab" role="tab" id="tab-issues" data-view="issues" aria-selected="true" aria-controls="view-issues">Issues</button>
+    <button class="tab" role="tab" id="tab-changes" data-view="changes" aria-selected="false" aria-controls="view-changes">Changes</button>
+  </nav>
+
+  <section id="view-issues" role="tabpanel" aria-labelledby="tab-issues">
   <div class="controls">
     <div class="chips" role="group" aria-label="Filter issues">
       <button class="chip" id="f-all" data-f="all" aria-pressed="true">All</button>
@@ -257,6 +295,12 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
   </div>
 
   <main class="track" id="track" aria-live="polite"></main>
+  </section>
+
+  <section id="view-changes" role="tabpanel" aria-labelledby="tab-changes" hidden>
+    <p class="hist-intro">Everything merged into <b>main</b>, newest first. Click a change to see what went into it.</p>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -549,10 +593,11 @@ function jump(n, smooth) {
 function setCurrent(n) {
   S.current = n;
   renderNav(visible());
-  try { history.replaceState(null, "", "#i" + n); } catch {}
+  if (S.view !== "changes") { try { history.replaceState(null, "", "#i" + n); } catch {} }
 }
 function revealIssue(n) {
   const i = S.issues.find((x) => x.number === n); if (!i) return;
+  if (S.view === "changes") setView("issues");
   if (!matches(i)) { S.filter = "all"; if (!isOpen(i)) S.showClosed = true; syncFilterUI(); render(); }
   jump(n, true);
 }
@@ -576,6 +621,7 @@ $("track").addEventListener("scroll", () => {
 $("prev").addEventListener("click", () => step(-1));
 $("next").addEventListener("click", () => step(1));
 window.addEventListener("hashchange", () => {
+  if (location.hash === "#changes") { setView("changes"); return; }
   const h = /^#i(\d+)$/.exec(location.hash || ""); if (h && S.loaded) revealIssue(+h[1]);
 });
 document.addEventListener("keydown", (e) => {
@@ -713,7 +759,11 @@ function renderMerge() {
     what.innerHTML = `<b>Merge didn't finish</b><span class="sub">${escapeHtml(q.error || "Ask Claude in chat to merge.")}</span>`;
     btn.hidden = true;
   }
+  what.insertAdjacentHTML("beforeend", `<span class="sub"><button type="button" class="linkbtn" data-hist="${done && q.pr ? q.pr : ""}">Change history →</button></span>`);
 }
+$("mergebar").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-hist]"); if (b) setView("changes", +b.dataset.hist || null);
+});
 $("mergebtn").addEventListener("click", async () => {
   if (!S.db) return;
   $("mergebtn").disabled = true;
@@ -725,6 +775,72 @@ $("mergebtn").addEventListener("click", async () => {
   if (!ok) { S.mergeReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "Claude couldn't be reached; see the note at the top" }; renderMerge(); }
 });
 setInterval(renderMerge, 60000);
+
+// ---------- views: Issues | Changes ----------
+// Changes = merges into main, newest first. Claude copies them into meta/history during syncs
+// (tools/issue-deck/history.py builds them from git: title, time, size, areas, and the commits inside).
+S.view = "issues"; S.history = null; S.historyLoaded = false; S.openMerges = new Set();
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setView(v, focusPr) {
+  S.view = v === "changes" ? "changes" : "issues";
+  $("view-issues").hidden = S.view !== "issues";
+  $("view-changes").hidden = S.view !== "changes";
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === S.view)));
+  if (S.view === "changes") {
+    if (focusPr) S.openMerges.add(focusPr);
+    renderTimeline();
+    try { history.replaceState(null, "", "#changes"); } catch {}
+    if (focusPr) $("m-" + focusPr)?.scrollIntoView({ block: "start", behavior: reduceMotion() ? "auto" : "smooth" });
+  } else if (S.current != null) {
+    jump(S.current, false);   // re-align the deck now that it's visible again (also restores #i<n>)
+  }
+}
+function renderTimeline() {
+  const ol = $("timeline"); if (!ol) return;
+  const list = (S.history?.merges || []).slice().sort((a, b) => new Date(b.merged_at) - new Date(a.merged_at));
+  if (!list.length) {
+    ol.innerHTML = `<li class="empty">${!S.historyLoaded ? "Loading the change history…"
+      : S.db ? "No changes synced yet. Press <strong>Refresh</strong> (top) and they’ll appear here."
+      : "Open this page on claude.ai, signed in, to see the change history."}</li>`;
+    return;
+  }
+  let lastDay = "";
+  ol.innerHTML = list.map((m, idx) => {
+    const d = new Date(m.merged_at);
+    const day = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const dayRow = day !== lastDay ? `<li class="tl-day">${escapeHtml(day)}</li>` : ""; lastDay = day;
+    const open = S.openMerges.has(m.pr);
+    const areas = (m.areas || []).map((a) => `<span class="tl-area">${escapeHtml(a)}</span>`).join("");
+    const commits = (m.commits || []).map((c) => `<li><div class="tl-c-subj">${md(c.subject).replace(/^<p>|<\/p>\s*$/g, "")}</div>${c.notes ? `<div class="body">${md(c.notes)}</div>` : ""}</li>`).join("");
+    const n = m.files || 0;
+    return dayRow + `<li class="tl-item${idx === 0 ? " latest" : ""}" id="m-${m.pr}"${open ? " data-open" : ""}>
+      <span class="tl-dot" aria-hidden="true"></span>
+      <button type="button" class="tl-head" aria-expanded="${open}" aria-controls="mn-${m.pr}" data-pr="${m.pr}">
+        <span class="tl-when">${escapeHtml(d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))} · merge #${m.pr}${idx === 0 ? " · latest" : ""}</span>
+        <span class="tl-title">${escapeHtml(m.title || "")}</span>
+        <span class="tl-meta">${areas}<span class="tl-size">${n} file${n === 1 ? "" : "s"} · +${m.added || 0} −${m.removed || 0}</span></span>
+      </button>
+      <div class="tl-notes" id="mn-${m.pr}"${open ? "" : " hidden"}>
+        <ol class="tl-commits">${commits}</ol>
+        <div class="ext"><a href="${REPO_URL}/pull/${m.pr}" target="_blank" rel="noopener">Open pull request #${m.pr} on GitHub ↗</a></div>
+      </div>
+    </li>`;
+  }).join("");
+  ol.querySelectorAll('a[href^="#i"]').forEach((a) => {
+    const n = +a.getAttribute("href").slice(2);
+    const x = document.createElement("button"); x.type = "button"; x.className = "xref"; x.textContent = "#" + n;
+    x.addEventListener("click", (e) => { e.stopPropagation(); revealIssue(n); }); a.replaceWith(x);
+  });
+  ol.querySelectorAll('a[href^="http"]').forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+}
+$("timeline").addEventListener("click", (e) => {
+  const b = e.target.closest(".tl-head"); if (!b) return;
+  const n = +b.dataset.pr;
+  if (S.openMerges.has(n)) S.openMerges.delete(n); else S.openMerges.add(n);
+  renderTimeline();
+  $("m-" + n)?.querySelector(".tl-head")?.focus({ preventScroll: true });
+});
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => setView(t.dataset.view)));
 
 // ---------- replying ----------
 async function submit(n, close, reopen) {
@@ -774,10 +890,11 @@ async function undoReply(n, id, kind, btn) {
 (async function boot() {
   const f = store.get("filter"); if (f && ["all", "you", "claude", "decide"].includes(f)) S.filter = f;
   const h = /^#i(\d+)$/.exec(location.hash || ""); if (h) S.current = +h[1];
+  if (location.hash === "#changes") setView("changes");
   syncFilterUI(); render();
   const db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
   S.db = db; S.triedDb = true;
-  if (!db) { status("bad", "Not available here"); render(); return; }
+  if (!db) { status("bad", "Not available here"); render(); S.historyLoaded = true; renderTimeline(); return; }
 
   const timer = setTimeout(() => {
     if (!S.loaded) { status("warn", "Still loading"); notice("<span>Your issues are taking a while to load. Check your connection; they’ll appear as soon as they arrive.</span>"); }
@@ -803,6 +920,9 @@ async function undoReply(n, id, kind, btn) {
   db.doc("meta/activeSession").onSnapshot((d) => { S.active = d.exists ? d.data() : null; }, () => {});
   db.doc("meta/mergeReady").onSnapshot((d) => { S.mergeReady = d.exists ? d.data() : null; renderMerge(); }, () => {});
   db.doc("meta/mergeRequest").onSnapshot((d) => { S.mergeReq = d.exists ? d.data() : null; renderMerge(); }, () => {});
+  db.doc("meta/history").onSnapshot((d) => {
+    S.history = d.exists ? d.data() : null; S.historyLoaded = true; if (S.view === "changes") renderTimeline();
+  }, () => { S.historyLoaded = true; if (S.view === "changes") renderTimeline(); });
   window.claude.use("mcp").then(async (m) => {
     S.mcp = m; renderSyncBtn();
     if (!m) return;
