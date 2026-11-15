@@ -1,6 +1,6 @@
 # 0008. Analysis layer: daily roll-up, listing flows and versioned metrics
 
-- **Status:** Partly accepted (listing flows kept 90 days, 2026-11-14; extra trading measures, 2026-11-15); the rest proposed
+- **Status:** Partly accepted (listing flows kept 90 days, 2026-11-14; extra trading measures, 2026-11-15; posting-behaviour measures, 2026-11-15); the rest proposed
 - **Date:** 2026-11-14
 - **Issue:** PonchoAndy/DayTrader#26, PonchoAndy/DayTrader#10
 
@@ -15,7 +15,13 @@ that vanished early (at the cheapest, within 5%, within 20%, above); listing age
 in bands (needs first-seen times carried across days); depth near the cheapest price (units and
 gold within +2/5/10/25%); and undercut counts (new listings below the previous cheapest). Partial-buy
 value is kept separately from early vanishings, and the time-left mix of new and current listings is
-recorded. Still open: day boundary, penny floor, normal-price window,
+recorded.
+**Also accepted (owner, 2026-11-15):** four posting-behaviour measures, also hourly counts from the
+raw data (`docs/designs/2026-11-15-strategy-intents.md`, N1 and follow-up signals 25–28): the
+**lot-size and lot-value mix of new listings** (a before/after baseline for the deposit change at
+the 2026-11-17 maintenance), a **rough seller count** (distinct lot sizes and repost patterns at
+the cheapest price), **expiry waves** (units by time-left bucket and by when they were first seen),
+and **"wall" listings** (the largest single lot near the cheapest price, and its price). Still open: day boundary, penny floor, normal-price window,
 page refresh (design report §7, questions 3–6).
 
 Drafted by the Architect agent; full design report in

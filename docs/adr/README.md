@@ -10,12 +10,13 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 |---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
 | [0002](0002-blizzard-api-as-primary-data-source.md) | Blizzard Game Data API as the primary data source | Accepted |
-| [0003](0003-us-region-horde-primary-collect-all-houses.md) | US region, Horde primary, collect every auction house | Accepted |
+| [0003](0003-us-region-horde-primary-collect-all-houses.md) | US region, Horde primary, collect every auction house | Accepted; region part superseded by 0009 |
 | [0004](0004-github-issues-and-issue-deck-workflow.md) | GitHub issues as the work tracker, with the Issue Deck | Accepted |
 | [0005](0005-hourly-collection-on-github-actions-with-object-storage.md) | Hourly collection on GitHub Actions, data in object storage | Partly accepted (storage, scheduler, language; dashboard proposed) |
 | [0006](0006-private-repo-hourly-collector-on-github-actions.md) | Private repo; hourly Python collector on GitHub Actions | Accepted |
 | [0007](0007-keep-hourly-summaries-three-months-then-review.md) | Keep hourly summaries 3 months, review their value | Accepted |
-| [0008](0008-analysis-layer-daily-rollup-listing-flows-versioned-metrics.md) | Analysis layer: daily roll-up, listing flows, versioned metrics | Partly accepted (listing flows + extra trading measures); rest proposed |
+| [0008](0008-analysis-layer-daily-rollup-listing-flows-versioned-metrics.md) | Analysis layer: daily roll-up, listing flows, versioned metrics | Partly accepted (listing flows + extra trading and posting-behaviour measures); rest proposed |
+| [0009](0009-collect-europe-in-the-same-hourly-run.md) | Collect Europe's auction data in the same hourly run | Accepted |
 
 ## Statuses
 

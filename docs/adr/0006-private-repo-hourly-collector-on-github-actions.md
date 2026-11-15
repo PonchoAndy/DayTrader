@@ -17,7 +17,8 @@ including setup. Blizzard refreshes the data hourly at about :17 past the hour.
 
 - **The repo stays private.**
 - **Language:** Python (`collector/collect.py`).
-- **Scheduler:** GitHub Actions (`.github/workflows/collect.yml`), every hour at :27, plus a
+- **Scheduler:** GitHub Actions (`.github/workflows/collect.yml`), every hour at :27 (*moved to :05 on
+  2026-11-15 to fit GitHub's start delays, #28*), plus a
   manual "Run workflow" button. Runs with no new data store nothing but a small log entry.
 - **Secrets** in GitHub Actions: `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, plus the R2
   secrets from 0005.

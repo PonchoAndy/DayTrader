@@ -290,7 +290,9 @@ Blizzard API ──hourly──► Collector ──► Raw snapshots (JSON/Parqu
 
 The full records live in [`docs/adr/`](adr/README.md). Summary:
 
-- **Region: US only** (no EU). API host `us.api.blizzard.com`. — PonchoAndy/DayTrader#2
+- **Region: US for trading; Europe also collected** (ADR 0009, #51): same hourly run, US saved first,
+  Europe under an `eu/` prefix (summaries 90 days, raw 14 days), to test whether Europe gives an early
+  signal for US prices. Korea/Taiwan probed once, decided ~mid-December. (Originally US only, #2.)
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
 - **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API
@@ -310,7 +312,9 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   vanished near expiry and partly bought. Kept 90 days; it's the basis for sale rate (#10).
   Backfill must run before the first raw pulls expire, so raw retention goes from 7 to 14 days until
   it has. The same job also saves four extra trading measures as hourly counts (#40): the price
-  position of what sold, how long listings sat, depth near the cheapest price, and undercuts.
+  position of what sold, how long listings sat, depth near the cheapest price, and undercuts;
+  plus four posting-behaviour measures: lot-size mix of new listings, a rough seller count, expiry
+  waves, and "wall" listings.
   The rest of the analysis layer (daily roll-up, metrics, page export) is proposed.
 
 ## 6. Open questions for you

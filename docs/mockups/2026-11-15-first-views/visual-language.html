@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayTrader mock-up · Shared visual language</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Reference sheet for the shared visual language used by every DayTrader tool (2026-11-15).
+   Tokens copied from tools/data-tour/template.html; additions: --down-soft, --up-soft, --hatch. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a; --series: #6250d6; --series-soft: #e6e2fb;
+  --up: #006300; --down: #b3261e;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80; color-scheme: dark;
+}
+:root { --down-soft: color-mix(in srgb, var(--down) 12%, transparent); --up-soft: color-mix(in srgb, var(--up) 12%, transparent);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--muted) 28%, transparent) 4px 5px); }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); margin: 0; }
+body { font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px max(14px, env(safe-area-inset-left, 0px)) 64px; display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 26px/1.15 var(--f-display); margin: 4px 0 0; }
+h2 { font: 600 18px/1.25 var(--f-display); margin: 0; }
+h3 { font: 600 14.5px/1.3 var(--f-display); margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); } .note { color: var(--muted); font-size: 13px; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+a { color: var(--gold); }
+.topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.themebtn { font: 500 12px/1 var(--f-body); padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; white-space: nowrap; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rules { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
+.ico { width: 11px; height: 11px; flex: none; display: inline-block; vertical-align: -1px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.spd { display: inline-flex; align-items: center; gap: 5px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.spd.fleeting { background: var(--fg); color: var(--bg); }
+.spd.intraday { border: 1px solid var(--series); color: var(--series); padding: 3px 6px; }
+.spd.multiday { background: var(--series-soft); color: var(--series); }
+.spd.trend { border: 1px dashed var(--muted); color: var(--muted); padding: 3px 6px; }
+.age { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.age.aging { color: var(--gold); } .age.stale { color: var(--down); }
+.conf { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1.2 var(--f-body); color: var(--muted); }
+.conf .m { display: inline-flex; gap: 2px; flex: none; } .conf .m i { width: 9px; height: 7px; border-radius: 1.5px; background: var(--line); }
+.conf .m i.on { background: var(--fg); }
+.conf .m.none i { background: var(--hatch); outline: 1px dashed var(--muted); }
+.est { border-bottom: 1.5px dotted currentColor; padding-bottom: 1px; }
+.hz { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.hz.hard { color: var(--down); background: var(--down-soft); border: 1px solid color-mix(in srgb, var(--down) 45%, transparent); }
+.hz.caution { color: var(--gold); background: var(--gold-soft); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); }
+.cls { font: 600 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.cls.certain { color: var(--up); background: var(--up-soft); border: 1px solid color-mix(in srgb, var(--up) 45%, transparent); }
+.cls.probable { color: var(--series); border: 1px dashed var(--series); }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 820px) { .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .grid4 { grid-template-columns: 1fr; } }
+.tile { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.tile dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; font-size: 12.5px; }
+.tile dt { color: var(--muted); } .tile dd { margin: 0; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 640px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+tr:last-child td { border-bottom: 0; }
+.mini { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; }
+.mini b.v { font: 600 17px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.mini.aging { border-color: color-mix(in srgb, var(--gold) 50%, transparent); }
+.mini.stale { opacity: .6; background: var(--hatch); }
+.mini .btn { font: 600 12px/1 var(--f-body); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--fg); color: var(--bg); }
+.mini.stale .btn { background: transparent; color: var(--muted); border-style: dashed; }
+.stack3 { display: flex; flex-direction: column; gap: 8px; }
+.sw-line { display: inline-block; width: 40px; height: 0; border-top: 2.5px solid var(--series); vertical-align: middle; }
+.sw-line.dash { border-top-style: dashed; }
+.sw-box { display: inline-block; width: 40px; height: 12px; vertical-align: middle; border-radius: 2px; }
+.sw-box.firm { background: var(--series); }
+.sw-box.est { background: color-mix(in srgb, var(--series) 22%, transparent); border: 1.5px dashed var(--series); }
+.sw-box.miss { background: var(--hatch); border: 1px solid var(--line); }
+.dots { display: inline-flex; gap: 2px; vertical-align: middle; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; border: 1.2px solid var(--fg); }
+.dots i.on { background: var(--fg); } .dots i.maybe { background: var(--hatch); border-style: dashed; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 680px) { .two { grid-template-columns: 1fr; } }
+.cp { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.cp.certain { border-left: 5px solid var(--up); } .cp.probable { border-left: 5px dashed var(--series); }
+.chipc { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-fleeting" viewBox="0 0 12 12"><path d="M2.5 1h7M2.5 11h7M3.5 1c0 3 2.5 3.6 2.5 5S3.5 8 3.5 11M8.5 1c0 3-2.5 3.6-2.5 5s2.5 2 2.5 5" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="i-intraday" viewBox="0 0 12 12"><path d="M1 6c1.3-4 3.2-4 5 0s3.7 4 5 0" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-multiday" viewBox="0 0 12 12"><rect x="1" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="4.7" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="8.4" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 12 12"><path d="M1.5 10L10 2.5M5.5 2.5H10V7" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 12 12"><path d="M6 1.2L11 10.6H1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 4.6v3M6 8.7v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-care" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.6v3M6 8.2v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+<div class="wrap">
+  <header class="topline">
+    <div>
+      <div class="eyebrow">DayTrader · mock-up · shared visual language</div>
+      <h1>One language for every tool</h1>
+      <p class="muted">Five things appear on every DayTrader screen, always drawn the same way: how fast a signal changes, how old the data is, how sure we are, what could fool you, and whether a profit is certain or only probable.</p>
+    </div>
+    <button class="themebtn" id="themebtn" type="button">Theme: auto</button>
+  </header>
+
+  <section class="panel">
+    <h2>The rules</h2>
+    <ol class="rules">
+      <li><b>Solid means counted, dashed means estimated, hatched means missing.</b> In text, an estimate gets "≈", a range and a dotted underline. In charts, estimates are dashed outlines, fans or dots, never a solid bar.</li>
+      <li><b>Estimates are ranges, never single numbers</b>, and never more than two significant figures ("≈ 1,500–3,000 a day", not "2,214").</li>
+      <li><b>Colour never works alone.</b> Every coloured state also has a word and a shape, so it reads in grey and for colour-blind players.</li>
+      <li><b>Each colour has one job.</b> Green/red: money in or out, good or bad. Gold: caution (and the brand accent, as in the prototype). Purple: data series and signal speed. Faction colours: houses only.</li>
+      <li><b>Below 5 silver, no percentages.</b> Show gold per trade instead; 1-copper price steps make % moves meaningless.</li>
+      <li><b>One money unit per comparison</b> (25.0 s against 17.0 s, not 0.25 g against 17 s). Totals in gold.</li>
+      <li><b>Other houses are always labelled "reference only"</b> until #13 confirms what a player can reach.</li>
+    </ol>
+  </section>
+
+  <section class="panel" aria-labelledby="h-speed">
+    <h2 id="h-speed">1. Signal speed</h2>
+    <p class="note">Every signal carries one of four speeds (Strategist Q5). The tag is loudest for the most urgent kind: solid ink for fleeting, fading to a dashed outline for trend.</p>
+    <div class="grid4">
+      <div class="tile"><span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span>
+        <dl><dt>Lasts</dt><dd>minutes to hours</dd><dt>Stale</dt><dd>at the next :17 refresh</dd><dt>Do</dt><dd>act this visit or skip</dd><dt>Seen as</dt><dd>cheapest moves, p10 doesn't</dd></dl>
+        <span class="note">Ezra's Postbox Key at 1 s; Grilled King Crawler Legs at 1.5 s.</span></div>
+      <div class="tile"><span class="spd intraday"><svg class="ico"><use href="#i-intraday"/></svg>Intraday</span>
+        <dl><dt>Lasts</dt><dd>a few hours, every day</dd><dt>Stale</dt><dd>today's window closes</dd><dt>Do</dt><dd>time your buy or post</dd><dt>Seen as</dt><dd>p10 returns at the same hour</dd></dl>
+        <span class="note">Runecloth 7.75 s at 03:17, about 6 s by afternoon.</span></div>
+      <div class="tile"><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span>
+        <dl><dt>Lasts</dt><dd>1–5 days</dd><dt>Stale</dt><dd>in 1–3 days</dd><dt>Do</dt><dd>wait, or sell into it</dd><dt>Seen as</dt><dd>p25 and median move with supply</dd></dl>
+        <span class="note">Thorium Bar reset; Crimson Lotus flood; the 17 Nov deposit change.</span></div>
+      <div class="tile"><span class="spd trend"><svg class="ico"><use href="#i-trend"/></svg>Trend</span>
+        <dl><dt>Lasts</dt><dd>weeks</dd><dt>Stale</dt><dd>in weeks</dd><dt>Do</dt><dd>watch; plan professions</dd><dt>Seen as</dt><dd>3-day normal drifts from 7-day</dd></dl>
+        <span class="note">Leveling materials fading. Not readable before about 12 Dec.</span></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-age">
+    <h2 id="h-age">2. Data age</h2>
+    <p class="note">Measured from Blizzard's snapshot time (:17), not from when we fetched it, because that's when the market looked like this. Three states; the row itself changes, not just the label.</p>
+    <div class="stack3">
+      <div class="mini"><div><b>Fresh</b> <span class="note">latest snapshot, under 75 min old</span><div class="tag-row" style="margin-top:4px"><span class="age">18:17 · 52 min old</span></div></div><span class="btn">Go buy</span></div>
+      <div class="mini aging"><div><b>One refresh missed</b> <span class="note">75–135 min: the next snapshot should have arrived</span><div class="tag-row" style="margin-top:4px"><span class="age aging">18:17 · 1 h 40 min old · 19:17 missing</span></div></div><span class="btn">Go buy</span></div>
+      <div class="mini stale"><div><b>Stale</b> <span class="note">two or more refreshes missed: greyed, action off</span><div class="tag-row" style="margin-top:4px"><span class="age stale">18:17 · 2 h 50 min old</span><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Stale</span></div></div><span class="btn">Too old to act on</span></div>
+    </div>
+    <p class="note">Missed hours inside a history are hatched on every chart, and lines break across them instead of guessing. This follows the Strategist's suggested default for old deals (show with age, grey out after two missed refreshes).</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-conf">
+    <h2 id="h-conf">3. Confidence, and firm versus estimate</h2>
+    <p class="note">Confidence describes the evidence, not the deal, so it's drawn in neutral ink, never green or red. Players see three steps plus the reasons; advisors get the 0–1 number and the same reasons.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Shown as</th><th>Means (suggested rule)</th><th>Example reason text</th></tr></thead>
+      <tbody>
+        <tr><td><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i class="on"></i></span>High</span></td><td>7+ days of history, at most 1 missed hour a day, enough observations, fee rules confirmed</td><td>"7 days · deep market"</td></tr>
+        <tr><td><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i></i></span>Medium</span></td><td>3–7 days, or a thin market, or a fee rule unconfirmed</td><td>"4 days · cut unconfirmed (#13)"</td></tr>
+        <tr><td><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low</span></td><td>under 3 days, or gaps, or few observations</td><td>"15 h of history · sale rate estimated"</td></tr>
+        <tr><td><span class="conf"><span class="m none"><i></i><i></i><i></i></span>Not established</span></td><td>below the minimum history; the part shows a placeholder, not a guess</td><td>"1 day of the 14 needed"</td></tr>
+      </tbody></table></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Kind of value</th><th>In text</th><th>In charts</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td><b>Firm</b> (counted from listings)</td><td>25.0 s · 833 listed</td><td><span class="sw-line"></span> <span class="sw-box firm"></span></td><td>price, quantity, depth for this snapshot</td></tr>
+        <tr><td><b>Estimate</b> (inferred from listing changes)</td><td><span class="est">≈ 1,500–3,000 a day</span></td><td><span class="sw-line dash"></span> <span class="sw-box est"></span> <span class="dots"><i class="on"></i><i class="on"></i><i class="maybe"></i><i class="maybe"></i><i></i></span></td><td>sale rate, clearing price, lock time, survival, net margin, normal price</td></tr>
+        <tr><td><b>Missing</b></td><td>"missed"</td><td><span class="sw-box miss"></span></td><td>06:17 and 12:17 on 14 Nov</td></tr>
+        <tr><td><b>Sample</b> (mock-ups only)</td><td>24.0 s<sup class="s">†</sup></td><td>tag "sample"</td><td>anything not collected yet</td></tr>
+      </tbody></table></div>
+    <p class="note">Probabilities are shown as counts of dots ("4–7 in 10"), solid for the sure part and hatched for the uncertain part. Counting dots is easier and more accurate for most people than reading a curve or a percentage (Kay et al., CHI 2016).</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-hz">
+    <h2 id="h-hz">4. Hazard flags</h2>
+    <p class="note"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Trap</span> red, triangle: the item leaves the ranked list and moves to "Looks like a deal, isn't", with the naive number crossed out. <span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Caution</span> gold, circle: it stays, ranked lower, with the reason. The player's risk setting can move a flag between the two.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Triggered by</th><th>Real example</th></tr></thead>
+      <tbody>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Bait</span></td><td>Trap</td><td>Cheapest far below p10 and 1 unit within +2% of it</td><td>Postbox Key: one at 1 s after 11 h at 1 g</td></tr>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Falling</span></td><td>Trap (Bold: caution)</td><td>Short normal below long normal, or a falling intraday slope with supply rising</td><td>Crimson Lotus 0.70 → 0.13 g, supply 57 → 139</td></tr>
+        <tr><td><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Falling · cheapest only</span></td><td>Caution</td><td>Only the cheapest units keep dropping; median holds</td><td>Scroll of Imbue Precision 54 → 20 → 11 s</td></tr>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Reset</span></td><td>Trap for buyers</td><td>Supply down 80%+ within 2 h and p10 up 30%+</td><td>Thorium Bar 113 at 17:17</td></tr>
+        <tr><td><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Thin</span></td><td>Caution (Cautious: trap)</td><td>Few units listed or sold a day; a few trades move the price</td><td>Arcanite Bar: 7–10 units at 45–50 g</td></tr>
+        <tr><td><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Stale</span></td><td>Caution; greyed at 2 missed refreshes</td><td>Data age and missed hours</td><td>Every view, 20–110 min after :17</td></tr>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Penny</span></td><td>Trap for flips</td><td>Profit per trade below one deposit, or price steps bigger than the margin</td><td>Crystal Vial: about 3 s on 20</td></tr>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>No sales</span> <em class="note">proposed</em></td><td>Trap</td><td>Sale rate near zero, vanishings mostly at expiry</td><td>Postbox Key</td></tr>
+        <tr><td><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Not your house</span> <em class="note">proposed</em></td><td>Trap</td><td>Price from a house outside the player's reach</td><td>Essence of Fire 0.89 g on 114</td></tr>
+        <tr><td><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Event ahead</span> <em class="note">proposed</em></td><td>Caution</td><td>A known event within the hold time that affects this item</td><td>17 Nov deposit change, for penny goods</td></tr>
+        <tr><td><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Contested</span> <em class="note">proposed</em></td><td>Caution, posting views</td><td>Cheapest spot held far shorter than the player's visit gap</td><td>Thorium Bar (sample figures)</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-cp">
+    <h2 id="h-cp">5. Certain versus probable</h2>
+    <p class="note">Never in the same list. Certain sits on top with a solid green edge and a single number; probable sits below with a dashed purple edge and a range. "Certain" is about the profit, not about the listing still being there, so certain rows still carry a speed tag and survival odds.</p>
+    <div class="two">
+      <div class="cp certain"><span class="tag-row"><span class="cls certain">Certain</span><span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span></span><b>+0.06 g<sup class="s">†</sup></b><span class="note">Below vendor price. No buyer needed, no cut.</span></div>
+      <div class="cp probable"><span class="tag-row"><span class="cls probable">Probable</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low</span></span><b class="pos"><span class="est">≈ +1.0 to +1.4 g</span></b><span class="note">Needs someone to buy from you later; after fees; worse case to expected.</span></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-col">
+    <h2 id="h-col">6. Colour and type</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Token</th><th>Used for</th><th>Never for</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chipc" style="background:var(--up)"></span>--up / --up-soft</td><td>money in, certain plays, "OK"</td><td>confidence</td></tr>
+        <tr><td><span class="chipc" style="background:var(--down)"></span>--down / --down-soft <em class="note">(soft is new)</em></td><td>money out, traps, resets</td><td>a faction</td></tr>
+        <tr><td><span class="chipc" style="background:var(--gold)"></span>--gold / --gold-soft</td><td>caution, sample-data labels, brand accent, focus rings</td><td>profit</td></tr>
+        <tr><td><span class="chipc" style="background:var(--series)"></span>--series / --series-soft</td><td>the main data line, speed tags, probable edge</td><td>good or bad</td></tr>
+        <tr><td><span class="chipc" style="background:var(--horde)"></span><span class="chipc" style="background:var(--alliance)"></span><span class="chipc" style="background:var(--blackwater)"></span>faction colours</td><td>houses only</td><td>states</td></tr>
+        <tr><td><span class="chipc" style="background:var(--hatch);outline:1px solid var(--line)"></span>--hatch <em class="note">(new)</em></td><td>missed hours, stale rows, "not established"</td><td>anything with data</td></tr>
+      </tbody></table></div>
+    <p class="note">Type is unchanged from the prototype: Sora for headings and headline numbers, Inter for text, JetBrains Mono for times, tags and chart labels. All numbers use tabular figures so columns line up.</p>
+  </section>
+
+  <footer class="src">
+    <p>Sources borrowed: quantile dotplots for everyday uncertainty, Kay, Kola, Hullman and Munson, <a href="https://idl.uw.edu/papers/when-ish-is-my-bus">"When (ish) is my bus?"</a>, CHI 2016, and the follow-up on decisions (<a href="https://mucollective.northwestern.edu/project/uncertainty-bus">Fernandes et al., CHI 2018</a>); a qualitative band behind one measure, Stephen Few's <a href="https://www.telerik.com/docs/default-source/blogs-docs/bullet_graph_design_spec-pdf">bullet graph spec</a>; fans for projections, the Bank of England's <a href="https://www.bankofengland.co.uk/quarterly-bulletin/1998/q1/the-inflation-report-projections-understanding-the-fan-chart">fan chart</a>.</p>
+    <p>Mock-ups: <a href="deal-scanner.html">T1 deal scanner</a> · <a href="item-page.html">T2 item page</a>. Sample values are marked <sup class="s">†</sup>.</p>
+  </footer>
+</div>
+<script>
+(function () {
+  const b = document.getElementById("themebtn"), modes = ["auto", "light", "dark"]; let i = 0;
+  b.addEventListener("click", () => { i = (i + 1) % 3; const m = modes[i];
+    if (m === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", m);
+    b.textContent = "Theme: " + m; });
+})();
+</script>
+</body>
+</html>

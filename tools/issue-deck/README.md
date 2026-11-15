@@ -46,3 +46,15 @@ and wakes Claude through the same route as a reply (`dispatch`). Claude opens an
 request (step 0 of the sync in `CLAUDE.md`), then sets `mergeRequest {state: "done", pr, finishedAt}`
 and `mergeReady {ready: false}`; the bar shows "Merged #N" for 15 minutes. A failure shows the
 reason (`mergeRequest.error`) and leaves the button available to try again.
+
+## Changes tab (merge history)
+
+A second tab shows every pull request merged into `main` as a vertical timeline, newest first,
+grouped by day. Each node shows the time, PR number, title, the areas touched (Agents, Collector,
+Docs, Pages, Workflows, Project) and the size; clicking it expands the commits inside it, with their
+notes. `#N` references jump to that issue's card. The merge banner links here ("Change history →");
+after a merge it opens with that merge expanded. `…#changes` opens the tab directly.
+
+Data: `meta/history` = `{merges: [{pr, title, merged_at, sha, files, added, removed, areas[],
+commits: [{sha, at, subject, notes}]}], generatedAt}`, built from git by `history.py` (merge commits
+on main's first-parent line) and written by Claude during syncs and after each merge.

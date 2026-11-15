@@ -15,7 +15,8 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
   which shows a **Merge Now** button on the Deck.
   On "merge" (in chat, or a Deck merge request, see below): open the PR (Closes/Refs issues), merge
   it, restart the branch from `main`, then set `meta/mergeReady` to `{ready: false}` and
-  `meta/mergeRequest` to `{state: "done", pr: <number>, finishedAt: <now ISO>}`.
+  `meta/mergeRequest` to `{state: "done", pr: <number>, finishedAt: <now ISO>}`, and refresh the
+  Deck's change history (sync step 4).
 - Record research results in `docs/PLANNING.md`, and comment on the issue.
 - When a decision is made (in an issue or chat), write an ADR in `docs/adr/` from
   `template.md`, add it to the index in `docs/adr/README.md`, and update the summary in
@@ -59,7 +60,10 @@ replies"):
    project; `terms` = 1–4 jargon words from the issue, defined simply; `yourPart` = what the user
    does (or "Nothing, Claude does it"). Markdown allowed; `#N` links to issues. Don't copy the
    issue body; add the context it assumes.
-4. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
+4. Change history (the Deck's "Changes" tab): `git fetch origin main`, then
+   `python tools/issue-deck/history.py > <scratch>/history.json` and `set` `meta/history` from that
+   file (`file_path`). Skip if `main` hasn't moved since the doc's `generatedAt`.
+5. Set `meta/sync` to `{syncedAt: <now ISO>}`, and `meta/syncRequest` to
    `{state: "done", finishedAt: <now ISO>}` so the page's "Sync now" button resets.
 Use one `batch` write where possible.
 
