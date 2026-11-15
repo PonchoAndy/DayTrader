@@ -185,9 +185,12 @@ def run_region(store, region: str, days: list[str] | None, max_days: int) -> lis
         for a, b in pairs:
             if prev_t != a:
                 prev_df = load_snapshot(store, snaps[a])
-                first_seen = pd.concat([first_seen, pd.Series(a, index=prev_df["id"][~prev_df["id"].isin(first_seen.index)].values)])
+                # Listings already up when this chain starts (no earlier processed hour) have an unknown
+                # start; mark them NaT so they count as age_unknown, not as brand new.
+                unseen = prev_df["id"][~prev_df["id"].isin(first_seen.index)].values
+                first_seen = pd.concat([first_seen, pd.Series(pd.NaT, index=unseen, dtype="datetime64[ns, UTC]")])
             cur_df = load_snapshot(store, snaps[b])
-            first_seen = pd.concat([first_seen, pd.Series(b, index=cur_df["id"][~cur_df["id"].isin(first_seen.index)].values)])
+            first_seen = pd.concat([first_seen, pd.Series(pd.Timestamp(b), index=cur_df["id"][~cur_df["id"].isin(first_seen.index)].values, dtype="datetime64[ns, UTC]")])
             f = flows(prev_df, cur_df, first_seen, a, b)
             f.insert(1, "region", region)
             rows.append(f)
