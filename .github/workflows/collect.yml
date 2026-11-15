@@ -17,6 +17,10 @@ on:
         description: "Don't collect; print an overview of the stored data (collector/report.py)"
         type: boolean
         default: false
+      regions:
+        description: "Regions to collect, comma-separated, US first (e.g. us,eu). Empty = the scheduled default"
+        type: string
+        default: ""
       demo:
         description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
@@ -35,6 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Start the job clock (job_seconds in run logs, #54)
+        run: echo "JOB_STARTED=$(date +%s.%N)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
@@ -45,7 +51,8 @@ jobs:
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
-          BLIZZARD_REGION: us
+          # Scheduled runs: US only until the two-region timing test passes (#54, ADR 0009).
+          REGIONS: ${{ inputs.regions || 'us' }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

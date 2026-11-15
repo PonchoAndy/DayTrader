@@ -173,106 +173,175 @@ def http_time(value: str | None) -> datetime | None:
         return None
 
 
+def store_region(store, args, region: str, houses: list[dict], pulled: list, started: datetime, t0: float):
+    """Decide whether a region's pull is new and, if so, store raw + summary + state. Returns (run, table)."""
+    pre = prefix(region)
+    prev = json.loads(store.get(f"{pre}state/latest.json") or b"{}")
+    modified = {f"{h['id']}-{kind}": r.headers.get("last-modified") for h, kind, r in pulled if r is not None and r.ok}
+    newest = max((t for t in map(http_time, modified.values()) if t), default=started)
+    snapshot = newest.strftime("%Y%m%dT%H%MZ")
+    run = {"started": started.isoformat(), "region": region, "ruleset": args.ruleset,
+           "snapshot": snapshot, "newest_last_modified": newest.isoformat(),
+           "errors": {f"{h['id']}-{kind}": (r.status_code if r is not None else "failed")
+                      for h, kind, r in pulled if r is None or not r.ok}}
+    if not args.force and prev.get("last_modified") == modified:
+        run.update(result="no new data", seconds=round(time.time() - t0, 1))
+        print(f"[{region}] No new data since snapshot {prev.get('snapshot')}; nothing stored.")
+        return run, None
+
+    day, hour = snapshot[:4] + "-" + snapshot[4:6] + "-" + snapshot[6:8], snapshot[9:11]
+    frames, raw_bytes, gz_bytes = [], 0, 0
+    for h, kind, r in pulled:
+        if r is None or not r.ok:
+            print(f"  ! [{region}] house {h['id']} {kind}: {getattr(r, 'status_code', 'failed')}")
+            continue
+        gz = gzip.compress(r.content, compresslevel=6)
+        store.put(f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip")
+        raw_bytes += len(r.content)
+        gz_bytes += len(gz)
+        s = summarize(listing_rows(r.json(), kind))
+        s.insert(0, "kind", kind)
+        s.insert(0, "faction", faction_of(h.get("name", "")))
+        s.insert(0, "house_id", h["id"])
+        frames.append(s)
+
+    table = pd.concat(frames, ignore_index=True)
+    table.insert(0, "snapshot", pd.Timestamp(newest))
+    table.insert(1, "region", region)
+    for c in ("listings", "quantity", "min_price", "p10_price", "p25_price", "median_price", "max_price"):
+        table[c] = table[c].astype("int64")
+    buf = io.BytesIO()
+    table.to_parquet(buf, index=False, compression="zstd")
+    store.put(f"{pre}hourly/{day}/{snapshot}.parquet", buf.getvalue())
+    store.put(f"{pre}state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
+              "application/json")
+    run.update(result="stored", houses=len(houses), raw_bytes=raw_bytes, gz_bytes=gz_bytes,
+               summary_rows=len(table), summary_bytes=buf.tell(), seconds=round(time.time() - t0, 1))
+    print(f"[{region}] Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "
+          f"{gz_bytes / 1e6:.1f} MB gzipped; summary {len(table)} rows, {buf.tell() / 1e3:.0f} KB "
+          f"({time.time() - t0:.1f} s since start).")
+    return run, table
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Hourly WoW Forever auction collector")
-    ap.add_argument("--region", default=os.environ.get("BLIZZARD_REGION", "us"))
+    ap.add_argument("--regions", default=os.environ.get("REGIONS") or os.environ.get("BLIZZARD_REGION", "us"),
+                    help="comma-separated, in storing order; the first (us) is always stored first (ADR 0009)")
+    ap.add_argument("--region", help="single region (same as --regions with one value)")
     ap.add_argument("--ruleset", type=int, default=2, help="2 = Normal (every ruleset currently returns the same houses)")
     ap.add_argument("--local", help="store in this folder instead of R2")
     ap.add_argument("--force", action="store_true", help="collect even if nothing changed since the last run")
     ap.add_argument("--skip-names", action="store_true", help="don't look up item/variant names (local tests)")
+    ap.add_argument("--workers", type=int, default=8, help="downloads at once, across all regions")
+    ap.add_argument("--deadline", type=float, default=120, help="seconds from start after which later regions are skipped")
     args = ap.parse_args()
+    regions = [args.region] if args.region else [r.strip() for r in args.regions.split(",") if r.strip()]
 
     use_r2 = not args.local and all(os.environ.get(k) for k in ("R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
     store = R2Store(os.environ.get("R2_BUCKET", "daytrader-data")) if use_r2 else LocalStore(Path(args.local or ROOT / "data" / "store"))
-    print(f"Storing to {store.where()}")
+    print(f"Storing to {store.where()}; regions {regions}")
 
     started = datetime.now(timezone.utc)
     t0 = time.time()
-    pre = prefix(args.region)
-    api = Api(args.region)
-    houses = api.houses(args.ruleset)
-    unknown = [h["id"] for h in houses if faction_of(h.get("name", "")) == "Unknown"]
-    if unknown:
-        print(f"! Houses with no recognisable faction in {args.region}: {unknown}")
-    prev = json.loads(store.get(f"{pre}state/latest.json") or b"{}")
+    job_t0 = float(os.environ.get("JOB_STARTED") or t0)   # set by the workflow at the start of the job
 
-    # Pull everything first (a full pull takes ~15 s), then decide whether it's new.
-    pulled = []  # (house, kind, response)
-    for h in houses:
-        for kind in ("auctions", "commodities"):
-            r = api.house_listings(args.ruleset, h["id"], kind)
-            pulled.append((h, kind, r))
-
-    modified = {f"{h['id']}-{kind}": r.headers.get("last-modified") for h, kind, r in pulled if r.ok}
-    newest = max((t for t in map(http_time, modified.values()) if t), default=started)
-    snapshot = newest.strftime("%Y%m%dT%H%MZ")
-    run = {"started": started.isoformat(), "region": args.region, "ruleset": args.ruleset,
-           "snapshot": snapshot, "newest_last_modified": newest.isoformat(),
-           "errors": {f"{h['id']}-{kind}": r.status_code for h, kind, r in pulled if not r.ok}}
-
-    if not args.force and prev.get("last_modified") == modified:
-        run.update(result="no new data", seconds=round(time.time() - t0, 1))
-        print(f"No new data since snapshot {prev.get('snapshot')}; nothing stored.")
-    else:
-        day, hour = snapshot[:4] + "-" + snapshot[4:6] + "-" + snapshot[6:8], snapshot[9:11]
-        frames, raw_bytes, gz_bytes = [], 0, 0
-        for h, kind, r in pulled:
-            if not r.ok:
-                print(f"  ! house {h['id']} {kind}: HTTP {r.status_code}")
-                continue
-            gz = gzip.compress(r.content, compresslevel=6)
-            store.put(f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip")
-            raw_bytes += len(r.content)
-            gz_bytes += len(gz)
-            s = summarize(listing_rows(r.json(), kind))
-            s.insert(0, "kind", kind)
-            s.insert(0, "faction", faction_of(h.get("name", "")))
-            s.insert(0, "house_id", h["id"])
-            frames.append(s)
-
-        table = pd.concat(frames, ignore_index=True)
-        table.insert(0, "snapshot", pd.Timestamp(newest))
-        table.insert(1, "region", args.region)
-        for c in ("listings", "quantity", "min_price", "p10_price", "p25_price", "median_price", "max_price"):
-            table[c] = table[c].astype("int64")
-        buf = io.BytesIO()
-        table.to_parquet(buf, index=False, compression="zstd")
-        store.put(f"{pre}hourly/{day}/{snapshot}.parquet", buf.getvalue())
-
-        run.update(result="stored", houses=len(houses), raw_bytes=raw_bytes, gz_bytes=gz_bytes,
-                   summary_rows=len(table), summary_bytes=buf.tell(), seconds=round(time.time() - t0, 1))
-        # Item names: IDs are permanent, so only new ones are looked up. A failure here
-        # must not lose the snapshot, which is already stored.
+    # 1. Start every download for every region at once (8 at a time), so one run covering
+    #    several regions still fits in GitHub's one-minute billing unit (#54).
+    from concurrent.futures import ThreadPoolExecutor, wait
+    pool = ThreadPoolExecutor(max_workers=args.workers)
+    plans = []   # (region, api, houses, [(house, kind, future)])
+    for region in regions:
         try:
-            if args.skip_names:
-                raise RuntimeError("skipped (--skip-names)")
-            # Names are shared across regions and always looked up through the US API.
-            name_api = api if args.region == "us" else Api("us")
-            run["items"] = items.update(store, name_api, set(table["item_id"].astype(int)), limit=8000)
-            print(f"Items: {run['items']}")
-        except Exception as e:  # noqa: BLE001
-            run["items"] = {"error": f"{type(e).__name__}: {e}"[:300]}
-            print(f"Item lookup failed: {run['items']['error']}")
-        try:
-            if args.skip_names:
-                raise RuntimeError("skipped (--skip-names)")
-            seen_bonus = {int(b) for v in table["variant"].unique() if v for b in v.split(":")}
-            run["bonuses"] = bonuses.update(store, seen_bonus)
-            print(f"Bonuses: {run['bonuses']}")
-        except Exception as e:  # noqa: BLE001
-            run["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
-            print(f"Bonus lookup failed: {run['bonuses']['error']}")
-        store.put(f"{pre}state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
-                  "application/json")
-        print(f"Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "
-              f"{gz_bytes / 1e6:.1f} MB gzipped; summary {len(table)} rows, {buf.tell() / 1e3:.0f} KB.")
+            api = Api(region)
+            houses = api.houses(args.ruleset)
+        except Exception as e:  # noqa: BLE001  (a later region failing must not stop the first)
+            print(f"! [{region}] couldn't list houses: {type(e).__name__}: {e}"[:300])
+            plans.append((region, None, [], []))
+            continue
+        unknown = [h["id"] for h in houses if faction_of(h.get("name", "")) == "Unknown"]
+        if unknown:
+            print(f"! [{region}] houses with no recognisable faction: {unknown}")
+        futs = [(h, kind, pool.submit(api.house_listings, args.ruleset, h["id"], kind))
+                for h in houses for kind in ("auctions", "commodities")]
+        plans.append((region, api, houses, futs))
 
-    store.put(f"{pre}runs/{started:%Y-%m-%d}/{started:%H%M%S}.json", json.dumps(run, indent=1).encode(), "application/json")
-    if run["errors"]:
-        print(f"Errors: {run['errors']}")
-    # Fail the run (so GitHub flags it) only if most of the pull failed.
-    return 1 if len(run["errors"]) > len(pulled) // 2 else 0
+    # 2. Store region by region, in order: the US is stored before anything else is looked at.
+    runs, tables, bad = [], [], False
+    for i, (region, api, houses, futs) in enumerate(plans):
+        if api is None:
+            runs.append({"started": started.isoformat(), "region": region, "result": "failed", "errors": {"houses": "failed"}})
+            bad = True
+            continue
+        timeout = None if i == 0 else max(0.0, args.deadline - (time.time() - job_t0))
+        done, pending = wait([f for _, _, f in futs], timeout=timeout)
+        if pending:
+            for f in pending:
+                f.cancel()
+            print(f"! [{region}] {len(pending)} downloads not finished by the {args.deadline:.0f} s deadline; skipped this hour")
+            runs.append({"started": started.isoformat(), "region": region, "result": "deadline", "errors": {},
+                         "pending": len(pending)})
+            continue
+        pulled = []
+        for h, kind, f in futs:
+            try:
+                pulled.append((h, kind, f.result()))
+            except Exception as e:  # noqa: BLE001
+                print(f"  ! [{region}] house {h['id']} {kind}: {type(e).__name__}")
+                pulled.append((h, kind, None))
+        try:
+            run, table = store_region(store, args, region, houses, pulled, started, t0)
+        except Exception as e:  # noqa: BLE001  (a later region failing must not undo the first)
+            if i == 0:
+                raise
+            print(f"! [{region}] storing failed: {type(e).__name__}: {e}"[:300])
+            run, table = {"started": started.isoformat(), "region": region, "result": "failed",
+                          "errors": {"store": f"{type(e).__name__}"}}, None
+        runs.append(run)
+        if table is not None:
+            tables.append(table)
+        if len(run.get("errors", {})) > max(len(pulled), 1) // 2:
+            bad = True
+    pool.shutdown(wait=False, cancel_futures=True)
+
+    # 3. Names, once for every region's items. IDs are permanent and shared across regions, so they
+    #    are always looked up through the US API. A failure here must not lose stored snapshots.
+    names = {}
+    if tables and not args.skip_names:
+        ids = set().union(*(set(t["item_id"].astype(int)) for t in tables))
+        try:
+            names["items"] = items.update(store, Api("us"), ids, limit=8000)
+            print(f"Items: {names['items']}")
+        except Exception as e:  # noqa: BLE001
+            names["items"] = {"error": f"{type(e).__name__}: {e}"[:300]}
+            print(f"Item lookup failed: {names['items']['error']}")
+        try:
+            seen_bonus = {int(b) for t in tables for v in t["variant"].unique() if v for b in v.split(":")}
+            names["bonuses"] = bonuses.update(store, seen_bonus)
+            print(f"Bonuses: {names['bonuses']}")
+        except Exception as e:  # noqa: BLE001
+            names["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
+            print(f"Bonus lookup failed: {names['bonuses']['error']}")
+
+    # 4. Run logs, one per region, each with the whole job's duration (job_seconds) for the
+    #    one-minute check (#54: median <= 45 s, 95% <= 55 s).
+    job_seconds = round(time.time() - job_t0, 1)
+    for run in runs:
+        run["job_seconds"] = job_seconds
+        run["regions_in_job"] = regions
+        if run.get("region") == regions[0]:
+            run.update(names)
+        pre = prefix(run["region"])
+        store.put(f"{pre}runs/{started:%Y-%m-%d}/{started:%H%M%S}.json", json.dumps(run, indent=1).encode(), "application/json")
+        if run.get("errors"):
+            print(f"[{run['region']}] errors: {run['errors']}")
+    print(f"Job time so far: {job_seconds} s")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    code = main()
+    # Exit at once: downloads skipped by the deadline may still be running on worker threads, and
+    # waiting for them would keep the GitHub job (and its billed minutes) going. Everything that
+    # matters is already stored by now.
+    sys.stdout.flush(); sys.stderr.flush()
+    os._exit(code)
