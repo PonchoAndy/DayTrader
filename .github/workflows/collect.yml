@@ -1,11 +1,12 @@
 # Hourly WoW Forever auction collector (PonchoAndy/DayTrader#9, ADR 0005).
-# Blizzard refreshes the data at about :17 past each hour, so this runs at :27.
-# GitHub may start scheduled runs a few minutes late; the collector skips runs with no new data.
+# Blizzard refreshes the data at :17 past each hour; a run must start between :18 and :16 of the next
+# hour to catch each refresh. GitHub starts scheduled runs 29-63 min late (measured 2026-11-14, #28), so
+# the slot is :05: it lands runs at ~:34-:08, inside that window. The collector skips runs with no new data.
 name: Collect auctions
 
 on:
   schedule:
-    - cron: "27 * * * *"
+    - cron: "5 * * * *"
   workflow_dispatch:
     inputs:
       force:

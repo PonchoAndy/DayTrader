@@ -104,6 +104,11 @@ Covers 01:00–16:00 UTC on 2026-11-14: 17 runs, 14 snapshots stored, 0 HTTP err
 - **We lose an hour when GitHub runs very late.** The 06:27 and 12:27 runs started after the next
   refresh (07:30, 13:19), so snapshots 06:17 and 12:17 are gone for good: Blizzard only serves
   the latest data. 2 of 13 hours missed. Fix options in #28.
+- **Update after 24 hours (2026-11-15):** 3 of 24 hours lost (01:17 by 1 minute, 12:17 by 2 minutes,
+  06:17 when GitHub was 63 minutes late and then skipped a run). Scheduled runs started 29–63 min
+  after the :27 slot (median ~40). A run must start between :18 and :16 of the next hour, so the slot
+  moves to **:05**, which fits every delay seen, at no extra cost. A backup slot (+720 minutes a month)
+  waits until a few days at :05 show whether hours are still lost (#28).
 - **Supply has a daily rhythm.** Listings peaked ~05:00–07:00 UTC (US late evening: ~548k Horde,
   ~521k Alliance) and drained ~30% by 15:00 UTC (~387k / ~377k), as auctions expire or sell
   and fewer people post overnight. Needs a few days to confirm.

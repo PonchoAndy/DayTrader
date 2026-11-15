@@ -522,7 +522,9 @@ document.addEventListener("focusout", () => { setTimeout(() => { if (renderPendi
 // ---------- deck navigation ----------
 function jump(n, smooth) {
   const el = $("card-" + n), track = $("track"); if (!el) return;
-  track.scrollTo({ left: el.offsetLeft - track.offsetLeft, behavior: smooth ? "smooth" : "auto" });
+  // "instant", not "auto": the track's CSS says scroll-behavior: smooth, so "auto" would animate too.
+  // Opening the page on a linked card (…#i30) should land there directly; only in-page moves slide.
+  track.scrollTo({ left: el.offsetLeft - track.offsetLeft, behavior: smooth ? "smooth" : "instant" });
   setCurrent(n);
 }
 function setCurrent(n) {
