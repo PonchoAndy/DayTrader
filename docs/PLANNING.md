@@ -11,6 +11,9 @@ center**. It should explain how the WoW Forever economy behaves and where it is 
 glut, leveling demand, supply shocks, inflation), so a player can take positions with a thesis and
 a holding plan, not only flip today's prices. The Economist agent (`.claude/agents/economist.md`,
 #66) is the first piece of this.
+**Data we can't fully trust (standing concern, #81):** "sold" is inferred from listings disappearing, so unreposted
+cancellations can pass as sales (and 2-hour sales pass as expiries, #69). Any signal built on sales should say when this
+noise is likely to be interfering (price wars, heavy relisting, cheap deposits) rather than present the number as fact.
 The player's **profile is the account's whole economic pool**: every character that can reach a market, with its
 professions, level, gold and bank space (#78). Before strategy work, **check scope first**: fit the plan to what the
 player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (likely house 114, unconfirmed, #13),
