@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect import R2Store  # noqa: E402
+from collect import R2Store, prefix  # noqa: E402
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", 20)
@@ -41,9 +41,12 @@ def gold(copper: float) -> str:
 
 def main() -> int:
     store = R2Store(os.environ.get("R2_BUCKET", "daytrader-data"))
+    region = sys.argv[sys.argv.index("--region") + 1] if "--region" in sys.argv else "us"
+    pre = prefix(region)   # never mix regions: house IDs repeat across them (ADR 0009)
+    print(f"Region: {region}")
 
     print("\n=== Runs ===")
-    runs = [json.loads(store.get(k)) for k in sorted(keys(store, "runs/"))]
+    runs = [json.loads(store.get(k)) for k in sorted(keys(store, f"{pre}runs/"))]
     rdf = pd.DataFrame(runs)
     cols = [c for c in ("started", "result", "snapshot", "seconds", "summary_rows", "gz_bytes") if c in rdf]
     print(rdf[cols].to_string(index=False))
@@ -57,7 +60,7 @@ def main() -> int:
         print(f"Blizzard refresh minute past the hour: {sorted(lm.unique().tolist())}")
 
     print("\n=== Snapshots ===")
-    files = sorted(keys(store, "hourly/"))
+    files = sorted(keys(store, f"{pre}hourly/"))
     frames = []
     for k in files:
         df = pd.read_parquet(io.BytesIO(store.get(k)))

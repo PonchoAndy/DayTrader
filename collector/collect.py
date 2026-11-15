@@ -18,6 +18,11 @@ Each run:
 
 <snapshot> is the newest Last-Modified time across houses, formatted YYYYMMDDTHHMMZ.
 
+Regions (ADR 0009): the US keeps the paths above; any other region gets the same layout under its own
+prefix, e.g. eu/raw/..., eu/hourly/..., eu/runs/..., eu/state/latest.json. House IDs repeat across
+regions, so a region's data must never share a path, state file or key with another's. Item and
+variant names (items/) are shared and always looked up through the US API.
+
 Storage: Cloudflare R2 when R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY are set
 (bucket from R2_BUCKET, default daytrader-data); otherwise a local folder (--local, default data/store).
 
@@ -47,6 +52,11 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 # ---------- storage ----------
+def prefix(region: str) -> str:
+    """Storage prefix for a region: "" for the US (its original layout), "<region>/" otherwise."""
+    return "" if region == "us" else f"{region}/"
+
+
 class LocalStore:
     def __init__(self, root: Path):
         self.root = root
@@ -169,6 +179,7 @@ def main() -> int:
     ap.add_argument("--ruleset", type=int, default=2, help="2 = Normal (every ruleset currently returns the same houses)")
     ap.add_argument("--local", help="store in this folder instead of R2")
     ap.add_argument("--force", action="store_true", help="collect even if nothing changed since the last run")
+    ap.add_argument("--skip-names", action="store_true", help="don't look up item/variant names (local tests)")
     args = ap.parse_args()
 
     use_r2 = not args.local and all(os.environ.get(k) for k in ("R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
@@ -177,9 +188,13 @@ def main() -> int:
 
     started = datetime.now(timezone.utc)
     t0 = time.time()
+    pre = prefix(args.region)
     api = Api(args.region)
     houses = api.houses(args.ruleset)
-    prev = json.loads(store.get("state/latest.json") or b"{}")
+    unknown = [h["id"] for h in houses if faction_of(h.get("name", "")) == "Unknown"]
+    if unknown:
+        print(f"! Houses with no recognisable faction in {args.region}: {unknown}")
+    prev = json.loads(store.get(f"{pre}state/latest.json") or b"{}")
 
     # Pull everything first (a full pull takes ~15 s), then decide whether it's new.
     pulled = []  # (house, kind, response)
@@ -206,7 +221,7 @@ def main() -> int:
                 print(f"  ! house {h['id']} {kind}: HTTP {r.status_code}")
                 continue
             gz = gzip.compress(r.content, compresslevel=6)
-            store.put(f"raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip")
+            store.put(f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip")
             raw_bytes += len(r.content)
             gz_bytes += len(gz)
             s = summarize(listing_rows(r.json(), kind))
@@ -222,31 +237,37 @@ def main() -> int:
             table[c] = table[c].astype("int64")
         buf = io.BytesIO()
         table.to_parquet(buf, index=False, compression="zstd")
-        store.put(f"hourly/{day}/{snapshot}.parquet", buf.getvalue())
+        store.put(f"{pre}hourly/{day}/{snapshot}.parquet", buf.getvalue())
 
         run.update(result="stored", houses=len(houses), raw_bytes=raw_bytes, gz_bytes=gz_bytes,
                    summary_rows=len(table), summary_bytes=buf.tell(), seconds=round(time.time() - t0, 1))
         # Item names: IDs are permanent, so only new ones are looked up. A failure here
         # must not lose the snapshot, which is already stored.
         try:
-            run["items"] = items.update(store, api, set(table["item_id"].astype(int)), limit=8000)
+            if args.skip_names:
+                raise RuntimeError("skipped (--skip-names)")
+            # Names are shared across regions and always looked up through the US API.
+            name_api = api if args.region == "us" else Api("us")
+            run["items"] = items.update(store, name_api, set(table["item_id"].astype(int)), limit=8000)
             print(f"Items: {run['items']}")
         except Exception as e:  # noqa: BLE001
             run["items"] = {"error": f"{type(e).__name__}: {e}"[:300]}
             print(f"Item lookup failed: {run['items']['error']}")
         try:
+            if args.skip_names:
+                raise RuntimeError("skipped (--skip-names)")
             seen_bonus = {int(b) for v in table["variant"].unique() if v for b in v.split(":")}
             run["bonuses"] = bonuses.update(store, seen_bonus)
             print(f"Bonuses: {run['bonuses']}")
         except Exception as e:  # noqa: BLE001
             run["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
             print(f"Bonus lookup failed: {run['bonuses']['error']}")
-        store.put("state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
+        store.put(f"{pre}state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
                   "application/json")
         print(f"Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "
               f"{gz_bytes / 1e6:.1f} MB gzipped; summary {len(table)} rows, {buf.tell() / 1e3:.0f} KB.")
 
-    store.put(f"runs/{started:%Y-%m-%d}/{started:%H%M%S}.json", json.dumps(run, indent=1).encode(), "application/json")
+    store.put(f"{pre}runs/{started:%Y-%m-%d}/{started:%H%M%S}.json", json.dumps(run, indent=1).encode(), "application/json")
     if run["errors"]:
         print(f"Errors: {run['errors']}")
     # Fail the run (so GitHub flags it) only if most of the pull failed.
