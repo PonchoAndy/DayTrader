@@ -10,6 +10,7 @@ import os
 import time
 
 import requests
+import requests.adapters
 
 
 def get_token(session: requests.Session) -> str:
@@ -31,6 +32,9 @@ class Api:
     def __init__(self, region: str = "us"):
         self.region = region
         self.s = requests.Session()
+        # Downloads run on several threads at once (collect.py), so allow that many open connections.
+        adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16)
+        self.s.mount("https://", adapter)
         self.base = f"https://{region}.api.blizzard.com"
         self.dynamic = f"dynamic-forever-{region}"
         self.static = f"static-forever-{region}"

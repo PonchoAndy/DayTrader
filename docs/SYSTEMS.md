@@ -21,9 +21,11 @@ Prices are as we last checked them; confirm on each provider's billing page befo
 
 **Data collection** (ADR 0002, 0003, 0006)
 - Hourly collector on GitHub Actions at **:05** past each hour (moved from :27 on 2026-11-15, #28).
-- US region, all 15 auction houses, auctions and commodities. ~31 Blizzard API calls an hour, far
-  under Blizzard's limit (36,000 an hour).
-- Each run: ~36–49 seconds, billed as **1 minute**.
+- **US and Europe** (ADR 0009), all 15 auction houses each, auctions and commodities, in **one run**:
+  downloads in parallel, processing on both CPU cores, US stored first, Europe skipped for the hour
+  if it's late. ~62 Blizzard API calls an hour, far under Blizzard's limit (36,000 an hour).
+- Each run: **~22 seconds** (measured 2026-11-15, #54; ~41 s when the package cache is rebuilt),
+  billed as **1 minute**. Before the speed-ups, US alone took 36–49 s.
 
 **Storage in R2** (ADR 0005, 0007, 0008), with automatic clean-up rules:
 
@@ -59,7 +61,7 @@ two years. While raw is at 14 days it's ~9 GB.
 
 | Workload | Minutes a month (est.) |
 |---|---|
-| Hourly collector, US (1 min × 24 × 31) | ~744 |
+| Hourly collector, US + Europe (1 min × 24 × 31) | ~744 |
 | Daily flows + roll-up job (#37, #26), US: 10–20 min a day | ~300–600 |
 | Manual report/demo runs | ~20 |
 | **Total, US only** | **~1,075–1,385 of 2,000** |

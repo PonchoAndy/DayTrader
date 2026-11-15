@@ -121,6 +121,16 @@ Covers 01:00–16:00 UTC on 2026-11-14: 17 runs, 14 snapshots stored, 0 HTTP err
 - The goods-value total is still skewed by absurd listings (Alliance jumped to ~1.0M gold);
   the 10M-gold cap per unit is too loose for a real metric.
 
+### Europe and the two-region collector (2026-11-15, PonchoAndy/DayTrader#52, #54, ADR 0009)
+
+- **Europe:** the same 15 house IDs and faction layout as the US, refreshed at ~:18–:19, ~121–127 MB
+  per hourly pull (US ~85–106 MB), 112k summary rows. Stored under `eu/` with its own state file.
+- **Timing on GitHub's runners:** the time is CPU, not downloads. Parsing, summarizing and gzipping
+  ~227 MB one file at a time took 42–53 s, so a two-region job ran 62–73 s (billed 2 minutes).
+  Processing on both cores, orjson, gzip level 1 and cached packages brought the job to **~22 s**
+  (collect step 14–16 s), so one run covers both regions inside the one-minute billing unit.
+- Raw files at gzip level 1 are ~25% bigger (US 11.5 → 14.8 MB an hour).
+
 ### Item names (2026-11-14, PonchoAndy/DayTrader#27)
 
 - **Item IDs are permanent** and Forever uses retail WoW's IDs (we saw 25 to 289,560). So names

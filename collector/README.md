@@ -25,11 +25,21 @@ Auction prices are buyout ÷ quantity; bid-only auctions (~0.2%) are skipped. It
 `item_id` + `variant`; to name a variant, split `variant` on `:` and look each bonus ID up in
 `items/bonuses.parquet` (in WoW Forever each listing has at most one bonus ID, the "of the …" suffix).
 
+## Other regions (ADR 0009)
+
+Europe (and any later region) uses the same layout under its own prefix: `eu/raw/`, `eu/hourly/`,
+`eu/runs/`, `eu/state/latest.json` (R2 rules `eu-expire-raw-14d`, `eu-expire-hourly-90d`). US paths
+have no prefix. House IDs are the same numbers in every region, so never mix regions in one path,
+state file or table; summary rows carry `region`. Item and variant names (`items/`) are shared and
+looked up through the US API. `python collector/collect.py --region eu` collects Europe;
+`collector/report.py --region eu` reports on it.
+
 ## Running it yourself
 
 ```bash
 pip install -r requirements.txt
 python collector/collect.py --local data/store      # writes to a local folder instead of R2
+python collector/collect.py --region eu --local data/store --skip-names   # Europe, no name lookups
 ```
 
 Needs `BLIZZARD_CLIENT_ID` / `BLIZZARD_CLIENT_SECRET` in the environment (not needed in Claude's
