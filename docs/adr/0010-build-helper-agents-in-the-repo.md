@@ -42,7 +42,7 @@ works:
 - **The roster:**
   - Built: Architect, Strategist, Designer, Researcher, Data engineer.
   - Next: Reviewer, Scribe, Analyst.
-  - Later: Economist (#66).
+  - Later: Economist (#66). *(Built 2026-11-15, owner request: `.claude/agents/economist.md`.)*
   - Advisor agents for players come later, inside the app (#14).
 
 ## Consequences

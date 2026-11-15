@@ -6,6 +6,12 @@ Last updated: 2026-11-14 (session 3)
 Goal for now: **grab, analyze, and display** WoW Forever auction house data, so we can find
 profitable trades. Trading/posting automation is out of scope (and against the game's rules).
 
+**Vision (owner, 2026-11-15):** not just an auction house dashboard but an **economic intelligence
+center**. It should explain how the WoW Forever economy behaves and where it is heading (launch
+glut, leveling demand, supply shocks, inflation), so a player can take positions with a thesis and
+a holding plan, not only flip today's prices. The Economist agent (`.claude/agents/economist.md`,
+#66) is the first piece of this.
+
 ---
 
 ## 1. Can we get the data? — Yes, two ways
