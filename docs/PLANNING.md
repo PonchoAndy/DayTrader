@@ -305,6 +305,32 @@ Research to-dos:
 
 ---
 
+### Leveling-material speculation (2026-11-15, Researcher, `docs/designs/2026-11-15-leveling-materials-research.md`)
+
+**Forever's shape [official]:** level 60 since launch (2026-11-04), no level-capped phases; raids open 2026-12-09;
+Hardcore "sometime after launch", fully enclosed (characters can transfer out, not in). 600+ new recipes; Legacy system
+rewards leveling alts.
+
+**Scarce materials** (Forever only) come in three tiers [datamined]: item level 25 Pyrite / Frilled Lichen / Pristine Leather,
+45 Rosecap / Pristine Hide, 60 Stranglevine / Pristine Scale. Beta testers (Oct 2026) and one live player (11-08) report
+**tier 1 can only be gathered by characters level 25 or lower** [guide / forum]; untested for Pyrite. Bountiful Harvest raises
+the scarce-drop chance. A Black Market vendor (Powderfuse Port, Riverglades) sold them at fixed prices in beta: 5g tier 1,
+20g tier 2, 50g tier 3 [guide / forum, 2026-09-19; check live]. That is a price ceiling.
+
+**Recipes [datamined, build 1.60.1.70938]:** new "variant families" (same item, 5–6 versions, each with a different gem or
+flavour reagent), so classic gems substitute for each other. Forever's high-level smithing and leatherworking (skill 200–290)
+needs tier-1 scarce materials in every version (Sulfuric Acid = 2 Pyrite; Pristine Leather). New necklace enchants
+(skill 225–265) take 4 Sulfuric Acid, Pyrite or Cerulean Dye. Runecloth Bag now also needs 2 Cerulean Dye + 4 Magenta Dye.
+Enchanting needs about half Era's dust and essence. No Jewelcrafting. Gem and material vendor prices equal Classic Era's.
+
+**First read [our data, one hour, 2026-11-15]:** every classic gem sits within ~0–20% of vendor price on the big houses
+(Malachite 15c, Tigerseye ~1s, Lesser Moonstone 6s), so buying at that price is risk-free apart from gold tied up and bag
+space (stacks of 20). Ores trade 4–40× vendor. Pyrite is also at vendor (1s); Frilled Lichen ~20–30s, Cerulean Dye ~45–65s.
+**Thesis ranking:** strong for Pyrite, Pristine Leather, Frilled Lichen; medium for Tigerseye, Shadowgem, Jade, pearls;
+weak for Malachite, Lesser Moonstone, Strange Dust. Tests: H-L1 to H-L8 in the report. Gem drop rates in Forever are
+unknown (~1% per node in TBC data, snippet only). **Possible house mapping** (wowauctionhouse.com, unconfirmed):
+110/113/116 PvP, 111/114/117 Normal, 119/120/121 RP, 123/124/125 RP-PvP, 112/115/118 unlisted — Normal Horde may be 114.
+
 ## 4. Rough architecture (draft)
 
 ```
