@@ -44,7 +44,7 @@ two years. While raw is at 14 days it's ~9 GB.
 - GitHub Actions secrets: `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `R2_ENDPOINT`,
   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
 - Claude's cloud environment "DayTrader": a network secret for Blizzard's login host, and an
-  allowed-hosts list (Blizzard API US/EU, Blizzard forums, wowauctionhouse.com, ahledger.com, TSM,
+  allowed-hosts list (Blizzard API US/EU, Blizzard US and EU forums, Blizzard news, Icy Veins, wowauctionhouse.com, ahledger.com, TSM,
   Wowhead, wago.tools, the WoW wiki, Warcraft Tavern, Undermine Exchange).
 
 **Claude-side automation**
