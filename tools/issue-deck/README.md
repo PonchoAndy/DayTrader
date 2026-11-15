@@ -58,3 +58,9 @@ after a merge it opens with that merge expanded. `…#changes` opens the tab dir
 Data: `meta/history` = `{merges: [{pr, title, merged_at, sha, files, added, removed, areas[],
 commits: [{sha, at, subject, notes}]}], generatedAt}`, built from git by `history.py` (merge commits
 on main's first-parent line) and written by Claude during syncs and after each merge.
+
+## Agent questions
+
+Questions an agent asks the owner are `Decide:` issues with the GitHub label `agent` and a
+`**From:** <Name> agent` field. Issue docs carry `labels`; the page shows an "Agent · <Name>" tag on
+those cards and a "From agents" filter chip.
