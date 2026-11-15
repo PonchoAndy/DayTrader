@@ -1,13 +1,21 @@
 # 0008. Analysis layer: daily roll-up, listing flows and versioned metrics
 
-- **Status:** Partly accepted (listing flows, kept 90 days: accepted 2026-11-14); the rest proposed
+- **Status:** Partly accepted (listing flows kept 90 days, 2026-11-14; extra trading measures, 2026-11-15); the rest proposed
 - **Date:** 2026-11-14
 - **Issue:** PonchoAndy/DayTrader#26, PonchoAndy/DayTrader#10
 
 Extends [0007](0007-keep-hourly-summaries-three-months-then-review.md) with a new 90-day data class.
 **Accepted so far (owner, 2026-11-14):** start saving listing flows, kept 90 days, backfilled
 before the first raw pulls expire; and extend raw-pull retention from 7 to 14 days until the
-backfill has run (then set it back). Still open: day boundary, penny floor, normal-price window,
+backfill has run (then set it back).
+**Also accepted (owner, 2026-11-15, #40):** the flows job also saves four trading measures from the
+raw data, as summed counts per item per hour, following the Strategist's requirements catalog
+(`docs/designs/2026-11-15-data-requirements-v1.md`, rows 4–12 and 16): the price position of units
+that vanished early (at the cheapest, within 5%, within 20%, above); listing age when it vanished,
+in bands (needs first-seen times carried across days); depth near the cheapest price (units and
+gold within +2/5/10/25%); and undercut counts (new listings below the previous cheapest). Partial-buy
+value is kept separately from early vanishings, and the time-left mix of new and current listings is
+recorded. Still open: day boundary, penny floor, normal-price window,
 page refresh (design report §7, questions 3–6).
 
 Drafted by the Architect agent; full design report in
