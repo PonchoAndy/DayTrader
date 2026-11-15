@@ -69,7 +69,7 @@ Gzip level 1 (for speed, #54) made raw files ~25% bigger than the first estimate
 | Nightly flows, US (measured 2026-11-15: ~5 min a day, billed 6) | ~190 |
 | Nightly flows, Europe, if chosen (#56; estimate ~7–8 min a day) | (+~250) |
 | Daily roll-up (#26, not built yet) | (+~30–60) |
-| Manual report / demo / health runs (1 min each) | ~20 |
+| Manual report / demo / health / market runs (1 min each; market ~1–3 min once the bucket holds weeks of hourly files) | ~20–30 |
 | **Total today** | **~955 of 2,000** (~1,200 with Europe flows) |
 
 - If the free minutes run out, GitHub's default is to **stop running jobs until the next month**
@@ -83,6 +83,7 @@ Gzip level 1 (for speed, #54) made raw files ~25% bigger than the first estimate
 $0.15 a month. We're expected to pass 10 GB in late November. Writes and reads are well under the free allowance (~25k writes a month today).
 
 **Blizzard's API** has plenty of headroom (~62 calls an hour against 36,000).
+The `market` switch adds ~430 item lookups the first time (vendor prices) and only new items after that.
 
 ## Other regions
 

@@ -5,6 +5,7 @@
 - `probe.py`: one-off exploration: pulls a snapshot and reports sizes, houses and item-name coverage.
 - `blizzard.py`: shared API client.
 - `bonuses.py`: variant names (bonus ID → "of the Eagle"), from WoW Forever's game data on wago.tools.
+- `market.py`: the `market` switch's export of crafting-material prices for Claude sessions (below).
 - `items.py`: item names. IDs are permanent, so each is looked up once: WoW Forever's item database first, then retail WoW's (same IDs; Forever's own database is incomplete). Unknown IDs are retried weekly.
 
 ## What's in the bucket
@@ -49,6 +50,35 @@ runs, `hours_missed` (from the stored snapshots themselves, so it also covers ru
 `health` record), `hours_since_last_snapshot`, `houses_flagged`, other flags, refresh minutes seen,
 and `job_seconds` median / max / runs over 55 s and 60 s. The `report` switch prints the same
 summary in a "Health" section. Locally: `python collector/report.py --local data/store --health-json /tmp/health.json`.
+
+## Crafting-material prices without R2 (`market` switch)
+
+Run the workflow with the **market** switch from a branch (Actions → Collect auctions → Run workflow →
+pick the branch → tick **market**). `collector/market.py` reads every stored hourly summary for the US
+and Europe, the listing flows and `items/items.parquet`, and commits `tools/market/market.json` to that
+branch (from `main` it only writes it on the runner). Read-only on R2.
+
+- **Items:** item class Trade Goods or Reagent (also retail's names Tradeskill / Gem), plus
+  Miscellaneous / Reagent (spell reagents): ~430 items. In WoW Forever gems such as Malachite (774) are
+  Trade Goods / Other, and nearly all of these trade as commodities; a few (rods, oils) are auctions,
+  which are included (`kind`). Per item: `name, quality, class, subclass, kind` and the vendor prices
+  `vendor_sell` (what a vendor pays you), `vendor_buy` for `vendor_buy_qty` units, in copper, from
+  Blizzard's `static-forever-us` item endpoint. They include Forever's own vendor-price changes, and
+  they match wago.tools' `wowf` ItemSparse. They're copied from the previous export, so only new items
+  are looked up.
+- **Prices**, per region → house (`houses` gives the faction) → item: four arrays aligned with that
+  region's `snapshots`: min, p25, median unit price (copper, `null` = not listed) and quantity listed.
+- **Flows**, per region → house → item: one array per `flow_fields` entry, aligned with `flow_days`
+  (`flow_hours` = hours covered that day). Units per day: `partial` (certain sales), `early_cheap`
+  (vanished with 2+ h left within 5% of the cheapest), `early` (all vanished with 2+ h left: sold or
+  cancelled), `gone_short_medium` (vanished in the last 2 h: expired, or bought), `relist`, `new`, and
+  `sold_est = partial + early_cheap - relist`. `sold_est` is a low estimate: a 2-hour listing shows
+  MEDIUM from the start, so its sales land in `gone_short_medium` (#69).
+- **Size:** ~73 KB per region per hour kept. Over 8 MB (`--max-mb`), the newest 72/48/24 hours stay
+  hourly and older hours are thinned to every 3rd/6th/12th/24th UTC hour; as a last step, series
+  averaging under 10, then 25, listings an hour are dropped. `sampling` in the file says what was used.
+
+Locally: `python collector/market.py --local data/store --out /tmp/market.json`.
 
 ## Other regions (ADR 0009)
 
