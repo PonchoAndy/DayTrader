@@ -31,6 +31,10 @@ on:
         description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
         default: false
+      health:
+        description: "Don't collect; commit the last 48 hours' health summary (tools/health/health.json) to this branch"
+        type: boolean
+        default: false
 
 concurrency:
   group: collect
@@ -41,7 +45,7 @@ permissions:
 
 jobs:
   collect:
-    if: ${{ !inputs.demo && !inputs.flows && github.event.schedule != '35 1 * * *' }}
+    if: ${{ !inputs.demo && !inputs.flows && !inputs.health && github.event.schedule != '35 1 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -131,3 +135,41 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/overnight-demo/demo-data.json
           git commit -m "Demo data export" && git push || echo "Nothing new to commit"
+
+  # Manual only: the last 48 hours of run health per region (#18, #54) for Claude sessions, which
+  # can't read R2 or download logs. Read-only on R2; the only job besides demo that writes to the repo.
+  health:
+    if: ${{ inputs.health }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        id: py
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        id: venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+      - name: Install packages (only when the list changed)
+        if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+      - name: Export health summary
+        env:
+          REGIONS: us,eu
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: .venv/bin/python collector/report.py --health-json tools/health/health.json
+      - name: Commit it to this branch
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/health/health.json
+          git commit -m "Health summary export" && git push || echo "Nothing new to commit"

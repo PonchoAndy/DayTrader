@@ -26,6 +26,8 @@ Prices are as we last checked them; confirm on each provider's billing page befo
   if it's late. ~62 Blizzard API calls an hour, far under Blizzard's limit (36,000 an hour).
 - Each run: **~22 seconds** (measured 2026-11-15, #54; ~41 s when the package cache is rebuilt),
   billed as **1 minute**. Before the speed-ups, US alone took 36–49 s.
+- Each run log carries a **health** record (hours missed, empty or shrunken houses, Europe skipped,
+  refresh minute; #18). It adds no API calls, no extra stored files and well under 0.1 s per run.
 
 **Storage in R2** (ADR 0005, 0007, 0008), with automatic clean-up rules:
 
@@ -63,7 +65,7 @@ two years. While raw is at 14 days it's ~9 GB.
 |---|---|
 | Hourly collector, US + Europe (1 min × 24 × 31) | ~744 |
 | Daily flows + roll-up job (#37, #26), US: 10–20 min a day | ~300–600 |
-| Manual report/demo runs | ~20 |
+| Manual report/demo/health runs (health: 1 min each, read-only on R2, ~3 day folders of run logs) | ~20 |
 | **Total, US only** | **~1,075–1,385 of 2,000** |
 
 - If the free minutes run out, GitHub's default is to **stop running jobs until the next month**

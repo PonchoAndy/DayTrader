@@ -14,7 +14,8 @@ Each run:
    Percentiles are weighted by quantity, so p10 = "the price of the cheapest 10% of units".
 4. Names any item IDs it hasn't seen before (items/items.parquet, see items.py) and keeps the
    variant-name table current (items/bonuses.parquet, see bonuses.py).
-5. Saves a run log (runs/<YYYY-MM-DD>/<HHMMSS>.json) and state/latest.json.
+5. Saves a run log (runs/<YYYY-MM-DD>/<HHMMSS>.json) with a "health" record (hours missed, houses
+   empty or shrunken since the previous run, refresh minute; see health_record) and state/latest.json.
 
 <snapshot> is the newest Last-Modified time across houses, formatted YYYYMMDDTHHMMZ.
 
@@ -179,6 +180,69 @@ def http_time(value: str | None) -> datetime | None:
         return None
 
 
+# ---------- health (a flag in the run log, never an error) ----------
+# A house that had at least this many priced listings last time and now has under this share of
+# them is flagged ("empty or shrunken"). Houses that are always empty (112/115/118) never reach
+# the floor, so no house IDs are hard-coded.
+HEALTH_MIN_PREVIOUS = 200
+HEALTH_SHRINK = 0.25
+HEALTH_GAP_HOURS = 1.5      # more than this between two stored snapshots = hours missed
+HEALTH_STALE_MINUTES = 90   # "no new data" while Blizzard's newest data is older than this
+HEALTH_DRIFT_MINUTES = 3    # refresh minute moved this much since the previous snapshot
+
+
+def snapshot_time(snapshot: str) -> datetime:
+    return datetime.strptime(snapshot, "%Y%m%dT%H%MZ").replace(tzinfo=timezone.utc)
+
+
+def missed_hours(prev: datetime, new: datetime) -> list[str]:
+    """UTC hours strictly between two snapshots' hours, e.g. 03:17 -> 06:17 gives 04 and 05."""
+    a = prev.replace(minute=0, second=0, microsecond=0)
+    b = new.replace(minute=0, second=0, microsecond=0)
+    n = int((b - a).total_seconds() // 3600)
+    return [(a + pd.Timedelta(hours=i)).strftime("%Y-%m-%dT%H") for i in range(1, n)]
+
+
+def health_record(prev: dict, newest: datetime, started: datetime, has_last_modified: bool,
+                  counts: dict | None, errors: dict) -> dict:
+    """Health fields for one region's run (#18, #54). counts = listings per "<house>-<kind>" when the
+    snapshot was stored, None for "no new data". Never raises: a health problem is a flag, not an error."""
+    try:
+        h = {"refresh_minute": newest.minute, "lag_minutes": round((started - newest).total_seconds() / 60),
+             "flags": []}
+        if not has_last_modified:
+            h["flags"].append("no Last-Modified header from Blizzard (API change?)")
+        if prev.get("snapshot"):
+            p = snapshot_time(prev["snapshot"])
+            if counts is not None:
+                gap = (newest - p).total_seconds() / 3600
+                h["gap_hours"] = round(gap, 2)
+                h["missed_hours"] = missed_hours(p, newest)
+                if gap > HEALTH_GAP_HOURS or h["missed_hours"]:
+                    h["flags"].append(f"{len(h['missed_hours'])} hour(s) missed since {prev['snapshot']}")
+            d = abs(newest.minute - p.minute)
+            if counts is not None and min(d, 60 - d) >= HEALTH_DRIFT_MINUTES:
+                h["flags"].append(f"refresh minute moved :{p.minute:02d} -> :{newest.minute:02d}")
+        if counts is None and h["lag_minutes"] > HEALTH_STALE_MINUTES:
+            h["flags"].append(f"no new data and Blizzard's newest is {h['lag_minutes']} min old")
+        flagged = []
+        for key, before in (prev.get("listings") or {}).items():
+            if before < HEALTH_MIN_PREVIOUS or counts is None:
+                continue
+            if key in errors:
+                flagged.append({"house": key, "listings": None, "previous": before, "reason": f"download {errors[key]}"})
+            elif counts.get(key, 0) < HEALTH_SHRINK * before:
+                flagged.append({"house": key, "listings": counts.get(key, 0), "previous": before,
+                                "reason": "empty" if not counts.get(key) else "shrunk"})
+        if flagged:
+            h["houses_flagged"] = flagged
+            h["flags"].append("houses empty or shrunken: " + ", ".join(f["house"] for f in flagged))
+        h["ok"] = not h["flags"]
+        return h
+    except Exception as e:  # noqa: BLE001
+        return {"ok": None, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
 CPU = IO = None   # process pool (gzip + summaries) and thread pool (uploads), set up in main()
 
 
@@ -204,13 +268,15 @@ def store_region(store, args, region: str, houses: list[dict], pulled: list, sta
            "snapshot": snapshot, "newest_last_modified": newest.isoformat(),
            "errors": {f"{h['id']}-{kind}": (r.status_code if r is not None else "failed")
                       for h, kind, r in pulled if r is None or not r.ok}}
+    has_lm = any(http_time(v) for v in modified.values())
     if not args.force and prev.get("last_modified") == modified:
-        run.update(result="no new data", seconds=round(time.time() - t0, 1))
+        run.update(result="no new data", seconds=round(time.time() - t0, 1),
+                   health=health_record(prev, newest, started, has_lm, None, run["errors"]))
         print(f"[{region}] No new data since snapshot {prev.get('snapshot')}; nothing stored.")
         return run, None
 
     day, hour = snapshot[:4] + "-" + snapshot[4:6] + "-" + snapshot[6:8], snapshot[9:11]
-    frames, raw_bytes, gz_bytes = [], 0, 0
+    frames, raw_bytes, gz_bytes, counts = [], 0, 0, {}
     ok = [(h, kind, r) for h, kind, r in pulled if r is not None and r.ok]
     for h, kind, r in pulled:
         if r is None or not r.ok:
@@ -225,6 +291,7 @@ def store_region(store, args, region: str, houses: list[dict], pulled: list, sta
         raw_bytes += n
         gz_bytes += len(gz)
         frames.append(s)
+        counts[f"{h['id']}-{kind}"] = int(s["listings"].sum())   # priced listings, for the health check
         puts.append(IO.submit(store.put, f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip"))
     for p in puts:
         p.result()   # an upload error fails the region, as before
@@ -237,10 +304,15 @@ def store_region(store, args, region: str, houses: list[dict], pulled: list, sta
     buf = io.BytesIO()
     table.to_parquet(buf, index=False, compression="zstd")
     store.put(f"{pre}hourly/{day}/{snapshot}.parquet", buf.getvalue())
-    store.put(f"{pre}state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified}, indent=1).encode(),
+    health = health_record(prev, newest, started, has_lm, counts, run["errors"])
+    # A house that failed to download keeps last time's count, so the next run compares with real data.
+    listings = {**{k: v for k, v in (prev.get("listings") or {}).items() if k in run["errors"]}, **counts}
+    store.put(f"{pre}state/latest.json", json.dumps({"snapshot": snapshot, "last_modified": modified,
+                                                     "listings": listings}, indent=1).encode(),
               "application/json")
     run.update(result="stored", houses=len(houses), raw_bytes=raw_bytes, gz_bytes=gz_bytes,
-               summary_rows=len(table), summary_bytes=buf.tell(), seconds=round(time.time() - t0, 1))
+               summary_rows=len(table), summary_bytes=buf.tell(), seconds=round(time.time() - t0, 1),
+               health=health)
     print(f"[{region}] Stored snapshot {snapshot}: {len(houses)} houses, {raw_bytes / 1e6:.1f} MB raw → "
           f"{gz_bytes / 1e6:.1f} MB gzipped; summary {len(table)} rows, {buf.tell() / 1e3:.0f} KB "
           f"({time.time() - t0:.1f} s since start).")
@@ -299,7 +371,8 @@ def main() -> int:
     runs, tables, bad = [], [], False
     for i, (region, api, houses, futs) in enumerate(plans):
         if api is None:
-            runs.append({"started": started.isoformat(), "region": region, "result": "failed", "errors": {"houses": "failed"}})
+            runs.append({"started": started.isoformat(), "region": region, "result": "failed", "errors": {"houses": "failed"},
+                         "health": {"ok": False, "flags": ["couldn't list houses"]}})
             bad = True
             continue
         timeout = None if i == 0 else max(0.0, args.deadline - (time.time() - job_t0))
@@ -309,7 +382,8 @@ def main() -> int:
                 f.cancel()
             print(f"! [{region}] {len(pending)} downloads not finished by the {args.deadline:.0f} s deadline; skipped this hour")
             runs.append({"started": started.isoformat(), "region": region, "result": "deadline", "errors": {},
-                         "pending": len(pending)})
+                         "pending": len(pending),
+                         "health": {"ok": False, "flags": [f"skipped: not downloaded by the {args.deadline:.0f} s deadline"]}})
             continue
         pulled = []
         for h, kind, f in futs:
@@ -325,7 +399,8 @@ def main() -> int:
                 raise
             print(f"! [{region}] storing failed: {type(e).__name__}: {e}"[:300])
             run, table = {"started": started.isoformat(), "region": region, "result": "failed",
-                          "errors": {"store": f"{type(e).__name__}"}}, None
+                          "errors": {"store": f"{type(e).__name__}"},
+                          "health": {"ok": False, "flags": ["storing failed"]}}, None
         runs.append(run)
         if table is not None:
             tables.append(table)
@@ -366,6 +441,9 @@ def main() -> int:
         store.put(f"{pre}runs/{started:%Y-%m-%d}/{started:%H%M%S}.json", json.dumps(run, indent=1).encode(), "application/json")
         if run.get("errors"):
             print(f"[{run['region']}] errors: {run['errors']}")
+        hl = run.get("health") or {}
+        print(f"[{run['region']}] health: " + ("ok" if hl.get("ok") else "; ".join(hl.get("flags") or [hl.get("error", "?")]))
+              + (f" (refresh :{hl['refresh_minute']:02d}, gap {hl.get('gap_hours', '-')} h)" if "refresh_minute" in hl else ""))
     print(f"Job time so far: {job_seconds} s")
     return 1 if bad else 0
 
