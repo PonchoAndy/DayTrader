@@ -16,7 +16,7 @@ cancellations can pass as sales (and 2-hour sales pass as expiries, #69). Any si
 noise is likely to be interfering (price wars, heavy relisting, cheap deposits) rather than present the number as fact.
 The player's **profile is the account's whole economic pool**: every character that can reach a market, with its
 professions, level, gold and bank space (#78). Before strategy work, **check scope first**: fit the plan to what the
-player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (likely house 114, unconfirmed, #13),
+player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (**house 114** per the game files; in-game marker check pending, #13; Blackwater 117 also reachable),
 starting with 5g (2026-11-15). Sessions like 2026-11-15 are **prototyping with Claude's tools**; the app itself will
 later run outside Claude Code.
 
@@ -226,11 +226,26 @@ reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #1
 - **Account "economy holds"** can block the AH for suspected gold buying/selling **[official]**.
 - **Vendor prices were cut** on some items (e.g. Mild Spices 1c), which lowers the vendor-price floor.
 
-**What a "house" is (partly answered).** The API's house list has **no ruleset field**, only ID and
-name, and every ruleset returns the same 15 houses (checked 2026-11-15). Community sources say each
-world has its own Alliance, Horde and Blackwater house. The IDs and sizes fit five such "worlds":
-(110, 113, 116) big, (111, 114, 117) big, (112, 115, 118) empty, (119, 120, 121) medium,
-(123, 124, 125) medium. Strong hint, not proof; the in-game check in #13 confirms it.
+**What a "house" is (answered, 2026-11-15, Researcher, `docs/designs/2026-11-15-which-house.md`).** Each house is one
+faction's market on one **ruleset**. Blizzard announced five rulesets: Normal, PvP, Roleplay, Roleplay PvP, and Hardcore
+(after launch) **[official]**. Forever's game files (wago.tools `AuctionHouseRedirect` + `AvailableSuperDistrict`, branch
+`wowf`, build 1.60.1.70938) send each ruleset to its own houses **[datamined]**:
+
+| Ruleset (API id) | Alliance | Horde | Blackwater |
+|---|---|---|---|
+| PvP (1) | 110 | 113 | 116 |
+| Normal (2) | 111 | **114** | 117 |
+| Roleplay (3) | 119 | 120 | 121 |
+| Roleplay PvP (15) | 123 | 124 | 125 |
+| Hardcore (4, not open; API 404) | 112 | 115 | 118 |
+
+This explains "five per faction" and the always-empty houses. The API can't show it: any ruleset ID returns all 15 houses,
+and houses have no ruleset field (re-checked 2026-11-15). **Take the ruleset from the house ID, never from the query.**
+Mail between rulesets is blocked ("You can't send mail to that ruleset", client text) and characters can't change ruleset
+(Blizzard; dead Hardcore characters excepted). Factions on the same ruleset meet only at their shared Blackwater house. An
+unplaced "Auction House" (ID 122) in the files shows each faction its own market; where it is and what cut it charges are
+unknown. Matches wowauctionhouse.com's labels. One in-game marker listing makes it firm (#13). Note: earlier docs and
+mock-ups treat **113 (PvP Horde)** as the owner's house; they need switching to 114.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
@@ -336,8 +351,7 @@ Enchanting needs about half Era's dust and essence. No Jewelcrafting. Gem and ma
 space (stacks of 20). Ores trade 4–40× vendor. Pyrite is also at vendor (1s); Frilled Lichen ~20–30s, Cerulean Dye ~45–65s.
 **Thesis ranking:** strong for Pyrite, Pristine Leather, Frilled Lichen; medium for Tigerseye, Shadowgem, Jade, pearls;
 weak for Malachite, Lesser Moonstone, Strange Dust. Tests: H-L1 to H-L8 in the report. Gem drop rates in Forever are
-unknown (~1% per node in TBC data, snippet only). **Possible house mapping** (wowauctionhouse.com, unconfirmed):
-110/113/116 PvP, 111/114/117 Normal, 119/120/121 RP, 123/124/125 RP-PvP, 112/115/118 unlisted — Normal Horde may be 114.
+unknown (~1% per node in TBC data, snippet only). House map: see §1 "What a house is" (Normal Horde = 114, PvP Horde = 113).
 
 ## 4. Rough architecture (draft)
 
