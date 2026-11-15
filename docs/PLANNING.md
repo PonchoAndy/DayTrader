@@ -11,6 +11,11 @@ center**. It should explain how the WoW Forever economy behaves and where it is 
 glut, leveling demand, supply shocks, inflation), so a player can take positions with a thesis and
 a holding plan, not only flip today's prices. The Economist agent (`.claude/agents/economist.md`,
 #66) is the first piece of this.
+The player's **profile is the account's whole economic pool**: every character that can reach a market, with its
+professions, level, gold and bank space (#78). Before strategy work, **check scope first**: fit the plan to what the
+player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (likely house 114, unconfirmed, #13),
+starting with 5g (2026-11-15). Sessions like 2026-11-15 are **prototyping with Claude's tools**; the app itself will
+later run outside Claude Code.
 
 ---
 
@@ -389,6 +394,11 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Build-helper agents** (ADR 0010): Architect, Strategist, Designer, Researcher and Data engineer
   in `.claude/agents/`, handing work over through saved documents in `docs/designs/`. Next: Reviewer,
   Scribe, Analyst (#15).
+- **Economist agent** (2026-11-15, #66): studies how the economy behaves and where it's heading; first job was
+  the launch-glut outlook (`docs/designs/2026-11-15-economist-launch-glut-outlook.md`).
+- **Money** (ADR 0011, #61): stored and computed as whole copper; shown everywhere as **gold with 4 decimals**
+  (1g 1s 1c = 1.0101), copper digits set apart visually. Tables keep 4 decimals; prose may round 100g+; amounts under
+  a copper per unit are shown per trade.
 
 ## 6. Open questions for you
 

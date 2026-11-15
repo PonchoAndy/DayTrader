@@ -18,6 +18,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0008](0008-analysis-layer-daily-rollup-listing-flows-versioned-metrics.md) | Analysis layer: daily roll-up, listing flows, versioned metrics | Partly accepted (listing flows + extra trading and posting-behaviour measures); rest proposed |
 | [0009](0009-collect-europe-in-the-same-hourly-run.md) | Collect Europe's auction data in the same hourly run | Accepted |
 | [0010](0010-build-helper-agents-in-the-repo.md) | Build-helper agents live in the repo, hand off through saved documents | Accepted |
+| [0011](0011-money-whole-copper-shown-as-four-decimal-gold.md) | Money is whole copper underneath; shown as gold with four decimals | Accepted |
 
 ## Statuses
 
