@@ -1,6 +1,6 @@
 # 0003. US region, Horde primary, collect every auction house
 
-- **Status:** Accepted
+- **Status:** Accepted; region part superseded by [0009](0009-collect-europe-in-the-same-hourly-run.md) (Europe collected too)
 - **Date:** 2026-11-13
 - **Issue:** PonchoAndy/DayTrader#2
 

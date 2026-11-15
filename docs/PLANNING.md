@@ -290,7 +290,9 @@ Blizzard API ──hourly──► Collector ──► Raw snapshots (JSON/Parqu
 
 The full records live in [`docs/adr/`](adr/README.md). Summary:
 
-- **Region: US only** (no EU). API host `us.api.blizzard.com`. — PonchoAndy/DayTrader#2
+- **Region: US for trading; Europe also collected** (ADR 0009, #51): same hourly run, US saved first,
+  Europe under an `eu/` prefix (summaries 90 days, raw 14 days), to test whether Europe gives an early
+  signal for US prices. Korea/Taiwan probed once, decided ~mid-December. (Originally US only, #2.)
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
 - **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API

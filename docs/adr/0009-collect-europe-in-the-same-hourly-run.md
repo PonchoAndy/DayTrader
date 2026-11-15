@@ -1,12 +1,17 @@
 # 0009. Collect Europe's auction data as well, in the same hourly run
 
-- **Status:** Proposed
+- **Status:** Accepted (owner, 2026-11-15, all suggested defaults on #51)
 - **Date:** 2026-11-15
 - **Issue:** PonchoAndy/DayTrader#51
 
 Supersedes the region part of [0003](0003-us-region-horde-primary-collect-all-houses.md)
 ("US region only"). The rest of 0003 stands: all houses, Normal ruleset, Horde as the default
 view, region/ruleset/faction/house as settings.
+
+**Owner's answers (2026-11-15):** start Europe in the shared hourly run; keep Europe raw pulls 14 days;
+backup if the shared run can't stay under a minute = a separate Europe run with a $5/month GitHub
+spending budget; decide Europe listing flows after #37 has timed the US job (before ~11-30); probe
+Korea and Taiwan once now and decide after the Europe test (~mid-December).
 
 ## Context
 
