@@ -11,6 +11,7 @@ All work is tracked as **GitHub issues**: https://github.com/PonchoAndy/DayTrade
 | `Setup:` | An account, credential or service to set up. |
 | `Build:` | Code to write. Usually Claude. |
 | `Research:` | Something to find out. Results go into `docs/PLANNING.md`. |
+| `Idea:` | A product idea for later, under the roadmap tracker (#46). Not decided or scheduled. |
 
 Each issue says **Who** does it, what it's **Blocked by**, and when it's **Done**.
 
