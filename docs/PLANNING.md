@@ -11,6 +11,10 @@ center**. It should explain how the WoW Forever economy behaves and where it is 
 glut, leveling demand, supply shocks, inflation), so a player can take positions with a thesis and
 a holding plan, not only flip today's prices. The Economist agent (`.claude/agents/economist.md`,
 #66) is the first piece of this.
+**Three phases (ADR 0013):** (1) **playground**, now: Claude chat sessions with our data and agents, for real
+decisions and to shape the product; (2) **the app**: runs on its own, a polished data center; (3) **the AH terminal**:
+an in-game addon plus an app section for trading at the auction house, which also feeds the app the player's
+characters, bags and purchases. Tag each idea with its phase.
 **Data we can't fully trust (standing concern, #81):** "sold" is inferred from listings disappearing, so unreposted
 cancellations can pass as sales (and 2-hour sales pass as expiries, #69). Any signal built on sales should say when this
 noise is likely to be interfering (price wars, heavy relisting, cheap deposits) rather than present the number as fact.
@@ -384,6 +388,7 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   signal for US prices. Korea/Taiwan probed once, decided ~mid-December. (Originally US only, #2.)
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
+- **Three phases of use** (ADR 0013): playground (now), the app, the AH terminal (addon).
 - **Home house: 114** (US, Normal, Horde; ADR 0012, #85). Reachable: 114 and Blackwater 117. A row's ruleset
   comes from its house ID (map in §1), never from the API query.
 - **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API

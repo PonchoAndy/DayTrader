@@ -20,6 +20,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0010](0010-build-helper-agents-in-the-repo.md) | Build-helper agents live in the repo, hand off through saved documents | Accepted |
 | [0011](0011-money-whole-copper-shown-as-four-decimal-gold.md) | Money is whole copper underneath; shown as gold with four decimals | Accepted |
 | [0012](0012-home-house-114-ruleset-from-house-id.md) | Home house is 114 (US Normal Horde); the ruleset comes from the house ID | Accepted |
+| [0013](0013-three-phases-of-use.md) | Three phases of use: playground, app, AH terminal | Accepted |
 
 ## Statuses
 
