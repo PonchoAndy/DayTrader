@@ -335,12 +335,14 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   is storage and run time, roughly 3x a Horde-only pull, which per-item hourly summaries keep
   manageable. Build everything with faction as a setting, so views can switch factions
   without code changes.
-- **Storage: Cloudflare R2** (bucket `daytrader-data`), small overage charges OK. Raw pulls
-  kept ~7 days; hourly summaries a few months; daily summaries indefinitely. (ADR 0005, #6)
-- **Collector: private repo, Python, GitHub Actions hourly at :27** (Blizzard refreshes at ~:17).
-  Raw pulls ~10 MB gzipped per snapshot; per-item summaries ~0.6 MB Parquet. (ADR 0006, #5, #9)
+- **Storage: Cloudflare R2** (bucket `daytrader-data`), small overage charges OK. Costs and sizes:
+  `docs/SYSTEMS.md`. (ADR 0005, #6)
+- **Collector: private repo, Python, GitHub Actions hourly at :05** (moved from :27, #28; Blizzard
+  refreshes at ~:17 US, ~:18–:19 Europe). US + Europe in one ~22 s run; each run logs its own health
+  (#18). Raw pulls ~15 MB (US) and ~18 MB (Europe) gzipped per hour; summaries ~1.3–1.6 MB. (ADR 0006, 0009)
 
-- **Retention:** raw pulls 7 days; **hourly summaries 3 months**, reviewed for usefulness during
+- **Retention:** raw pulls 7 days (**14 for now**, until #37's raw-data measurements are done, #38);
+  **hourly summaries 3 months**, reviewed for usefulness during
   that time (shorten if rarely needed); daily summaries indefinitely. (ADR 0007, #26)
 - **Listing flows (accepted part of ADR 0008):** a daily job matches listing IDs hour to hour in
   the raw pulls and saves per-item counts of units posted, vanished early (sold or cancelled),
@@ -350,22 +352,22 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   position of what sold, how long listings sat, depth near the cheapest price, and undercuts;
   plus four posting-behaviour measures: lot-size mix of new listings, a rough seller count, expiry
   waves, and "wall" listings.
-  The rest of the analysis layer (daily roll-up, metrics, page export) is proposed.
+  Built and running nightly since 2026-11-15 (#37). The rest of the analysis layer (daily roll-up,
+  metrics, page export) is proposed.
+- **Build-helper agents** (ADR 0010): Architect, Strategist, Designer, Researcher and Data engineer
+  in `.claude/agents/`, handing work over through saved documents in `docs/designs/`. Next: Reviewer,
+  Scribe, Analyst (#15).
 
 ## 6. Open questions for you
 
-1. **Where should it run?** Your PC, GitHub Actions, or a cheap cloud server?
-2. **How do you want to view it?** Web dashboard, spreadsheet, Discord alerts, phone?
-3. **Your professions / play style?** Crafting margins only matter for what you can craft.
-4. **Language comfort?** Python is the suggestion; tell us if you'd prefer something else.
+Open questions now live as `Decide:` issues, one per question, shown on the Issue Deck (the
+"From agents" filter lists the ones the agents raised). Early questions from this section were
+answered: it runs on GitHub Actions (ADR 0006), in Python, viewed as web pages for now
+(dashboard choice still open, ADR 0005); professions and play style become app settings later.
 
 ## 7. Suggested next steps
 
-1. You: create a Battle.net API client (step 2.1 above) and keep the ID/secret handy.
-2. Us: write a tiny "probe" script that hits the endpoints above, confirms they work, and
-   saves one snapshot so we can look at real data.
-3. Run it for a few days to measure refresh rate and data size.
-4. Then write real requirements and pick an MVP.
+See the "Suggested next" list in the newest recap in `docs/sessions/`, and the open issues.
 
 ---
 

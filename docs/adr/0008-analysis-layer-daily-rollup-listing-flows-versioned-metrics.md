@@ -61,7 +61,7 @@ so formulas must be able to change later. Missed hours happen (#28).
 ## Consequences
 
 - A sale-rate estimate that separates sales from expiries, available from the first collected hour
-  if flows are backfilled before the first raw pulls expire (~2026-11-21).
+  if flows are backfilled before the first raw pulls expire (~2026-11-21). *Update 2026-11-15: raw is kept 14 days for now (#38), so ~11-28; the backfill ran on 2026-11-15 (#37).*
 - Formula changes cost nothing: from daily rows for all history; from flows and hourly data for 90
   days; from raw data for 7 days only.
 - About 155 more Actions minutes a month and ~2.2 GB for 90 days of flows (estimates); daily files

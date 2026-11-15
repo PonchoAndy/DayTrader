@@ -2,7 +2,7 @@
 
 The Architect agent's second job (#51), and the first run after its instructions were fixed (owner/builder
 split, sourced deadlines, real figures). Its decision is drafted as
-[ADR 0009](../adr/0009-collect-europe-in-the-same-hourly-run.md) (Proposed).
+[ADR 0009](../adr/0009-collect-europe-in-the-same-hourly-run.md) (Proposed at the time; accepted 2026-11-15).
 
 ## Review notes (main session)
 

@@ -1,6 +1,7 @@
 # DayTrader — notes for Claude
 
-Tool to collect, analyze and display WoW Forever auction house data. Planning stage.
+Tool to collect, analyze and display WoW Forever auction house data. Collecting hourly (US + Europe);
+analysis layer and build-helper agents in progress (`.claude/agents/`, ADR 0010).
 
 - Background and findings: `docs/PLANNING.md`. Decisions: `docs/adr/`. Workflow: `docs/WORKFLOW.md`.
 - Work is tracked in GitHub issues on `PonchoAndy/DayTrader`. At the start of a task, read

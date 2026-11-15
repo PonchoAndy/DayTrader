@@ -139,7 +139,8 @@ def main() -> int:
     print_health(health(store, region))
 
     print("\n=== Runs ===")
-    runs = [json.loads(store.get(k)) for k in sorted(keys(store, f"{pre}runs/"))]
+    runs = [json.loads(store.get(k)) for k in sorted(keys(store, f"{pre}runs/"))
+            if not k.startswith(f"{pre}runs/flows/")]   # the nightly flows job logs there; not an hourly run
     rdf = pd.DataFrame(runs)
     cols = [c for c in ("started", "result", "snapshot", "seconds", "summary_rows", "gz_bytes") if c in rdf]
     print(rdf[cols].to_string(index=False))
