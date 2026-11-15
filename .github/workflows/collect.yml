@@ -60,8 +60,9 @@ jobs:
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
-          # Scheduled runs: US only until the two-region timing test passes (#54, ADR 0009).
-          REGIONS: ${{ inputs.regions || 'us' }}
+          # US + Europe in one run (ADR 0009); the US is always stored first. Timing test (#54,
+          # 2026-11-15): ~22 s per run with cached packages, ~41 s when the cache is rebuilt.
+          REGIONS: ${{ inputs.regions || 'us,eu' }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
