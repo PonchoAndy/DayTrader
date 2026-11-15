@@ -170,18 +170,43 @@ reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #1
 
 **WoW Forever auction rules (what's known)**
 - **Deposit refund:** returned when the item sells; lost on expiry or cancel. High confidence.
-- **Minimum deposit:** still 1 silver per lot. The 1-copper change in the Nov 10 hotfix notes was
-  pulled and is due with **maintenance on 2026-11-17** **[official]**. Mark it on price charts: cheaper
-  posting will probably bring a wave of cheap listings.
+- **Cut:** 5% at Alliance and Horde houses, 15% at Blackwater. Forever's game files (wago.tools
+  `AuctionHouse`, branch `wowf`) list these rates for exactly our house IDs (faction 110–115, 119, 120,
+  123, 124; Blackwater 116–118, 121, 125) **[datamined]**, unchanged in every client build since
+  2026-10-13. One beta sale showed exactly 15%. Client values; one sale at each house confirms (#13).
+  The same table confirms which faction each house ID is.
+- **Deposit:** vendor sell price × quantity × 5% per 2 hours of duration at faction houses
+  (2 h = 5%, 8 h = 20%, 24 h = 60%): one player's figures, matching the game files' 5% rate
+  **[guide / forum]**. Returned on sale, lost on expiry or cancel; the minimum applies per listing.
+  **Blackwater's deposit rate in the files is 25 (5× the faction houses)**, so probably 25/100/300%:
+  unconfirmed. Vendor prices are in wago.tools `ItemSparse.SellPrice` (branch `wowf`, includes Forever's
+  vendor-price cuts); we don't collect them yet (#70), and every profit figure needs them.
+- **Minimum deposit:** 1 silver per listing as of 2026-11-14 (many player tests, both house types). The
+  1-copper change was pulled from the Nov 10 notes; Blizzard (Kaivax, 2026-11-12) says it goes live with
+  weekly maintenance on **2026-11-17 (US)** **[official]**, and **2026-11-18 in Europe** (EU staff post,
+  quoted by a player). Nothing newer as of 2026-11-15. Blizzard has slipped it once, so check after
+  maintenance. Europe a day later gives a natural comparison. Tip from a beta player: compare your money
+  before and after posting; the window once showed a copper deposit while 1 silver was taken.
+- **Durations:** 2, 8 or 24 hours (Forever client text, same as Classic Era) **[datamined]**. The
+  12/24/48 h reports are retail's. The client's time-left labels use retail's limits: SHORT < 30 min,
+  MEDIUM 30 min–2 h, LONG 2–12 h, VERY_LONG > 12 h. **So a 2-hour listing is MEDIUM from the start**, and
+  `flows.py`'s "vanished in SHORT/MEDIUM = probably expired" undercounts sales (#69).
+  Hypotheses to test in our data (Researcher, 2026-11-15, stated before looking):
+  - **H-D1** durations are 2/8/24 h: new listings split across MEDIUM / LONG / VERY_LONG with MEDIUM
+    well above zero; almost no listing lives over ~25 h.
+  - **H-D2** the API's LONG/VERY_LONG boundary is 12 h: 24 h listings turn LONG at ~12 h of age (~16 h
+    would mean Classic's 8 h boundary).
+  - **H-D3** how big the miscount is: share of new listings first seen as MEDIUM, by house and item kind.
+  - **H-D4** the deposit change ships: small lots (`new_lot_lt1s`) jump on US houses from 11-17 and
+    Europe from 11-18; no jump by 11-20 means it didn't ship.
+  - **H-D5** Blackwater sellers pick 2 h more often (weak; the in-game check is better).
+  - **H-D6** maintenance hours: listings returned at maintenance must not count as sales.
 - **Sale gold** arrives by mail after 60 minutes for stackable goods (about 2 minutes for gear), a
   change players noticed around Nov 10–11. No evidence that new listings or undercuts appear late on
   the house itself; the delay that matters for us is Blizzard's hourly snapshot at :17.
 - **Newest sells first:** among listings at the same price, the most recently posted sells first;
   cheapest price first as usual. Player reports, medium confidence. For sale estimates: the newest
   IDs vanishing first is normal, not cancelling.
-- **Cut:** 5% at faction houses (medium confidence), 15% at Blackwater (guides, one player report).
-- **Durations and deposit rates:** unclear (reports of 2/8/24 h and of 12/24/48 h). Our own
-  time-left data can settle the durations.
 - **Gear can't be undercut by copper amounts** (whole silver), per player reports.
 - **No posting or cancel limits** documented. Players report automated buy-and-repost (bots).
 - **Account "economy holds"** can block the AH for suspected gold buying/selling **[official]**.
