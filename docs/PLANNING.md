@@ -134,6 +134,50 @@ Covers 01:00–16:00 UTC on 2026-11-14: 17 runs, 14 snapshots stored, 0 HTTP err
   All 93 bonus IDs seen are named. Hourly summaries grew to ~107k rows / ~1.3 MB
   (~0.9 GB a month), which makes the daily roll-up (#26) and an hourly retention rule more pressing.
 
+### TSM's numbers and WoW Forever's auction rules (2026-11-15, research pass, PonchoAndy/DayTrader#10, #13)
+
+Sources: TSM's own help pages **[official]**, Undermine Exchange's source code (`erorus/shatari`)
+**[community-tested]**, Blizzard's Forever hotfix and forum threads (staff posts **[official]**, player
+reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #13.
+
+**How TSM computes its numbers**
+- **DBMarket** (per scan): keep the cheapest 15% of units, extend up to 30% until a 20% price jump,
+  drop values more than 1.5 standard deviations from the mean, average the rest. Daily values are
+  then weighted over 14 days, leaning hard on the last 3 (half-life a little over 2 days; exact
+  weights only published as an image). TSM says it reflects what items are *listed* for, not sold for.
+- **DBRecent** = the same on the latest scan only; **DBMinBuyout** = lowest listing in the last scan;
+  **DBHistorical** = 60-day average of DBMarket; **DBRegionMarketAvg** = average across realms.
+- **Sale rate, sold per day and sale average come from players' own sale records** uploaded by the
+  TSM desktop app, not from comparing scans (stated for sale average; very likely for the others).
+  We can't copy them; we estimate sales from listing flows instead (ADR 0008) and label them estimates.
+- No sign that TSM covers WoW Forever. **Undermine Exchange** stores only the lowest price and total
+  quantity per item, has no sale-rate numbers, and has Forever commented out in its code.
+
+**WoW Forever auction rules (what's known)**
+- **Deposit refund:** returned when the item sells; lost on expiry or cancel. High confidence.
+- **Minimum deposit:** still 1 silver per lot. The 1-copper change in the Nov 10 hotfix notes was
+  pulled and is due with **maintenance on 2026-11-17** **[official]**. Mark it on price charts: cheaper
+  posting will probably bring a wave of cheap listings.
+- **Sale gold** arrives by mail after 60 minutes for stackable goods (about 2 minutes for gear), a
+  change players noticed around Nov 10–11. No evidence that new listings or undercuts appear late on
+  the house itself; the delay that matters for us is Blizzard's hourly snapshot at :17.
+- **Newest sells first:** among listings at the same price, the most recently posted sells first;
+  cheapest price first as usual. Player reports, medium confidence. For sale estimates: the newest
+  IDs vanishing first is normal, not cancelling.
+- **Cut:** 5% at faction houses (medium confidence), 15% at Blackwater (guides, one player report).
+- **Durations and deposit rates:** unclear (reports of 2/8/24 h and of 12/24/48 h). Our own
+  time-left data can settle the durations.
+- **Gear can't be undercut by copper amounts** (whole silver), per player reports.
+- **No posting or cancel limits** documented. Players report automated buy-and-repost (bots).
+- **Account "economy holds"** can block the AH for suspected gold buying/selling **[official]**.
+- **Vendor prices were cut** on some items (e.g. Mild Spices 1c), which lowers the vendor-price floor.
+
+**What a "house" is (partly answered).** The API's house list has **no ruleset field**, only ID and
+name, and every ruleset returns the same 15 houses (checked 2026-11-15). Community sources say each
+world has its own Alliance, Horde and Blackwater house. The IDs and sizes fit five such "worlds":
+(110, 113, 116) big, (111, 114, 117) big, (112, 115, 118) empty, (119, 120, 121) medium,
+(123, 124, 125) medium. Strong hint, not proof; the in-game check in #13 confirms it.
+
 ### Path B: In-game addon scan (how Auctionator works)
 
 We looked at Auctionator's source (fork: `sirus-addons/Auctionator`; the official repo
