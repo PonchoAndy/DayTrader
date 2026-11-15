@@ -36,3 +36,13 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
   - If the background session is archived or recreated, create a new task with
     `persistent_session_id` pointing at it and update `SYNC_TRIGGER` in the page.
 - **Deep links:** `…/artifact/RpKHZGqfrwCjAqB9tDBDvL#i<N>` opens issue N's card, revealing it even if it's closed or filtered out.
+
+## Merge Now
+
+When Claude has work ready to merge into `main`, it sets `meta/mergeReady`
+`{ready: true, summary, branch, at}` and the page shows a gold "Ready to merge" bar with a
+**Merge Now** button. Pressing it writes `meta/mergeRequest {state: "requested", requestedAt, branch}`
+and wakes Claude through the same route as a reply (`dispatch`). Claude opens and merges the pull
+request (step 0 of the sync in `CLAUDE.md`), then sets `mergeRequest {state: "done", pr, finishedAt}`
+and `mergeReady {ready: false}`; the bar shows "Merged #N" for 15 minutes. A failure shows the
+reason (`mergeRequest.error`) and leaves the button available to try again.

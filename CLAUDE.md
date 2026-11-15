@@ -11,7 +11,11 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
   and scheduled jobs only see `main`. When a coherent piece of work is pushed and ready, end the
   reply with this line, last thing in the message, so it's easy to spot:
   `> **⏵ Merge Now** — reply **merge** and I'll open the pull request and merge it (<what's in it>).`
-  On "merge": open the PR (Closes/Refs issues), merge it, then restart the branch from `main`.
+  Also `set` Issue Deck `meta/mergeReady` to `{ready: true, summary: "<what's in it>", branch, at: <now ISO>}`,
+  which shows a **Merge Now** button on the Deck.
+  On "merge" (in chat, or a Deck merge request, see below): open the PR (Closes/Refs issues), merge
+  it, restart the branch from `main`, then set `meta/mergeReady` to `{ready: false}` and
+  `meta/mergeRequest` to `{state: "done", pr: <number>, finishedAt: <now ISO>}`.
 - Record research results in `docs/PLANNING.md`, and comment on the issue.
 - When a decision is made (in an issue or chat), write an ADR in `docs/adr/` from
   `template.md`, add it to the index in `docs/adr/README.md`, and update the summary in
@@ -32,6 +36,11 @@ Page source and data model: `tools/issue-deck/`. It has no GitHub connection of 
 (ArtifactData tool, same URL). When the user says "sync the Issue Deck" (or "post my Issue Deck
 replies"):
 
+0. Merge request: read `meta/mergeRequest`. If `state` is `"requested"`, set it to `"running"`, then
+   merge as described under "Merge often" (PR from `branch` into `main`; if it can't be merged, set
+   `{state: "failed", error: "<plain reason>", finishedAt}` and say why on the Deck's next sync).
+   A session without a local checkout of that branch can still open and merge the PR through
+   GitHub; the work session restarts its branch from `main` when it next resumes.
 1. Post replies: query collection `replies` where `status == "pending"`. For each, post
    `body` as a comment on issue `issue` (GitHub MCP `add_issue_comment`); if `close` is true,
    also close the issue as completed. If `body` is empty (the user pressed "Mark Done" with no
@@ -56,7 +65,7 @@ Use one `batch` write where possible.
 
 ### How replies reach Claude
 
-Pressing Send reply / Mark Done / Reopen (or Refresh) on the page hands the work to Claude at once:
+Pressing Send reply / Mark Done / Reopen / Merge Now (or Refresh) on the page hands the work to Claude at once:
 - If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page fires that
   session's own on-demand task (`triggerId`), so an `[Issue Deck] …` turn appears in its chat.
   When you get one, run the sync above, then carry on. (Messaging via `send_message` is a
