@@ -1,8 +1,13 @@
 """Read-only overview of what the collector has stored so far (prints to the log).
 
 Run from GitHub Actions with the workflow's "report" switch, since R2 can't be read from
-Claude's cloud sessions. Covers: run history, snapshot gaps, market size per snapshot, and
-the biggest overnight moves on each faction's big houses.
+Claude's cloud sessions. Covers: health of the last 48 hours, run history, snapshot gaps, market
+size per snapshot, and the biggest overnight moves on each faction's big houses.
+
+  report.py [--region eu] [--local DIR]       full report for one region
+  report.py --health-json PATH [--local DIR]  only the 48-hour health summary, every region in
+                                              REGIONS (default us,eu), written as JSON (the
+                                              workflow's "health" switch commits it, #18/#54)
 """
 from __future__ import annotations
 
@@ -10,19 +15,22 @@ import io
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect import R2Store, prefix  # noqa: E402
+from collect import LocalStore, R2Store, missed_hours, prefix, snapshot_time  # noqa: E402
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", 20)
 pd.set_option("display.max_colwidth", 40)
 
 
-def keys(store: R2Store, prefix: str) -> list[str]:
+def keys(store, prefix: str) -> list[str]:
+    if isinstance(store, LocalStore):   # local test store: same keys, from the folder
+        return sorted(str(p.relative_to(store.root)) for p in store.root.glob(prefix + "**/*") if p.is_file())
     out, token = [], None
     while True:
         kw = {"Bucket": store.bucket, "Prefix": prefix}
@@ -39,11 +47,96 @@ def gold(copper: float) -> str:
     return f"{copper / 10000:,.2f}g"
 
 
+def arg(name: str, default=None):
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv and len(sys.argv) > sys.argv.index(name) + 1 else default
+
+
+def health(store, region: str, hours: int = 48, now: datetime | None = None) -> dict:
+    """What went right and wrong in one region's last `hours` hours of hourly runs (#18, #54).
+    Hours missed come from the stored snapshots themselves, so runs logged before the health
+    record existed are covered too; flagged houses come from each run's `health` record."""
+    now = now or datetime.now(timezone.utc)
+    since = now - timedelta(hours=hours)
+    pre = prefix(region)
+    runs = []
+    for d in range(hours // 24 + 2):   # only the day folders the window touches (runs/flows/ is not read)
+        day = (now - timedelta(days=d)).strftime("%Y-%m-%d")
+        for k in keys(store, f"{pre}runs/{day}/"):
+            r = json.loads(store.get(k))
+            if pd.Timestamp(r["started"]) >= pd.Timestamp(since):
+                runs.append(r)
+    runs.sort(key=lambda r: r["started"])
+    results = pd.Series([r.get("result", "?") for r in runs]).value_counts().to_dict()
+    snaps = sorted({r["snapshot"] for r in runs if r.get("result") == "stored"})
+    missed = set()
+    for a, b in zip(snaps, snaps[1:]):
+        missed.update(missed_hours(snapshot_time(a), snapshot_time(b)))
+    for r in runs:   # also gaps the run itself saw (e.g. back to a snapshot just before the window)
+        missed.update((r.get("health") or {}).get("missed_hours") or [])
+    flagged = [{"started": r["started"], "snapshot": r.get("snapshot"), **f}
+               for r in runs for f in (r.get("health") or {}).get("houses_flagged") or []]
+    flags = pd.Series([f for r in runs for f in (r.get("health") or {}).get("flags") or []
+                       if "houses empty" not in f]).value_counts().to_dict()   # houses are listed separately
+    js = pd.Series([r["job_seconds"] for r in runs if r.get("job_seconds") is not None], dtype="float64")
+    lm = [pd.Timestamp(r["newest_last_modified"]).minute for r in runs
+          if r.get("result") == "stored" and r.get("newest_last_modified")]
+    last = snapshot_time(snaps[-1]) if snaps else None
+    return {
+        "region": region, "from": since.isoformat(timespec="minutes"), "to": now.isoformat(timespec="minutes"),
+        "runs": len(runs),
+        "stored": results.get("stored", 0), "no_new_data": results.get("no new data", 0),
+        "deadline": results.get("deadline", 0), "failed": results.get("failed", 0),
+        "with_errors": sum(bool(r.get("errors")) for r in runs),
+        "first_snapshot": snaps[0] if snaps else None, "last_snapshot": snaps[-1] if snaps else None,
+        "hours_since_last_snapshot": round((now - last).total_seconds() / 3600, 1) if last else None,
+        "hours_missed": sorted(missed),
+        "houses_flagged": flagged,
+        "other_flags": flags,
+        "refresh_minutes": {f":{m:02d}": n for m, n in sorted(pd.Series(lm).value_counts().items())} if lm else {},
+        "job_seconds": {"runs": int(js.size), "median": round(float(js.median()), 1) if js.size else None,
+                        "max": float(js.max()) if js.size else None,
+                        "over_55": int((js > 55).sum()), "over_60": int((js > 60).sum())},
+    }
+
+
+def print_health(h: dict) -> None:
+    print(f"[{h['region']}] {h['from']} to {h['to']}: {h['runs']} runs: {h['stored']} stored, "
+          f"{h['no_new_data']} no new data, {h['deadline']} deadline (skipped as late), {h['failed']} failed; "
+          f"{h['with_errors']} with download errors")
+    print(f"  Snapshots {h['first_snapshot']} to {h['last_snapshot']} "
+          f"({h['hours_since_last_snapshot']} h ago). Hours missed: {len(h['hours_missed'])} "
+          + (f"{h['hours_missed']}" if h['hours_missed'] else ""))
+    print(f"  Blizzard refresh minute: {h['refresh_minutes']}")
+    j = h["job_seconds"]
+    print(f"  job_seconds: median {j['median']}, max {j['max']} over {j['runs']} runs; "
+          f"{j['over_55']} over 55 s, {j['over_60']} over 60 s (each billed 2 minutes)")
+    for f in h["houses_flagged"]:
+        print(f"  ! house {f['house']} at {f['snapshot']}: {f['listings']} listings (was {f['previous']}), {f['reason']}")
+    for f, n in h["other_flags"].items():
+        print(f"  ! {n}x {f}")
+
+
 def main() -> int:
-    store = R2Store(os.environ.get("R2_BUCKET", "daytrader-data"))
-    region = sys.argv[sys.argv.index("--region") + 1] if "--region" in sys.argv else "us"
+    local = arg("--local")
+    store = LocalStore(Path(local)) if local else R2Store(os.environ.get("R2_BUCKET", "daytrader-data"))
+    out = arg("--health-json")
+    if out:
+        regions = [r.strip() for r in os.environ.get("REGIONS", "us,eu").split(",") if r.strip()]
+        res = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+               "regions": {r: health(store, r) for r in regions}}
+        print("=== Health, last 48 hours ===")
+        for h in res["regions"].values():
+            print_health(h)
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(res, indent=1) + "\n")
+        print(f"Health summary -> {out}")
+        return 0
+    region = arg("--region", "us")
     pre = prefix(region)   # never mix regions: house IDs repeat across them (ADR 0009)
     print(f"Region: {region}")
+
+    print("\n=== Health, last 48 hours ===")
+    print_health(health(store, region))
 
     print("\n=== Runs ===")
     runs = [json.loads(store.get(k)) for k in sorted(keys(store, f"{pre}runs/"))]
