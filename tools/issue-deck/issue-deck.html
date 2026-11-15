@@ -316,6 +316,7 @@ const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
 const S = {
   issues: [], loaded: false, syncedAt: null, db: null,
   filter: "all", showClosed: false, current: null,
+  wanted: null,   // issue number a #i<N> link asked for that isn't on the Deck yet; opened when it arrives
   queue: [], busy: {}, msg: {}, briefs: {},
 };
 
@@ -604,8 +605,15 @@ function setCurrent(n) {
   renderNav(visible());
   if (S.view !== "changes") { try { history.replaceState(null, "", "#i" + n); } catch {} }
 }
+// A link to a card the Deck doesn't have yet (usually an issue created since the last sync):
+// say so instead of silently showing another card, and open it once a sync brings it in.
+function missingNotice(n) {
+  notice(`<span>Issue #${n} isn’t on the Deck yet. It’s probably new since the last sync. Press <strong>Refresh</strong> (top) and it will open here as soon as it arrives.</span>`);
+}
 function revealIssue(n) {
-  const i = S.issues.find((x) => x.number === n); if (!i) return;
+  const i = S.issues.find((x) => x.number === n);
+  if (!i) { S.wanted = n; missingNotice(n); return; }
+  if (S.wanted === n) { S.wanted = null; notice(""); }
   if (S.view === "changes") setView("issues");
   if (!matches(i)) { S.filter = "all"; if (!isOpen(i)) S.showClosed = true; syncFilterUI(); render(); }
   jump(n, true);
@@ -631,7 +639,8 @@ $("prev").addEventListener("click", () => step(-1));
 $("next").addEventListener("click", () => step(1));
 window.addEventListener("hashchange", () => {
   if (location.hash === "#changes") { setView("changes"); return; }
-  const h = /^#i(\d+)$/.exec(location.hash || ""); if (h && S.loaded) revealIssue(+h[1]);
+  const h = /^#i(\d+)$/.exec(location.hash || ""); if (!h) return;
+  if (S.loaded) revealIssue(+h[1]); else S.current = S.wanted = +h[1];
 });
 document.addEventListener("keydown", (e) => {
   if (/^(TEXTAREA|INPUT|SELECT)$/.test(e.target.tagName)) return;
@@ -898,7 +907,7 @@ async function undoReply(n, id, kind, btn) {
 // ---------- boot ----------
 (async function boot() {
   const f = store.get("filter"); if (f && ["all", "you", "claude", "decide", "agent"].includes(f)) S.filter = f;
-  const h = /^#i(\d+)$/.exec(location.hash || ""); if (h) S.current = +h[1];
+  const h = /^#i(\d+)$/.exec(location.hash || ""); if (h) S.current = S.wanted = +h[1];
   if (location.hash === "#changes") setView("changes");
   syncFilterUI(); render();
   const db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
@@ -912,12 +921,15 @@ async function undoReply(n, id, kind, btn) {
   db.collection("issues").onSnapshot((snap) => {
     clearTimeout(timer); notice("");
     S.issues = snap.docs.map((d) => d.data()).filter((x) => x && typeof x.number === "number");
-    const firstLoad = !S.loaded;
     S.loaded = true; showSynced();
     // A link like …#i30 should land on that card even if it's closed or outside the current filter.
-    if (firstLoad && S.current != null) {
-      const t = S.issues.find((x) => x.number === S.current);
-      if (t && !matches(t)) { S.filter = "all"; if (!isOpen(t)) S.showClosed = true; syncFilterUI(); }
+    // If the card isn't here yet, keep waiting for it (a later snapshot after a sync) and say so.
+    if (S.wanted != null) {
+      const t = S.issues.find((x) => x.number === S.wanted);
+      if (t) {
+        if (!matches(t)) { S.filter = "all"; if (!isOpen(t)) S.showClosed = true; syncFilterUI(); }
+        S.current = S.wanted; S.wanted = null;
+      } else missingNotice(S.wanted);
     }
     safeRender();
   }, (e) => {
