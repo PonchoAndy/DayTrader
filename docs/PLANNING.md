@@ -11,6 +11,11 @@ center**. It should explain how the WoW Forever economy behaves and where it is 
 glut, leveling demand, supply shocks, inflation), so a player can take positions with a thesis and
 a holding plan, not only flip today's prices. The Economist agent (`.claude/agents/economist.md`,
 #66) is the first piece of this.
+The player's **profile is the account's whole economic pool**: every character that can reach a market, with its
+professions, level, gold and bank space (#78). Before strategy work, **check scope first**: fit the plan to what the
+player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (likely house 114, unconfirmed, #13),
+starting with 5g (2026-11-15). Sessions like 2026-11-15 are **prototyping with Claude's tools**; the app itself will
+later run outside Claude Code.
 
 ---
 
