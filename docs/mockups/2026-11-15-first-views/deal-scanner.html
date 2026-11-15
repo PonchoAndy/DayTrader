@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayTrader mock-up · T1 Deal scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Mock-up for judging the design (2026-11-15). Tokens copied from tools/data-tour/template.html.
+   Shared visual language (same block in item-page.html and visual-language.html):
+   solid = firm, dotted underline / dashed = estimate, hatched = missing, dagger = sample value. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f5f7f9; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5;
+  --gold: #a87412; --gold-soft: #f6ead0;
+  --grid: #e1e0d9; --axis: #c3c2b7; --tick: #6f6e69;
+  --alliance: #2a78d6; --horde: #eb6834; --blackwater: #1baf7a; --series: #6250d6; --series-soft: #e6e2fb;
+  --up: #006300; --down: #b3261e;
+  --q-poor: #7a7a7a; --q-common: #3d4650; --q-uncommon: #1a8f00; --q-rare: #0062c4; --q-epic: #8a2bd1;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --surface-2: #1d252f; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542;
+  --gold: #e3b34f; --gold-soft: #3a2f17; --grid: #2c2c2a; --axis: #4a4a46; --tick: #a3a29b;
+  --alliance: #3987e5; --horde: #d95926; --blackwater: #199e70; --series: #9085e9; --series-soft: #2a2645;
+  --up: #0ca30c; --down: #f08a80;
+  --q-poor: #9d9d9d; --q-common: #e8e8e8; --q-uncommon: #1eff00; --q-rare: #3a9bff; --q-epic: #b866ff; color-scheme: dark;
+}
+:root { --down-soft: color-mix(in srgb, var(--down) 12%, transparent); --up-soft: color-mix(in srgb, var(--up) 12%, transparent);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--muted) 28%, transparent) 4px 5px); }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); margin: 0; }
+body { font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px max(14px, env(safe-area-inset-left, 0px)) 64px; display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 26px/1.15 var(--f-display); margin: 4px 0 0; }
+h2 { font: 600 19px/1.25 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 15px/1.3 var(--f-display); margin: 0; overflow-wrap: anywhere; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); } .note { color: var(--muted); font-size: 13px; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.num { font-variant-numeric: tabular-nums; }
+a { color: var(--gold); }
+.topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.themebtn { font: 500 12px/1 var(--f-body); padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; white-space: nowrap; }
+.themebtn:focus-visible, .btn:focus-visible, select:focus-visible, .seg input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sample-banner { display: flex; gap: 10px; align-items: baseline; font-size: 13px; background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 10px; padding: 9px 12px; }
+.sample-banner b { font: 600 11px/1.4 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
+/* ---------- shared visual language ---------- */
+.ico { width: 11px; height: 11px; flex: none; display: inline-block; vertical-align: -1px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.spd { display: inline-flex; align-items: center; gap: 5px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.spd.fleeting { background: var(--fg); color: var(--bg); }
+.spd.intraday { border: 1px solid var(--series); color: var(--series); padding: 3px 6px; }
+.spd.multiday { background: var(--series-soft); color: var(--series); }
+.spd.trend { border: 1px dashed var(--muted); color: var(--muted); padding: 3px 6px; }
+.age { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.age.aging { color: var(--gold); } .age.stale { color: var(--down); }
+.conf { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--f-body); color: var(--muted); white-space: nowrap; }
+.conf .m { display: inline-flex; gap: 2px; } .conf .m i { width: 9px; height: 7px; border-radius: 1.5px; background: var(--line); }
+.conf .m i.on { background: var(--fg); }
+.est { border-bottom: 1.5px dotted currentColor; padding-bottom: 1px; }
+.hz { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.hz.hard { color: var(--down); background: var(--down-soft); border: 1px solid color-mix(in srgb, var(--down) 45%, transparent); }
+.hz.caution { color: var(--gold); background: var(--gold-soft); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); }
+.cls { font: 600 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.cls.certain { color: var(--up); background: var(--up-soft); border: 1px solid color-mix(in srgb, var(--up) 45%, transparent); }
+.cls.probable { color: var(--series); border: 1px dashed var(--series); }
+.st { width: 12px; height: 12px; flex: none; }
+/* ---------- profile bar ---------- */
+.bar { position: sticky; top: 0; z-index: 5; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; box-shadow: 0 6px 18px rgba(20,30,40,.06); }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 140px; }
+.field label, .field .lbl { font: 600 10.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.field select { font: 500 14px var(--f-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 8px; width: 100%; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg label { flex: 1; text-transform: none; letter-spacing: 0; font: 500 13px/1 var(--f-body); color: var(--fg); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; text-align: center; padding: 8px 6px; background: var(--surface-2); cursor: pointer; }
+.seg input:checked + span { background: var(--fg); color: var(--bg); }
+.barnote { flex: 1 1 100%; font-size: 12px; color: var(--muted); margin: 0; }
+/* ---------- freshness strip ---------- */
+.fresh { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 4px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.fresh .big { font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; grid-row: span 2; display: flex; align-items: center; gap: 10px; }
+.fresh .big small { display: block; font: 500 11px/1.2 var(--f-body); color: var(--muted); letter-spacing: .04em; }
+.fresh p { font-size: 13px; }
+/* ---------- key ---------- */
+.key { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; font-size: 12.5px; color: var(--muted); }
+.key > div { display: flex; flex-direction: column; gap: 5px; }
+.key b { color: var(--fg); font-weight: 600; font-size: 12px; }
+/* ---------- bands and rows ---------- */
+.band { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.band > header { display: flex; flex-direction: column; gap: 5px; }
+.band.certain { border-left: 5px solid var(--up); }
+.band.probable { border-left: 5px dashed var(--series); }
+.band.traps { border-left: 5px solid var(--down); }
+.band.restock, .band.gone { border-left: 5px solid var(--line); }
+.deal { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.d-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 12px; align-items: start; }
+.rank { font: 700 20px/1 var(--f-display); color: var(--muted); min-width: 1.1em; padding-top: 1px; }
+.d-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.qdot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; vertical-align: 1px; }
+.d-money { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+.d-money .k { font-size: 11.5px; color: var(--muted); }
+.d-money b { font: 600 19px/1.15 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mbar { position: relative; width: 150px; height: 10px; border-radius: 3px; background: var(--surface-2); }
+.mbar::before { content: ""; position: absolute; left: var(--z); top: -2px; bottom: -2px; width: 1.5px; background: var(--axis); }
+.mbar .r { position: absolute; left: var(--lo); width: calc(var(--hi) - var(--lo)); top: 2px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--up) 55%, transparent); outline: 1.5px dashed var(--up); outline-offset: 1px; }
+.mbar .pt { position: absolute; left: calc(var(--lo) - 5px); top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--up); }
+@media (max-width: 600px) {
+  .d-head { grid-template-columns: auto minmax(0, 1fr); }
+  .d-money { grid-column: 1 / -1; text-align: left; align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+}
+.answers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 820px) { .answers { grid-template-columns: repeat(2, minmax(0, 1fr)); } .answers .ans:last-child { grid-column: 1 / -1; } }
+.ans { background: var(--surface-2); border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ans .q { font: 600 10.5px/1.2 var(--f-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+.ans .q em { font: 500 9.5px/1 var(--f-mono); font-style: normal; opacity: .75; margin-left: auto; }
+.ans .a { font: 600 14px/1.3 var(--f-body); font-variant-numeric: tabular-nums; }
+.ans .w { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.dots { display: inline-flex; gap: 2px; vertical-align: middle; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; border: 1.2px solid var(--fg); }
+.dots i.on { background: var(--fg); }
+.dots i.maybe { background: var(--hatch); border-style: dashed; }
+.d-foot { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 9px; }
+.why { font-size: 12.5px; color: var(--muted); flex: 1 1 260px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 600 13px/1 var(--f-body); padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); text-decoration: none; white-space: nowrap; }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.hidden-note { font-size: 12.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+/* traps */
+.trap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.4fr) 150px; gap: 8px 16px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; align-items: start; }
+@media (max-width: 820px) { .trap { grid-template-columns: minmax(0, 1fr) 132px; } .trap .t-real { grid-column: 1 / -1; grid-row: 2; } }
+.trap .k { display: block; font: 600 10.5px/1.2 var(--f-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.naive { margin-top: 8px; }
+.naive s { font: 600 16px/1.25 var(--f-display); color: var(--muted); text-decoration-thickness: 2px; text-decoration-color: var(--down); }
+.t-real p { font-size: 13.5px; }
+.t-real p + p { margin-top: 4px; }
+.spark { display: flex; flex-direction: column; gap: 2px; font: 500 10.5px/1.25 var(--f-mono); color: var(--muted); }
+.spark svg { width: 100%; height: auto; display: block; overflow: visible; }
+/* restock */
+.range-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 1.2fr); gap: 6px 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
+.range-row:first-of-type { border-top: 0; padding-top: 0; }
+@media (max-width: 600px) { .range-row { grid-template-columns: 1fr; } }
+.dayrange { position: relative; height: 34px; }
+.dayrange .track { position: absolute; left: 0; right: 0; top: 12px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--up-soft), var(--surface-2) 50%, var(--down-soft)); border: 1px solid var(--line); }
+.dayrange .now { position: absolute; top: 6px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--fg); }
+.dayrange .lab { position: absolute; top: 24px; font: 500 10.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.dayrange .lab.r { right: 0; } .dayrange .lab.l { left: 0; }
+.dayrange .nowlab { position: absolute; top: -6px; font: 600 10.5px/1 var(--f-mono); color: var(--fg); transform: translateX(-50%); white-space: nowrap; }
+/* stale demo row */
+.deal.is-stale { opacity: .62; background: var(--hatch); }
+pre.json { margin: 0; font: 12px/1.5 var(--f-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; color: var(--fg); }
+pre.json .c { color: var(--muted); }
+footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-fleeting" viewBox="0 0 12 12"><path d="M2.5 1h7M2.5 11h7M3.5 1c0 3 2.5 3.6 2.5 5S3.5 8 3.5 11M8.5 1c0 3-2.5 3.6-2.5 5s2.5 2 2.5 5" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="i-intraday" viewBox="0 0 12 12"><path d="M1 6c1.3-4 3.2-4 5 0s3.7 4 5 0" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-multiday" viewBox="0 0 12 12"><rect x="1" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="4.7" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/><rect x="8.4" y="3.5" width="2.6" height="5" rx=".6" fill="currentColor"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 12 12"><path d="M1.5 10L10 2.5M5.5 2.5H10V7" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 12 12"><path d="M6 1.2L11 10.6H1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 4.6v3M6 8.7v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-care" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.6v3M6 8.2v.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--up)"/><path d="M3.6 6.2l1.7 1.6 3.2-3.4" fill="none" stroke="var(--surface)" stroke-width="1.5"/></symbol>
+    <symbol id="i-watch" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.6" fill="none" stroke="var(--gold)" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="var(--gold)"/></symbol>
+    <symbol id="i-no" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.6" fill="none" stroke="var(--down)" stroke-width="1.5"/><path d="M4 4l4 4M8 4l-4 4" stroke="var(--down)" stroke-width="1.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="topline">
+    <div>
+      <div class="eyebrow">DayTrader · mock-up · T1 Deal scanner</div>
+      <h1>Worth a look right now</h1>
+      <p class="muted">A short list to check, not a buy list. Ranked by the gold you'd make in the worse case, after fees, at the size each deal actually holds.</p>
+    </div>
+    <button class="themebtn" id="themebtn" type="button">Theme: auto</button>
+  </header>
+
+  <div class="sample-banner"><b>Sample data</b><span>Prices and quantities are <strong>real</strong> (house 113, 14 Nov 2026, 03:17–18:17 UTC). Anything marked <sup class="s">†</sup> is a <strong>sample value</strong>: sale rates, depth, survival odds, clearing prices and vendor prices aren't collected yet (build #37). The page pretends it's 19:09 UTC on 14 Nov. Fees assume a 5% cut and a 1-silver minimum deposit, both unconfirmed (#13).</span></div>
+
+  <form class="bar" aria-label="Your profile" onsubmit="return false">
+    <div class="field"><label for="p-house">House</label>
+      <select id="p-house"><option>Horde 113 · world 110/113/116?</option><option>Horde 114 · world 111/114/117?</option><option>Alliance 110</option><option>Alliance 111</option></select></div>
+    <div class="field"><label for="p-budget">Budget</label>
+      <select id="p-budget"><option>Up to 50 g</option><option selected>Up to 500 g</option><option>Up to 5,000 g</option></select></div>
+    <div class="field"><label for="p-play">Playtime</label>
+      <select id="p-play"><option>On now · back in ~2 h</option><option selected>On now · back in ~24 h</option><option>Weekends only</option></select></div>
+    <div class="field" style="flex-basis:220px"><span class="lbl" id="risk-l">Risk</span>
+      <div class="seg" role="radiogroup" aria-labelledby="risk-l">
+        <label><input type="radio" name="risk"><span>Cautious</span></label>
+        <label><input type="radio" name="risk" checked><span>Balanced</span></label>
+        <label><input type="radio" name="risk"><span>Bold</span></label>
+      </div></div>
+    <p class="barnote">Balanced = lose at most 25 g on one trade, hold up to 3 days, minimum 0.5 g profit per trade. On <b>Bold</b>, a falling price becomes a warning instead of a reason to hide the row. (Static in this mock-up: the controls don't change the list.)</p>
+  </form>
+
+  <section class="fresh" aria-label="How old this data is">
+    <div class="big"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="14" fill="none" stroke="var(--line)" stroke-width="4"/><path d="M17 3 A14 14 0 1 1 6.5 7.7" fill="none" stroke="var(--fg)" stroke-width="4"/></svg>
+      <div>52 min<small>since the 18:17 snapshot</small></div></div>
+    <p><b>Prices are from Blizzard's 18:17 UTC snapshot.</b> Blizzard refreshes at :17 each hour; ours usually lands 30–60 minutes later, so the next update should appear around 19:50–20:20. Anything cheap and single may already be gone.</p>
+    <p class="note">History behind "normal": 15 hours (from 03:17), with 06:17 and 12:17 missed. Until 3 days exist (17 Nov), no row can rise above <b>Low–Medium</b> confidence, and the trend check can't run.</p>
+  </section>
+
+  <section class="band" aria-labelledby="h-key" style="gap:10px">
+    <header><h2 id="h-key" style="font-size:16px">How to read a row</h2></header>
+    <div class="key">
+      <div><b>How fast it changes</b><span class="tag-row"><span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span><span class="spd intraday"><svg class="ico"><use href="#i-intraday"/></svg>Intraday</span><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span><span class="spd trend"><svg class="ico"><use href="#i-trend"/></svg>Trend</span></span><span>Fleeting = gone within hours, act or skip. Trend = weeks, just watch.</span></div>
+      <div><b>How sure we are</b><span class="tag-row"><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low</span><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i></i></span>Medium</span><span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i class="on"></i></span>High</span></span><span>Always followed by the reasons. Never shown as a percentage.</span></div>
+      <div><b>Firm or estimate</b><span>Plain number = counted from listings (firm). <span class="est">≈ dotted range</span> = estimated from listing changes. <sup class="s">†</sup> = sample value in this mock-up.</span></div>
+      <div><b>Warnings</b><span class="tag-row"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Bait</span><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Thin</span></span><span>Red = trap: the row is pulled out of your list. Gold = caution: it stays, ranked lower.</span></div>
+    </div>
+  </section>
+
+  <!-- ============ CERTAIN ============ -->
+  <section class="band certain" aria-labelledby="h-certain">
+    <header>
+      <span class="tag-row"><span class="cls certain">Certain</span><span class="note">profit is locked in if the listing is still there</span></span>
+      <h2 id="h-certain">Below vendor price: a vendor buys it back</h2>
+      <p class="note">No market risk and no auction cut. The only question is whether it's still listed: snipers in game take most of these within minutes, so expect 0–2 a day. Vendor prices aren't collected yet, so this whole row is a sample.</p>
+    </header>
+    <article class="deal" aria-label="Certain deal: Archer's Cloak of the Eagle">
+      <div class="d-head">
+        <span class="rank">1</span>
+        <div class="d-title">
+          <h3><span class="qdot" style="background:var(--q-uncommon)"></span>Archer's Cloak <span class="muted" style="font-weight:500">· of the Eagle</span></h3>
+          <div class="tag-row">
+            <span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span>
+            <span class="age"><svg class="ico"><use href="#i-fleeting"/></svg>first seen 18:17 · 52 min old</span>
+            <span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i class="on"></i></span>High on profit, low on still-there</span>
+          </div>
+        </div>
+        <div class="d-money"><span class="k">Profit, 1 unit, no fees</span><b class="pos num">+0.06 g<sup class="s">†</sup></b>
+          <span class="mbar" style="--z:14.3%;--lo:16%"><span class="pt"></span></span></div>
+      </div>
+      <div class="answers">
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Profit?<em>S1</em></span><span class="a">+0.06 g</span><span class="w">cost 0.10 g<sup class="s">†</sup>, vendor pays 0.16 g<sup class="s">†</sup>. One number, not a range: no buyer needed.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Cheap?<em>S2</em></span><span class="a">Below vendor</span><span class="w">Variant "of the Eagle" judged on its own; never against all 36 Archer's Cloak variants.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Sells?<em>S3</em></span><span class="a">Vendor: always</span><span class="w">No sale rate needed.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Holds for<em>S5</em></span><span class="a">1 unit</span><span class="w">Gear is one per listing.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-no"/></svg>Still there?<em>S7</em></span><span class="a"><span class="dots" aria-label="1 to 3 in 10"><i class="on"></i><i class="maybe"></i><i class="maybe"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> <span class="est">≈ 1–3 in 10</span><sup class="s">†</sup></span><span class="w">chance it's still up in 1 h. Below-vendor listings rarely last.</span></div>
+      </div>
+      <div class="d-foot"><span class="why">Small and rare by nature. Worth it only if you're at the auction house anyway.</span>
+        <span class="actions"><a class="btn primary" href="#">Go buy · max 0.10 g</a></span></div>
+    </article>
+  </section>
+
+  <!-- ============ PROBABLE ============ -->
+  <section class="band probable" aria-labelledby="h-probable">
+    <header>
+      <span class="tag-row"><span class="cls probable">Probable</span><span class="note">depends on someone buying it from you later</span></span>
+      <h2 id="h-probable">Cheap now, likely to resell</h2>
+      <p class="note">Each row answers five questions. Profit is a range from "worse case" to "expected", after the 5% cut and the deposits you'd lose on relists. Rows are ranked by the worse case, so a big but shaky profit ranks below a smaller, steadier one.</p>
+    </header>
+
+    <article class="deal" aria-label="Probable deal 1: Grilled King Crawler Legs">
+      <div class="d-head">
+        <span class="rank">1</span>
+        <div class="d-title">
+          <h3><span class="qdot" style="background:var(--q-common)"></span>Grilled King Crawler Legs</h3>
+          <div class="tag-row">
+            <span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span>
+            <span class="age">18:17 · 52 min old</span>
+            <span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 15 h of history · sale rate estimated · gap may be a typo</span>
+          </div>
+        </div>
+        <div class="d-money"><span class="k">Profit after fees, 6 units</span><b class="pos num"><span class="est">≈ +1.0 to +1.4 g</span></b>
+          <span class="mbar" style="--z:14.3%;--lo:42.9%;--hi:54.3%" title="worse case to expected, on the same scale for every row"><span class="r"></span></span></div>
+      </div>
+      <div class="answers">
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Profit?<em>S1</em></span><span class="a"><span class="est">≈ +17 to +23 s</span> each</span><span class="w">buy 1.5 s, resell <span class="est">≈ 20–26 s</span><sup class="s">†</sup>, minus 5% and deposits</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Cheap?<em>S2</em></span><span class="a">1.5 s vs 29 s normal</span><span class="w">−95%. Only the cheapest units moved; the median held at 28.8 s.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Sells?<em>S3</em></span><span class="a"><span class="est">≈ 5–15 a day</span><sup class="s">†</sup></span><span class="w">your 6 would take <span class="est">≈ ½–1 day</span>; fits your 3-day hold</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Holds for<em>S5</em></span><span class="a">6 units</span><span class="w">at 1.5 s (real: at least 10% of 60 listed). The 7th costs 28.5 s<sup class="s">†</sup>.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Still there?<em>S7</em></span><span class="a"><span class="dots" aria-label="4 to 7 in 10"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="maybe"></i><i class="maybe"></i><i class="maybe"></i><i></i><i></i><i></i></span> <span class="est">≈ 4–7 in 10</span><sup class="s">†</sup></span><span class="w">still up in 2 h. Already survived one snapshot (listed since 17:17).</span></div>
+      </div>
+      <div class="d-foot"><span class="why">Fleeting: act this visit or let it go. If it's gone at 19:17, the row disappears; it doesn't wait for you.</span>
+        <span class="actions"><a class="btn" href="item-page.html">Item page</a><a class="btn primary" href="#">Go buy · max 6 at 2 s</a></span></div>
+    </article>
+
+    <article class="deal" aria-label="Probable deal 2: Scroll of Imbue Precision">
+      <div class="d-head">
+        <span class="rank">2</span>
+        <div class="d-title">
+          <h3><span class="qdot" style="background:var(--q-common)"></span>Scroll of Imbue Precision</h3>
+          <div class="tag-row">
+            <span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span>
+            <span class="age">18:17 · 52 min old</span>
+            <span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 15 h of history · cheapest still dropping</span>
+            <span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Falling · cheapest only</span>
+          </div>
+        </div>
+        <div class="d-money"><span class="k">Profit after fees, 6 units</span><b class="pos num"><span class="est">≈ +0.5 to +2.1 g</span></b>
+          <span class="mbar" style="--z:14.3%;--lo:28.6%;--hi:74.3%"><span class="r"></span></span></div>
+      </div>
+      <div class="answers">
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Profit?<em>S1</em></span><span class="a"><span class="est">≈ +8 to +34 s</span> each</span><span class="w">wide: if the drop goes on, you resell near 20 s, not 48 s<sup class="s">†</sup></span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Cheap?<em>S2</em></span><span class="a">11 s vs 55 s normal</span><span class="w">−80%, but the cheapest went 54 → 20 → 11 s in two hours. Median held at 54 s.</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Sells?<em>S3</em></span><span class="a"><span class="est">≈ 3–8 a day</span><sup class="s">†</sup></span><span class="w">your 6 would take <span class="est">≈ 1–2 days</span>; inside your 3-day hold</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-ok"/></svg>Holds for<em>S5</em></span><span class="a">6 units</span><span class="w">at 11 s; then 4 at 20 s<sup class="s">†</sup>, then 54 s</span></div>
+        <div class="ans"><span class="q"><svg class="st"><use href="#i-watch"/></svg>Still there?<em>S7</em></span><span class="a"><span class="dots" aria-label="3 to 6 in 10"><i class="on"></i><i class="on"></i><i class="on"></i><i class="maybe"></i><i class="maybe"></i><i class="maybe"></i><i></i><i></i><i></i><i></i></span> <span class="est">≈ 3–6 in 10</span><sup class="s">†</sup></span><span class="w">still up in 2 h. New this hour.</span></div>
+      </div>
+      <div class="d-foot"><span class="why">Ranked 2nd although its expected profit is higher: the worse case (+0.5 g) is weaker. Someone may be dumping a stack; if 19:17 shows a lower price again, it becomes a falling knife.</span>
+        <span class="actions"><a class="btn" href="#">Item page</a><a class="btn primary" href="#">Go buy · max 6 at 12 s</a></span></div>
+    </article>
+
+    <p class="hidden-note">1 more row is below your 0.5 g minimum profit per trade: Bear Jaw (one unit at 10 s against 15.8 s normal; ≈ +3 s, and only 6 listed). Minimums are in gold per trade, not %, so cheap materials aren't hidden just for being cheap.</p>
+  </section>
+
+  <!-- ============ TRAPS ============ -->
+  <section class="band traps" aria-labelledby="h-traps">
+    <header>
+      <span class="tag-row"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Kept out of your list</span></span>
+      <h2 id="h-traps">Looks like a deal, isn't</h2>
+      <p class="note">A simple "cheapest against normal" scanner would put these five at the top. The crossed-out line is what it would say; the right-hand side is why we don't rank them. They're shown, not hidden, so a number you saw elsewhere makes sense here.</p>
+    </header>
+
+    <article class="trap">
+      <div><h3>Ezra Grimm's Postbox Key</h3>
+        <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Bait</span><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>No sales</span></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>−99% · 1 s instead of 1 g</s></div></div>
+      <div class="t-real"><span class="k">What's really going on</span>
+        <p><b>One unit, and nobody buys this item.</b> 1–3 keys sat at 1 g for 11 hours without one selling. At 17:17 a single key appeared at 1 s.</p>
+        <p class="muted">"Normal" here is just the price nobody paid. With no sales, there's no exit price, so no profit to rank.</p></div>
+      <div class="spark" data-p="10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,,100,100" data-q="2,2,2,3,3,2,2,2,2,2,1,,1,1" data-log="1"><span>price, log scale · 1 g → 1 s</span><span>units listed · 1–3</span></div>
+    </article>
+
+    <article class="trap">
+      <div><h3>Crimson Lotus</h3>
+        <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Falling</span><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>−82% · 0.13 g vs 0.70 g this morning</s></div></div>
+      <div class="t-real"><span class="k">What's really going on</span>
+        <p><b>A flood, not a dip.</b> The price fell all day (0.70 → 0.13 g) while supply <b>rose</b> from 57 to 139 units. "Below normal" means nothing when normal is old news.</p>
+        <p class="muted">On the Bold setting this row would move into the list with a caution flag, for players who want to catch a bottom.</p></div>
+      <div class="spark" data-p="6999,3098,2298,2297,2099,2099,1800,1800,1495,1294,1292,1275,1274,1274" data-q="57,68,78,111,127,131,90,88,82,79,73,120,122,139"><span>price 0.70 → 0.13 g</span><span>supply 57 → 139</span></div>
+    </article>
+
+    <article class="trap">
+      <div><h3>Thorium Bar</h3>
+        <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Reset</span><span class="spd multiday"><svg class="ico"><use href="#i-multiday"/></svg>Multi-day</span></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>Price +55% in 1 h, supply −92%: buy before it climbs</s></div></div>
+      <div class="t-real"><span class="k">What's really going on</span>
+        <p><b>One buyer cleared the cheap supply, then relisted higher.</b> At 17:17 units fell 1,210 → 100 and the cheapest-10% price jumped 16.3 → 25.3 s. By 18:17 there were 833 units again, still at 25 s.</p>
+        <p class="muted">Buying at the new floor bets the reset holds; they usually fade as new supply arrives (H21, not yet proven). <a href="item-page.html">See the item page</a>.</p></div>
+      <div class="spark" data-p="2586,2096,1798,1698,1695,1695,1798,1698,1695,1698,1625,1625,2525,2499" data-q="3852,3468,3185,3350,3774,2239,1276,1590,1479,865,1308,1210,100,833" data-mark="12"><span>price 16.3 → 25.0 s</span><span>supply 1,210 → 100 → 833</span></div>
+    </article>
+
+    <article class="trap">
+      <div><h3>Essence of Fire</h3>
+        <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Not your house</span><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Falling</span></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>0.89 g on house 114, 2.75 g here: buy there, sell here</s></div></div>
+      <div class="t-real"><span class="k">What's really going on</span>
+        <p><b>You probably can't reach 114 from 113</b> (they look like different worlds; unconfirmed, #13). Other houses are shown for reference only. And on 113 it fell from 7.0 to 2.75 g today on steady supply.</p></div>
+      <div class="spark" data-p="69999,67590,44750,40048,35400,34650,34200,33659,32497,32496,32169,29768,29000,27500" data-q="252,321,302,341,333,329,312,300,255,222,223,257,250,275"><span>113 price 7.0 → 2.75 g</span><span>supply 252 → 275</span></div>
+    </article>
+
+    <article class="trap">
+      <div><h3>Crystal Vial</h3>
+        <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Penny</span></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>−7% below normal · deep market</s></div></div>
+      <div class="t-real"><span class="k">What's really going on</span>
+        <p><b>About 1 silver of profit on 20 vials, if they all sell.</b> 5.00 s against 5.36 s normal; after the 5% cut that's under 0.1 s a vial. One expired listing loses a 1-silver deposit and wipes it out.</p>
+        <p class="muted">Below 5 silver we stop showing % at all and show gold per trade, because 1-copper price steps make % moves meaningless.</p></div>
+      <div class="spark" data-p="549,548,548,543,543,542,542,542,535,536,536,500,536,500" data-q="321,637,436,331,251,130,246,161,391,218,181,186,63,84"><span>price 5.49 → 5.00 s</span><span>supply 321 → 84</span></div>
+    </article>
+  </section>
+
+  <!-- ============ RESTOCK ============ -->
+  <section class="band restock" aria-labelledby="h-restock">
+    <header>
+      <span class="tag-row"><span class="spd intraday"><svg class="ico"><use href="#i-intraday"/></svg>Intraday</span><span class="note">from your shopping list<sup class="s">†</sup></span></span>
+      <h2 id="h-restock">Cheap now for what you'd buy anyway</h2>
+      <p class="note">Not flips (the 5% cut is bigger than the dip). Where today's price sits within today's range. One day isn't a pattern: the daily rhythm needs two weeks of data, from about 28 Nov.</p>
+    </header>
+    <div class="range-row">
+      <div><h3>Runecloth</h3><p class="note">6.14 s now · 7.75 s at 03:17 · deep market (6,136 listed)</p>
+        <div class="tag-row" style="margin-top:4px"><span class="age">18:17 · 52 min old</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 1 day seen</span></div></div>
+      <div class="dayrange" aria-label="Today's range 5.98 to 7.75 silver; now 6.14"><span class="track"></span><span class="now" style="left:9%"></span><span class="nowlab" style="left:9%">now 6.14 s</span><span class="lab l">low 5.98 s · 17:17</span><span class="lab r">high 7.75 s · 03:17</span></div>
+    </div>
+    <div class="range-row">
+      <div><h3>Thick Leather</h3><p class="note">5.37 s now · today's lowest so far · supply down to 452</p>
+        <div class="tag-row" style="margin-top:4px"><span class="age">18:17 · 52 min old</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 1 day seen</span></div></div>
+      <div class="dayrange" aria-label="Today's range 5.37 to 6.01 silver; now 5.37"><span class="track"></span><span class="now" style="left:1%"></span><span class="nowlab" style="left:8%">now 5.37 s</span><span class="lab l" style="top:26px;left:0;opacity:0">.</span><span class="lab r">high 6.01 s · 16:17</span></div>
+    </div>
+  </section>
+
+  <!-- ============ GONE ============ -->
+  <section class="band gone" aria-labelledby="h-gone">
+    <header><h2 id="h-gone" style="font-size:16px">Gone since the last snapshot</h2>
+      <p class="note">Shown once, so you can learn how fast deals go. This is also how survival odds get measured.</p></header>
+    <article class="deal is-stale" aria-label="Gone: Arcanite Bar">
+      <div class="d-head" style="grid-template-columns:minmax(0,1fr) auto">
+        <div class="d-title"><h3><span class="qdot" style="background:var(--q-common)"></span>Arcanite Bar</h3>
+          <div class="tag-row"><span class="age stale">seen 17:17 · gone by 18:17</span><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Thin</span></div></div>
+        <div class="d-money"><span class="k">was</span><b class="num">45.0 g</b><span class="k">cheapest now 50.0 g · 10 listed</span></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ============ ADVISOR HAND-OFF ============ -->
+  <section class="band" aria-labelledby="h-adv">
+    <header><h2 id="h-adv">What an advisor agent receives for row 1</h2>
+      <p class="note">The same truth as the row above, as data. Money is in copper. Every value says whether it's firm, an estimate, or (here) a sample, so an advisor can't quietly treat a guess as a fact.</p></header>
+<pre class="json">{
+  "schema": "daytrader.deal_row/0.1-draft",
+  "house_id": 113, "faction": "horde", "world": "110/113/116 (unconfirmed, #13)",
+  "item_id": 9681, "variant": null, "kind": "commodity",
+  "snapshot_at": "2026-11-14T18:17:48Z", "data_age_min": 52,
+  "next_refresh_at": "2026-11-14T19:17:00Z", "missed_hours_in_window": ["06:17", "12:17"],
+  "formula_version": "mock-0",
+  "class": "probable", "rank": 1, "rank_basis": "net_total_pessimistic",
+  "signal_kind": "fleeting",
+  "confidence": 0.3, "confidence_band": "low",
+  "confidence_reasons": ["history_hours=15 (<72)", "sale_rate=estimate", "gap_vs_median=95% (possible typo)"],
+  "hazard_flags": [],
+  "s1": { "entry_cost_unit": 150, "exit_price_expected": 2600, "exit_price_pessimistic": 2000,
+          "exit_basis": "clearing", "cut_pct": 5, "cut_confidence": "medium-unconfirmed",
+          "deposit_unit": 17, "expected_relists": 1.5,
+          "net_unit_expected": 2295, "net_unit_pessimistic": 1725,
+          "net_total_expected": 13770, "net_total_pessimistic": 10350, "qty_basis": 6 },
+  "s2": { "min_price": 150, "p10": 150, "normal_price": 2895, "normal_days": 0.6, "normal_short": null,
+          "trend_dir": null, "trend_strength": null, "discount_min_pct": 95, "discount_p10_pct": 95,
+          "median_now": 2875, "hour_typical_p10": null },
+  "s3": { "units_sold_day_est": 9, "units_sold_day_low": 5, "units_sold_day_high": 15,
+          "sell_through_est": null, "days_covered": 0.6, "missed_hours": 2, "sale_inference_method": "flows-v0" },
+  "s5": { "units_within_2": 6, "min_vs_p10_ratio": 1.0, "lone_cheapest": false,
+          "cost_for_n": { "6": 900, "7": 3750 } },
+  "s7": { "listing_first_seen": "2026-11-14T17:17:48Z", "hours_survived": 1,
+          "survival_p_2h": [0.4, 0.7], "survival_p_6h": [0.2, 0.5] },
+  "value_status": { "p10": "firm", "min_price": "firm", "median_now": "firm",
+                    "normal_price": "firm-short-history", "units_sold_day_*": "sample",
+                    "units_within_2": "sample", "survival_p_*": "sample",
+                    "exit_price_*": "sample", "deposit_unit": "rule-unconfirmed" }
+}</pre>
+  </section>
+
+  <footer class="src">
+    <p>Real data: Blizzard Game Data API, WoW Forever US, house 113 (Horde), hourly snapshots 14 Nov 2026 03:17–18:17 UTC from <code>tools/overnight-demo/demo-data.json</code> (p10 = cheapest-10% price per unit). "Normal" here is the 15-hour median of p10; the real app uses 7 days plus a 3-day check.</p>
+    <p>Sample values (<sup class="s">†</sup>): vendor prices, sale rates, depth beyond what p10 proves, clearing prices, survival odds, the Archer's Cloak listing and the shopping list. Fees: 5% cut (medium confidence), 1-silver minimum deposit per lot until the 17 Nov maintenance (official post; news disagrees). Design: <a href="visual-language.html">shared visual language</a> · <a href="item-page.html">T2 item page</a>.</p>
+  </footer>
+</div>
+
+<script>
+// theme toggle: auto -> light -> dark
+(function () {
+  const b = document.getElementById("themebtn"), modes = ["auto", "light", "dark"]; let i = 0;
+  b.addEventListener("click", () => { i = (i + 1) % 3; const m = modes[i];
+    if (m === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", m);
+    b.textContent = "Theme: " + m; });
+})();
+// tiny two-part sparklines: price line (top) and supply bars (bottom). Hours after 03:17; 06:17 and 12:17 were missed.
+(function () {
+  const H = [0, 1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15], MISS = [3, 9], NS = "http://www.w3.org/2000/svg";
+  const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  document.querySelectorAll(".spark").forEach(box => {
+    const p = box.dataset.p.split(",").map(v => v === "" ? null : +v), q = box.dataset.q.split(",").map(v => v === "" ? null : +v);
+    const log = box.dataset.log === "1", mark = box.dataset.mark != null ? +box.dataset.mark : null;
+    const W = 150, PH = 34, QH = 18, G = 6, x = h => 2 + h / 15 * (W - 4);
+    const f = v => log ? Math.log10(v) : v, pv = p.filter(v => v != null).map(f);
+    const lo = Math.min(...pv), hi = Math.max(...pv), y = v => PH - 3 - (hi === lo ? .5 : (f(v) - lo) / (hi - lo)) * (PH - 6);
+    const qmax = Math.max(...q.filter(v => v != null));
+    const svg = el("svg", { viewBox: `0 0 ${W} ${PH + G + QH}`, role: "img", "aria-label": box.textContent.trim() });
+    MISS.forEach(m => svg.appendChild(el("rect", { x: x(m - .5), y: 0, width: x(1) - x(0), height: PH + G + QH, fill: "var(--surface-2)" })));
+    if (mark != null) svg.appendChild(el("line", { x1: x(H[mark]), x2: x(H[mark]), y1: 0, y2: PH + G + QH, stroke: "var(--down)", "stroke-width": 1.2 }));
+    let d = "", prev = null;
+    p.forEach((v, i) => { if (v == null) { prev = null; return; } const gap = prev != null && H[i] - H[prev] > 1;
+      d += (prev == null || gap ? "M" : "L") + x(H[i]).toFixed(1) + " " + y(v).toFixed(1); prev = i; });
+    svg.appendChild(el("path", { d, fill: "none", stroke: "var(--series)", "stroke-width": 1.8, "stroke-linejoin": "round" }));
+    q.forEach((v, i) => { if (v == null) return; const h = Math.max(1, v / qmax * QH);
+      svg.appendChild(el("rect", { x: x(H[i]) - 3, y: PH + G + QH - h, width: 6, height: h, rx: 1, fill: i === mark ? "var(--down)" : "var(--axis)" })); });
+    box.insertBefore(svg, box.firstChild);
+  });
+})();
+</script>
+</body>
+</html>
