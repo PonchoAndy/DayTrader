@@ -44,6 +44,12 @@ from pathlib import Path
 
 import pandas as pd
 
+try:
+    import orjson
+    _loads = orjson.loads
+except ImportError:  # local runs without orjson still work
+    _loads = json.loads
+
 from blizzard import Api, faction_of
 import bonuses
 import items
@@ -173,6 +179,20 @@ def http_time(value: str | None) -> datetime | None:
         return None
 
 
+CPU = IO = None   # process pool (gzip + summaries) and thread pool (uploads), set up in main()
+
+
+def process_file(house_id: int, faction: str, kind: str, content: bytes, level: int):
+    """CPU-heavy part for one response, run in a separate process: gzip it and summarize it.
+    Returns (gzipped bytes, raw size, summary table)."""
+    gz = gzip.compress(content, compresslevel=level)
+    s = summarize(listing_rows(_loads(content), kind))
+    s.insert(0, "kind", kind)
+    s.insert(0, "faction", faction)
+    s.insert(0, "house_id", house_id)
+    return gz, len(content), s
+
+
 def store_region(store, args, region: str, houses: list[dict], pulled: list, started: datetime, t0: float):
     """Decide whether a region's pull is new and, if so, store raw + summary + state. Returns (run, table)."""
     pre = prefix(region)
@@ -191,19 +211,23 @@ def store_region(store, args, region: str, houses: list[dict], pulled: list, sta
 
     day, hour = snapshot[:4] + "-" + snapshot[4:6] + "-" + snapshot[6:8], snapshot[9:11]
     frames, raw_bytes, gz_bytes = [], 0, 0
+    ok = [(h, kind, r) for h, kind, r in pulled if r is not None and r.ok]
     for h, kind, r in pulled:
         if r is None or not r.ok:
             print(f"  ! [{region}] house {h['id']} {kind}: {getattr(r, 'status_code', 'failed')}")
-            continue
-        gz = gzip.compress(r.content, compresslevel=6)
-        store.put(f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip")
-        raw_bytes += len(r.content)
+    # gzip + summarize on every CPU core (GitHub's runners are ~3x slower than a laptop per core),
+    # and upload the gzipped files on threads while the next ones are being processed.
+    jobs = [CPU.submit(process_file, h["id"], faction_of(h.get("name", "")), kind, r.content, args.gzip_level)
+            for h, kind, r in ok]
+    puts = []
+    for (h, kind, r), job in zip(ok, jobs):
+        gz, n, s = job.result()
+        raw_bytes += n
         gz_bytes += len(gz)
-        s = summarize(listing_rows(r.json(), kind))
-        s.insert(0, "kind", kind)
-        s.insert(0, "faction", faction_of(h.get("name", "")))
-        s.insert(0, "house_id", h["id"])
         frames.append(s)
+        puts.append(IO.submit(store.put, f"{pre}raw/{day}/{hour}/{snapshot}/house-{h['id']}-{kind}.json.gz", gz, "application/gzip"))
+    for p in puts:
+        p.result()   # an upload error fails the region, as before
 
     table = pd.concat(frames, ignore_index=True)
     table.insert(0, "snapshot", pd.Timestamp(newest))
@@ -234,6 +258,7 @@ def main() -> int:
     ap.add_argument("--skip-names", action="store_true", help="don't look up item/variant names (local tests)")
     ap.add_argument("--workers", type=int, default=8, help="downloads at once, across all regions")
     ap.add_argument("--deadline", type=float, default=120, help="seconds from start after which later regions are skipped")
+    ap.add_argument("--gzip-level", type=int, default=1, help="raw-file compression: 1 is ~3x faster than 6, files ~25% bigger")
     args = ap.parse_args()
     regions = [args.region] if args.region else [r.strip() for r in args.regions.split(",") if r.strip()]
 
@@ -247,7 +272,12 @@ def main() -> int:
 
     # 1. Start every download for every region at once (8 at a time), so one run covering
     #    several regions still fits in GitHub's one-minute billing unit (#54).
-    from concurrent.futures import ThreadPoolExecutor, wait
+    from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
+    global CPU, IO
+    import multiprocessing
+    # "spawn": start clean worker processes rather than forking a process that already runs threads.
+    CPU = ProcessPoolExecutor(max_workers=os.cpu_count() or 2, mp_context=multiprocessing.get_context("spawn"))
+    IO = ThreadPoolExecutor(max_workers=8)
     pool = ThreadPoolExecutor(max_workers=args.workers)
     plans = []   # (region, api, houses, [(house, kind, future)])
     for region in regions:
@@ -302,6 +332,8 @@ def main() -> int:
         if len(run.get("errors", {})) > max(len(pulled), 1) // 2:
             bad = True
     pool.shutdown(wait=False, cancel_futures=True)
+    CPU.shutdown(wait=True)
+    IO.shutdown(wait=True)
 
     # 3. Names, once for every region's items. IDs are permanent and shared across regions, so they
     #    are always looked up through the US API. A failure here must not lose stored snapshots.

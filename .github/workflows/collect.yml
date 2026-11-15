@@ -43,10 +43,19 @@ jobs:
         run: echo "JOB_STARTED=$(date +%s.%N)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
+        id: py
         with:
           python-version: "3.12"
-          cache: pip
-      - run: pip install -r requirements.txt
+      # Keep the installed packages between runs (~3 s to restore instead of ~10 s to install),
+      # so a run covering US + Europe stays under GitHub's one-minute billing unit (#54).
+      - uses: actions/cache@v4
+        id: venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+      - name: Install packages (only when the list changed)
+        if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv && .venv/bin/pip install -q -r requirements.txt
       - name: Collect
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
@@ -57,7 +66,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+        run: .venv/bin/python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
 
   # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
   demo:
