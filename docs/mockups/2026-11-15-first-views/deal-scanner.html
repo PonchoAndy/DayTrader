@@ -39,7 +39,7 @@
   --hatch: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--muted) 28%, transparent) 4px 5px); }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { background: var(--bg); color: var(--fg); margin: 0; }
-body { font: 15px/1.55 var(--f-body); }
+body { font: 15px/1.55 var(--f-body); overflow-x: hidden; }
 .wrap { max-width: 980px; margin: 0 auto; padding: 20px max(14px, env(safe-area-inset-left, 0px)) 64px; display: flex; flex-direction: column; gap: 16px; }
 .eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
 h1 { font: 700 26px/1.15 var(--f-display); margin: 4px 0 0; }
@@ -66,8 +66,8 @@ sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
 .spd.trend { border: 1px dashed var(--muted); color: var(--muted); padding: 3px 6px; }
 .age { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
 .age.aging { color: var(--gold); } .age.stale { color: var(--down); }
-.conf { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--f-body); color: var(--muted); white-space: nowrap; }
-.conf .m { display: inline-flex; gap: 2px; } .conf .m i { width: 9px; height: 7px; border-radius: 1.5px; background: var(--line); }
+.conf { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1.2 var(--f-body); color: var(--muted); }
+.conf .m { display: inline-flex; gap: 2px; flex: none; } .conf .m i { width: 9px; height: 7px; border-radius: 1.5px; background: var(--line); }
 .conf .m i.on { background: var(--fg); }
 .est { border-bottom: 1.5px dotted currentColor; padding-bottom: 1px; }
 .hz { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
@@ -93,6 +93,7 @@ sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
 .fresh .big { font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; grid-row: span 2; display: flex; align-items: center; gap: 10px; }
 .fresh .big small { display: block; font: 500 11px/1.2 var(--f-body); color: var(--muted); letter-spacing: .04em; }
 .fresh p { font-size: 13px; }
+@media (max-width: 520px) { .fresh { grid-template-columns: 1fr; } .fresh .big { grid-row: auto; } }
 /* ---------- key ---------- */
 .key { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; font-size: 12.5px; color: var(--muted); }
 .key > div { display: flex; flex-direction: column; gap: 5px; }
@@ -118,7 +119,7 @@ sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
 .mbar .pt { position: absolute; left: calc(var(--lo) - 5px); top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--up); }
 @media (max-width: 600px) {
   .d-head { grid-template-columns: auto minmax(0, 1fr); }
-  .d-money { grid-column: 1 / -1; text-align: left; align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .d-money { grid-column: 1 / -1; text-align: left; flex-direction: row; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 }
 .answers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 820px) { .answers { grid-template-columns: repeat(2, minmax(0, 1fr)); } .answers .ans:last-child { grid-column: 1 / -1; } }
@@ -151,16 +152,15 @@ sup.s { font: 600 10px/0 var(--f-mono); color: var(--gold); margin-left: 1px; }
 .range-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 1.2fr); gap: 6px 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
 .range-row:first-of-type { border-top: 0; padding-top: 0; }
 @media (max-width: 600px) { .range-row { grid-template-columns: 1fr; } }
-.dayrange { position: relative; height: 34px; }
+.dayrange { position: relative; height: 38px; margin-top: 6px; }
 .dayrange .track { position: absolute; left: 0; right: 0; top: 12px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--up-soft), var(--surface-2) 50%, var(--down-soft)); border: 1px solid var(--line); }
 .dayrange .now { position: absolute; top: 6px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--fg); }
-.dayrange .lab { position: absolute; top: 24px; font: 500 10.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
+.dayrange .lab { position: absolute; top: 26px; font: 500 10.5px/1 var(--f-mono); color: var(--muted); white-space: nowrap; }
 .dayrange .lab.r { right: 0; } .dayrange .lab.l { left: 0; }
-.dayrange .nowlab { position: absolute; top: -6px; font: 600 10.5px/1 var(--f-mono); color: var(--fg); transform: translateX(-50%); white-space: nowrap; }
-/* stale demo row */
+.dayrange .nowlab { position: absolute; top: -8px; font: 600 10.5px/1 var(--f-mono); color: var(--fg); white-space: nowrap; }
+/* gone row */
 .deal.is-stale { opacity: .62; background: var(--hatch); }
 pre.json { margin: 0; font: 12px/1.5 var(--f-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; color: var(--fg); }
-pre.json .c { color: var(--muted); }
 footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
 </style>
 </head>
@@ -238,7 +238,7 @@ footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-directi
           <h3><span class="qdot" style="background:var(--q-uncommon)"></span>Archer's Cloak <span class="muted" style="font-weight:500">· of the Eagle</span></h3>
           <div class="tag-row">
             <span class="spd fleeting"><svg class="ico"><use href="#i-fleeting"/></svg>Fleeting</span>
-            <span class="age"><svg class="ico"><use href="#i-fleeting"/></svg>first seen 18:17 · 52 min old</span>
+            <span class="age">first seen 18:17 · 52 min old</span>
             <span class="conf"><span class="m"><i class="on"></i><i class="on"></i><i class="on"></i></span>High on profit, low on still-there</span>
           </div>
         </div>
@@ -262,7 +262,7 @@ footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-directi
     <header>
       <span class="tag-row"><span class="cls probable">Probable</span><span class="note">depends on someone buying it from you later</span></span>
       <h2 id="h-probable">Cheap now, likely to resell</h2>
-      <p class="note">Each row answers five questions. Profit is a range from "worse case" to "expected", after the 5% cut and the deposits you'd lose on relists. Rows are ranked by the worse case, so a big but shaky profit ranks below a smaller, steadier one.</p>
+      <p class="note">Each row answers five questions. Profit is a range from "worse case" to "expected", after the 5% cut and the deposits you'd lose on relists. Rows are ranked by the worse case, so a big but shaky profit ranks below a smaller, steadier one. The small bar under each profit uses the same scale on every row.</p>
     </header>
 
     <article class="deal" aria-label="Probable deal 1: Grilled King Crawler Legs">
@@ -369,10 +369,10 @@ footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-directi
     <article class="trap">
       <div><h3>Crystal Vial</h3>
         <div class="tag-row" style="margin-top:6px"><span class="hz hard"><svg class="ico"><use href="#i-warn"/></svg>Penny</span></div>
-        <div class="naive"><span class="k">A simple scanner says</span><s>−7% below normal · deep market</s></div></div>
+        <div class="naive"><span class="k">A simple scanner says</span><s>−8% below normal · deep market</s></div></div>
       <div class="t-real"><span class="k">What's really going on</span>
-        <p><b>About 1 silver of profit on 20 vials, if they all sell.</b> 5.00 s against 5.36 s normal; after the 5% cut that's under 0.1 s a vial. One expired listing loses a 1-silver deposit and wipes it out.</p>
-        <p class="muted">Below 5 silver we stop showing % at all and show gold per trade, because 1-copper price steps make % moves meaningless.</p></div>
+        <p><b>About 3 silver of profit on 20 vials, if they all sell.</b> 5.00 s against 5.42 s normal; after the 5% cut that's about 0.15 s a vial. Three expired listings lose three 1-silver deposits and wipe it out.</p>
+        <p class="muted">At these prices we stop showing % and show gold per trade, because 1-copper price steps make % moves meaningless.</p></div>
       <div class="spark" data-p="549,548,548,543,543,542,542,542,535,536,536,500,536,500" data-q="321,637,436,331,251,130,246,161,391,218,181,186,63,84"><span>price 5.49 → 5.00 s</span><span>supply 321 → 84</span></div>
     </article>
   </section>
@@ -392,7 +392,7 @@ footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-directi
     <div class="range-row">
       <div><h3>Thick Leather</h3><p class="note">5.37 s now · today's lowest so far · supply down to 452</p>
         <div class="tag-row" style="margin-top:4px"><span class="age">18:17 · 52 min old</span><span class="conf"><span class="m"><i class="on"></i><i></i><i></i></span>Low: 1 day seen</span></div></div>
-      <div class="dayrange" aria-label="Today's range 5.37 to 6.01 silver; now 5.37"><span class="track"></span><span class="now" style="left:1%"></span><span class="nowlab" style="left:8%">now 5.37 s</span><span class="lab l" style="top:26px;left:0;opacity:0">.</span><span class="lab r">high 6.01 s · 16:17</span></div>
+      <div class="dayrange" aria-label="Today's range 5.37 to 6.01 silver; now 5.37, the day's low"><span class="track"></span><span class="now" style="left:1%"></span><span class="nowlab" style="left:0">now 5.37 s</span><span class="lab l">= today's low</span><span class="lab r">high 6.01 s · 16:17</span></div>
     </div>
   </section>
 
@@ -404,7 +404,7 @@ footer.src { font-size: 12.5px; color: var(--muted); display: flex; flex-directi
       <div class="d-head" style="grid-template-columns:minmax(0,1fr) auto">
         <div class="d-title"><h3><span class="qdot" style="background:var(--q-common)"></span>Arcanite Bar</h3>
           <div class="tag-row"><span class="age stale">seen 17:17 · gone by 18:17</span><span class="hz caution"><svg class="ico"><use href="#i-care"/></svg>Thin</span></div></div>
-        <div class="d-money"><span class="k">was</span><b class="num">45.0 g</b><span class="k">cheapest now 50.0 g · 10 listed</span></div>
+        <div class="d-money"><span class="k">was</span><b class="num">45.0 g</b><span class="k">cheapest-10% now 50.0 g · 10 listed</span></div>
       </div>
     </article>
   </section>
