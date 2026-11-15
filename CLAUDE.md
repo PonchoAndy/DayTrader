@@ -7,6 +7,11 @@ Tool to collect, analyze and display WoW Forever auction house data. Planning st
   the relevant issue; if the user asks "what's next?", list open issues and suggest the first
   unblocked one.
 - Reference the issue in commit messages (`Refs #N`); in PR descriptions use `Closes #N`.
+- **Merge often** (owner's preference, 2026-11-15): the owner works sporadically and new sessions
+  and scheduled jobs only see `main`. When a coherent piece of work is pushed and ready, end the
+  reply with this line, last thing in the message, so it's easy to spot:
+  `> **⏵ Merge Now** — reply **merge** and I'll open the pull request and merge it (<what's in it>).`
+  On "merge": open the PR (Closes/Refs issues), merge it, then restart the branch from `main`.
 - Record research results in `docs/PLANNING.md`, and comment on the issue.
 - When a decision is made (in an issue or chat), write an ADR in `docs/adr/` from
   `template.md`, add it to the index in `docs/adr/README.md`, and update the summary in

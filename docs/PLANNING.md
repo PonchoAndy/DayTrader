@@ -1,7 +1,7 @@
 # DayTrader — Planning Notes
 
 Status: **planning / research**. No requirements or MVP yet.
-Last updated: 2026-11-14
+Last updated: 2026-11-14 (session 3)
 
 Goal for now: **grab, analyze, and display** WoW Forever auction house data, so we can find
 profitable trades. Trading/posting automation is out of scope (and against the game's rules).
@@ -94,6 +94,33 @@ Implications:
   setup, roughly 720 minutes a month. That fits the **private** repo's 2,000 free minutes, so
   #5 no longer forces a choice between public and every-2-hours.
 
+### First night of hourly data (2026-11-14, `collector/report.py`, PonchoAndy/DayTrader#28)
+
+Read with the workflow's `report` switch (Actions → Collect auctions → Run workflow → tick "report").
+Covers 01:00–16:00 UTC on 2026-11-14: 17 runs, 14 snapshots stored, 0 HTTP errors.
+
+- **Blizzard refreshes at :17 every hour, without fail.** Our pull lands a median 44 min later
+  (GitHub starts scheduled runs late).
+- **We lose an hour when GitHub runs very late.** The 06:27 and 12:27 runs started after the next
+  refresh (07:30, 13:19), so snapshots 06:17 and 12:17 are gone for good: Blizzard only serves
+  the latest data. 2 of 13 hours missed. Fix options in #28.
+- **Update after 24 hours (2026-11-15):** 3 of 24 hours lost (01:17 by 1 minute, 12:17 by 2 minutes,
+  06:17 when GitHub was 63 minutes late and then skipped a run). Scheduled runs started 29–63 min
+  after the :27 slot (median ~40). A run must start between :18 and :16 of the next hour, so the slot
+  moves to **:05**, which fits every delay seen, at no extra cost. A backup slot (+720 minutes a month)
+  waits until a few days at :05 show whether hours are still lost (#28).
+- **Supply has a daily rhythm.** Listings peaked ~05:00–07:00 UTC (US late evening: ~548k Horde,
+  ~521k Alliance) and drained ~30% by 15:00 UTC (~387k / ~377k), as auctions expire or sell
+  and fewer people post overnight. Needs a few days to confirm.
+- **Prices move a lot hour to hour.** On Horde house 113, of 1,146 commodities listed every hour,
+  the cheapest-10% price swung by a median 23% over the 12 hours, and 1 in 10 swung more than
+  186%. Many big % moves are on penny items (0.01 g → 0.04 g), so signals need a minimum price.
+- **Bought-up supply is visible.** Leveling and crafting materials drained fastest without the
+  price moving: Copper/Tin Ore -87–89%, Red Wolf Meat -92%, ammunition -84–96%, Mithril Bar -81%.
+  That's the raw material for a sale-rate estimate (#10).
+- The goods-value total is still skewed by absurd listings (Alliance jumped to ~1.0M gold);
+  the 10M-gold cap per unit is too loose for a real metric.
+
 ### Item names (2026-11-14, PonchoAndy/DayTrader#27)
 
 - **Item IDs are permanent** and Forever uses retail WoW's IDs (we saw 25 to 289,560). So names
@@ -111,6 +138,50 @@ Implications:
   `wowf`; Blizzard's API has no names for them, and retail/Raidbots data lacks Forever's IDs).
   All 93 bonus IDs seen are named. Hourly summaries grew to ~107k rows / ~1.3 MB
   (~0.9 GB a month), which makes the daily roll-up (#26) and an hourly retention rule more pressing.
+
+### TSM's numbers and WoW Forever's auction rules (2026-11-15, research pass, PonchoAndy/DayTrader#10, #13)
+
+Sources: TSM's own help pages **[official]**, Undermine Exchange's source code (`erorus/shatari`)
+**[community-tested]**, Blizzard's Forever hotfix and forum threads (staff posts **[official]**, player
+reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #13.
+
+**How TSM computes its numbers**
+- **DBMarket** (per scan): keep the cheapest 15% of units, extend up to 30% until a 20% price jump,
+  drop values more than 1.5 standard deviations from the mean, average the rest. Daily values are
+  then weighted over 14 days, leaning hard on the last 3 (half-life a little over 2 days; exact
+  weights only published as an image). TSM says it reflects what items are *listed* for, not sold for.
+- **DBRecent** = the same on the latest scan only; **DBMinBuyout** = lowest listing in the last scan;
+  **DBHistorical** = 60-day average of DBMarket; **DBRegionMarketAvg** = average across realms.
+- **Sale rate, sold per day and sale average come from players' own sale records** uploaded by the
+  TSM desktop app, not from comparing scans (stated for sale average; very likely for the others).
+  We can't copy them; we estimate sales from listing flows instead (ADR 0008) and label them estimates.
+- No sign that TSM covers WoW Forever. **Undermine Exchange** stores only the lowest price and total
+  quantity per item, has no sale-rate numbers, and has Forever commented out in its code.
+
+**WoW Forever auction rules (what's known)**
+- **Deposit refund:** returned when the item sells; lost on expiry or cancel. High confidence.
+- **Minimum deposit:** still 1 silver per lot. The 1-copper change in the Nov 10 hotfix notes was
+  pulled and is due with **maintenance on 2026-11-17** **[official]**. Mark it on price charts: cheaper
+  posting will probably bring a wave of cheap listings.
+- **Sale gold** arrives by mail after 60 minutes for stackable goods (about 2 minutes for gear), a
+  change players noticed around Nov 10–11. No evidence that new listings or undercuts appear late on
+  the house itself; the delay that matters for us is Blizzard's hourly snapshot at :17.
+- **Newest sells first:** among listings at the same price, the most recently posted sells first;
+  cheapest price first as usual. Player reports, medium confidence. For sale estimates: the newest
+  IDs vanishing first is normal, not cancelling.
+- **Cut:** 5% at faction houses (medium confidence), 15% at Blackwater (guides, one player report).
+- **Durations and deposit rates:** unclear (reports of 2/8/24 h and of 12/24/48 h). Our own
+  time-left data can settle the durations.
+- **Gear can't be undercut by copper amounts** (whole silver), per player reports.
+- **No posting or cancel limits** documented. Players report automated buy-and-repost (bots).
+- **Account "economy holds"** can block the AH for suspected gold buying/selling **[official]**.
+- **Vendor prices were cut** on some items (e.g. Mild Spices 1c), which lowers the vendor-price floor.
+
+**What a "house" is (partly answered).** The API's house list has **no ruleset field**, only ID and
+name, and every ruleset returns the same 15 houses (checked 2026-11-15). Community sources say each
+world has its own Alliance, Horde and Blackwater house. The IDs and sizes fit five such "worlds":
+(110, 113, 116) big, (111, 114, 117) big, (112, 115, 118) empty, (119, 120, 121) medium,
+(123, 124, 125) medium. Strong hint, not proof; the in-game check in #13 confirms it.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
@@ -234,6 +305,13 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 
 - **Retention:** raw pulls 7 days; **hourly summaries 3 months**, reviewed for usefulness during
   that time (shorten if rarely needed); daily summaries indefinitely. (ADR 0007, #26)
+- **Listing flows (accepted part of ADR 0008):** a daily job matches listing IDs hour to hour in
+  the raw pulls and saves per-item counts of units posted, vanished early (sold or cancelled),
+  vanished near expiry and partly bought. Kept 90 days; it's the basis for sale rate (#10).
+  Backfill must run before the first raw pulls expire, so raw retention goes from 7 to 14 days until
+  it has. The same job also saves four extra trading measures as hourly counts (#40): the price
+  position of what sold, how long listings sat, depth near the cheapest price, and undercuts.
+  The rest of the analysis layer (daily roll-up, metrics, page export) is proposed.
 
 ## 6. Open questions for you
 

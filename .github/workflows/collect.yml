@@ -1,15 +1,24 @@
 # Hourly WoW Forever auction collector (PonchoAndy/DayTrader#9, ADR 0005).
-# Blizzard refreshes the data at about :17 past each hour, so this runs at :27.
-# GitHub may start scheduled runs a few minutes late; the collector skips runs with no new data.
+# Blizzard refreshes the data at :17 past each hour; a run must start between :18 and :16 of the next
+# hour to catch each refresh. GitHub starts scheduled runs 29-63 min late (measured 2026-11-14, #28), so
+# the slot is :05: it lands runs at ~:34-:08, inside that window. The collector skips runs with no new data.
 name: Collect auctions
 
 on:
   schedule:
-    - cron: "27 * * * *"
+    - cron: "5 * * * *"
   workflow_dispatch:
     inputs:
       force:
         description: "Collect even if Blizzard hasn't published new data"
+        type: boolean
+        default: false
+      report:
+        description: "Don't collect; print an overview of the stored data (collector/report.py)"
+        type: boolean
+        default: false
+      demo:
+        description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
         default: false
 
@@ -22,6 +31,7 @@ permissions:
 
 jobs:
   collect:
+    if: ${{ !inputs.demo }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -40,4 +50,33 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: python collector/collect.py ${{ inputs.force && '--force' || '' }}
+        run: python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+
+  # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
+  demo:
+    if: ${{ inputs.demo }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Export demo data
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: python collector/report.py --demo tools/overnight-demo/demo-data.json
+      - name: Commit it to this branch
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/overnight-demo/demo-data.json
+          git commit -m "Demo data export" && git push || echo "Nothing new to commit"
