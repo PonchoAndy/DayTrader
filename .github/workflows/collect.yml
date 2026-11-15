@@ -7,6 +7,8 @@ name: Collect auctions
 on:
   schedule:
     - cron: "5 * * * *"
+    # Daily listing flows (#37): every complete UTC day still in raw/ that has no flows file yet.
+    - cron: "35 1 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -21,6 +23,10 @@ on:
         description: "Regions to collect, comma-separated, US first (e.g. us,eu). Empty = the scheduled default"
         type: string
         default: ""
+      flows:
+        description: "Don't collect; build listing flows for every complete day not done yet (collector/flows.py, #37)"
+        type: boolean
+        default: false
       demo:
         description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
@@ -35,7 +41,7 @@ permissions:
 
 jobs:
   collect:
-    if: ${{ !inputs.demo }}
+    if: ${{ !inputs.demo && !inputs.flows && github.event.schedule != '35 1 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -68,6 +74,34 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
         run: .venv/bin/python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+
+  # Daily (01:35 UTC) or manual: listing flows from raw pulls (#37, ADR 0008). Catches up on any missed days.
+  flows:
+    if: ${{ inputs.flows || github.event.schedule == '35 1 * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        id: py
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        id: venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+      - name: Install packages (only when the list changed)
+        if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+      - name: Build flows
+        env:
+          REGIONS: us,eu
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: .venv/bin/python collector/flows.py
 
   # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
   demo:
