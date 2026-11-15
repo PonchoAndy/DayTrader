@@ -68,6 +68,15 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
   font-size: 13.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .notice strong { color: var(--fg); }
 .notice[hidden] { display: none; }
+/* Merge bar: shown when Claude has work ready to merge into main (meta/mergeReady). */
+.mergebar { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--gold); background: var(--gold-soft); border-radius: 12px;
+  display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: space-between; }
+.mergebar[hidden] { display: none; }
+.mergebar .what { min-width: 0; flex: 1 1 260px; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+.mergebar .what b { font-family: var(--f-display); font-weight: 600; }
+.mergebar .what .sub { font-size: 12.5px; color: var(--muted); }
+.mergebar .what a { color: var(--setup); }
+.mergebar .btn[hidden] { display: none; }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -225,6 +234,10 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
   </header>
   <div class="msg" id="syncmsg" role="status"></div>
   <div class="notice" id="notice" hidden></div>
+  <div class="mergebar" id="mergebar" hidden role="status">
+    <div class="what" id="mergewhat"></div>
+    <button class="btn primary" id="mergebtn" type="button">Merge Now</button>
+  </div>
 
   <div class="controls">
     <div class="chips" role="group" aria-label="Filter issues">
@@ -672,6 +685,47 @@ async function dispatch(why) {
 }
 $("syncbtn").addEventListener("click", () => { $("syncbtn").disabled = true; dispatch(S.queue.length ? "replies waiting to be sent" : "refresh requested"); });
 
+// ---------- merge now ----------
+// Claude writes meta/mergeReady {ready, summary, branch, at} when work is ready to merge into main.
+// Pressing Merge Now writes meta/mergeRequest {state: "requested"} and wakes Claude the same way a reply does;
+// Claude opens and merges the pull request, then sets mergeRequest {state: "done", pr} and mergeReady {ready: false}.
+S.mergeReady = null; S.mergeReq = null;
+function renderMerge() {
+  const bar = $("mergebar"), btn = $("mergebtn"), what = $("mergewhat");
+  const r = S.mergeReady, q = S.mergeReq;
+  const busy = (q?.state === "requested" || q?.state === "running") && ageOf(q.requestedAt) < RUN_LIMIT_MS;
+  const done = q?.state === "done" && ageOf(q.finishedAt) < 15 * 60 * 1000;
+  const failed = q?.state === "failed" && ageOf(q.finishedAt) < 60 * 60 * 1000;
+  if (!S.db || !(r?.ready || busy || done || failed)) { bar.hidden = true; return; }
+  bar.hidden = false; btn.hidden = false; btn.disabled = false; btn.textContent = "Merge Now";
+  const prLink = (n) => `<a href="${REPO_URL}/pull/${n}" target="_blank" rel="noopener">#${n}</a>`;
+  if (busy) {
+    what.innerHTML = `<b>Merging…</b><span class="sub">Claude is opening and merging the pull request. This bar updates when it's done.</span>`;
+    btn.disabled = true; btn.textContent = "Merging…";
+  } else if (r?.ready) {
+    what.innerHTML = `<b>Ready to merge into main</b><span class="sub">${escapeHtml(r.summary || "New work on the branch.")}${r.at ? " · " + escapeHtml(when(r.at)) : ""}</span>`;
+    if (!S.mcp) { btn.disabled = true; btn.title = "Open this page on claude.ai to use Merge Now"; }
+    if (failed) what.insertAdjacentHTML("beforeend", `<span class="sub" style="color:var(--bad)">Last try didn't finish${q.error ? ": " + escapeHtml(q.error) : ""}. Press Merge Now to try again.</span>`);
+  } else if (done) {
+    what.innerHTML = `<b>Merged${q.pr ? " " + prLink(q.pr) : ""}</b><span class="sub">main is up to date${q.finishedAt ? " as of " + escapeHtml(when(q.finishedAt)) : ""}.</span>`;
+    btn.hidden = true;
+  } else {
+    what.innerHTML = `<b>Merge didn't finish</b><span class="sub">${escapeHtml(q.error || "Ask Claude in chat to merge.")}</span>`;
+    btn.hidden = true;
+  }
+}
+$("mergebtn").addEventListener("click", async () => {
+  if (!S.db) return;
+  $("mergebtn").disabled = true;
+  const req = { state: "requested", requestedAt: new Date().toISOString(), branch: S.mergeReady?.branch || null };
+  S.mergeReq = req; renderMerge();
+  try { await S.db.doc("meta/mergeRequest").set(req); }
+  catch { S.mergeReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "couldn't save the request" }; renderMerge(); return; }
+  const ok = await dispatch("merge requested");
+  if (!ok) { S.mergeReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "Claude couldn't be reached; see the note at the top" }; renderMerge(); }
+});
+setInterval(renderMerge, 60000);
+
 // ---------- replying ----------
 async function submit(n, close, reopen) {
   const ta = $("reply-" + n), body = (ta?.value || "").trim();
@@ -747,6 +801,8 @@ async function undoReply(n, id, kind, btn) {
   db.doc("meta/syncRequest").onSnapshot((d) => { S.req = d.exists ? d.data() : null; renderSyncBtn(); }, () => {});
   setInterval(renderSyncBtn, 60000);
   db.doc("meta/activeSession").onSnapshot((d) => { S.active = d.exists ? d.data() : null; }, () => {});
+  db.doc("meta/mergeReady").onSnapshot((d) => { S.mergeReady = d.exists ? d.data() : null; renderMerge(); }, () => {});
+  db.doc("meta/mergeRequest").onSnapshot((d) => { S.mergeReq = d.exists ? d.data() : null; renderMerge(); }, () => {});
   window.claude.use("mcp").then(async (m) => {
     S.mcp = m; renderSyncBtn();
     if (!m) return;
