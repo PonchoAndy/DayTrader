@@ -394,6 +394,11 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Build-helper agents** (ADR 0010): Architect, Strategist, Designer, Researcher and Data engineer
   in `.claude/agents/`, handing work over through saved documents in `docs/designs/`. Next: Reviewer,
   Scribe, Analyst (#15).
+- **Economist agent** (2026-11-15, #66): studies how the economy behaves and where it's heading; first job was
+  the launch-glut outlook (`docs/designs/2026-11-15-economist-launch-glut-outlook.md`).
+- **Money** (ADR 0011, #61): stored and computed as whole copper; shown everywhere as **gold with 4 decimals**
+  (1g 1s 1c = 1.0101), copper digits set apart visually. Tables keep 4 decimals; prose may round 100g+; amounts under
+  a copper per unit are shown per trade.
 
 ## 6. Open questions for you
 

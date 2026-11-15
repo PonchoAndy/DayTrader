@@ -1,6 +1,6 @@
 # 0011. Money is whole copper underneath; shown as gold with four decimals
 
-- **Status:** Proposed (Architect, 2026-11-15, from the owner's suggestion; waiting for the owner's OK on #61)
+- **Status:** Accepted (owner, 2026-11-15, option "a" on #61 with the suggested defaults; designed by the Architect from the owner's suggestion)
 - **Date:** 2026-11-15
 - **Issue:** PonchoAndy/DayTrader#61
 
