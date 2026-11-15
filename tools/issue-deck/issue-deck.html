@@ -152,6 +152,7 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .k-decide { color: var(--decide); background: var(--decide-bg); } .k-setup { color: var(--setup); background: var(--setup-bg); }
 .k-build { color: var(--build); background: var(--build-bg); } .k-research { color: var(--research); background: var(--research-bg); }
 .k-tracking, .k-other { color: var(--tracking); background: var(--tracking-bg); }
+.k-agent { color: var(--gold); background: var(--gold-soft); text-transform: none; letter-spacing: .02em; }
 .state { font: 500 12px/1 var(--f-body); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
 .state.open { color: var(--ok); border-color: currentColor; }
 .card h2 { font: 600 20px/1.3 var(--f-display); margin: 0; text-wrap: balance; }
@@ -283,6 +284,7 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
       <button class="chip" id="f-you" data-f="you" aria-pressed="false">Yours</button>
       <button class="chip" id="f-claude" data-f="claude" aria-pressed="false">Claude's</button>
       <button class="chip" id="f-decide" data-f="decide" aria-pressed="false">Decisions</button>
+      <button class="chip" id="f-agent" data-f="agent" aria-pressed="false">From agents</button>
     </div>
     <label class="toggle"><input type="checkbox" id="showclosed"> Show closed</label>
   </div>
@@ -342,12 +344,18 @@ function tasks(body) {
   return { total: all.length, done: all.filter((t) => /\[(x|X)\]/.test(t)).length };
 }
 function isOpen(i) { return String(i.state).toUpperCase() === "OPEN"; }
+// Questions an agent asked the owner: GitHub label "agent" (synced into `labels`), or a "**From:** <Name> agent" field.
+function isAgent(i) {
+  return (i.labels || []).some((l) => String(l?.name ?? l).toLowerCase() === "agent") || /agent/i.test(field(i.body, "From"));
+}
+function agentName(i) { const m = /^(\w[\w ]*?)\s+agent\b/i.exec(field(i.body, "From")); return m ? m[1] : ""; }
 function matches(i) {
   if (!S.showClosed && !isOpen(i)) return false;
   const who = field(i.body, "Who").toLowerCase();
   if (S.filter === "you") return /\byou\b/.test(who);
   if (S.filter === "claude") return /claude/.test(who);
   if (S.filter === "decide") return kindOf(i.title) === "decide" || /\bdecide\b/i.test(i.body || "");
+  if (S.filter === "agent") return isAgent(i);
   return true;
 }
 function visible() { return S.issues.filter(matches).sort((a, b) => a.number - b.number); }
@@ -444,6 +452,7 @@ function card(i) {
       <div class="meta">
         <span class="num">#${i.number}</span>
         <span class="kind k-${k}">${k === "other" ? "Issue" : k}</span>
+        ${isAgent(i) ? `<span class="kind k-agent" title="A question an agent asked you">Agent${agentName(i) ? " · " + escapeHtml(agentName(i)) : ""}</span>` : ""}
         ${isOptional(i.title) ? `<span class="tag-opt">Optional</span>` : ""}
         <span class="state ${isOpen(i) ? "open" : ""}">${isOpen(i) ? "Open" : "Closed"}</span>
         <button type="button" class="jumplink" data-brief="${i.number}">Briefing ↓</button>
@@ -888,7 +897,7 @@ async function undoReply(n, id, kind, btn) {
 
 // ---------- boot ----------
 (async function boot() {
-  const f = store.get("filter"); if (f && ["all", "you", "claude", "decide"].includes(f)) S.filter = f;
+  const f = store.get("filter"); if (f && ["all", "you", "claude", "decide", "agent"].includes(f)) S.filter = f;
   const h = /^#i(\d+)$/.exec(location.hash || ""); if (h) S.current = +h[1];
   if (location.hash === "#changes") setView("changes");
   syncFilterUI(); render();
