@@ -737,3 +737,97 @@ Advisors are scored within the profile they serve. A once-a-day advisor isn't ju
 - The names of the game tables for cooldowns, bind status and quest use.
 
 All are flagged where used.
+---
+
+## Follow-up: how many signals can we actually use? (owner's question, 2026-11-15)
+
+Asked of the same Strategist run after the interview (resumed with its context intact).
+
+### 1. Where the returns stop
+
+- **A player can weigh about 3–5 signals per decision.** That's one headline answer (is it profit?)
+  plus 2–4 supporting signals: will it sell, how sure are we, and one piece of context such as trend
+  or timing. An item page can show about 7 if they're grouped. Beyond that, people skim or freeze.
+- **An advisor agent can usefully read about 15–25 independent signals per decision**, as structured
+  fields, each with its confidence. The limit isn't reading speed. It's what our data can support.
+  We have two weeks of history, and many signals come from the same quantity and price numbers, so
+  they move together. Forty signals that are really eight in disguise add no knowledge, only false
+  confidence.
+- **Background checks have almost no limit**, because they don't need judgement. Each is a yes/no
+  check or a warning label: stale data, wrong house, penny item, bait listing. 10–20 of them is fine,
+  and more is cheap.
+
+### 2. Signals 21–40 that would genuinely help
+
+| # | Signal | Decision it serves | New data? |
+|---|---|---|---|
+| 21 | **Price impact**: how far the price falls per extra 100 units posted | Gatherers and crafters: how many to sell | Derived (depth + flows) |
+| 22 | **Recovery time** after a flood or reset | Buy the dip, cornering | Derived |
+| 23 | **Lag between reagent and product prices** (reagent jumps, product follows days later) | Crafting, speculation | New: recipes |
+| 24 | **Substitutes and linked items** (e.g. Black Lotus and the flasks made from it) | Crafting, speculation | New: recipes |
+| 25 | **Rough seller count**: distinct lot sizes and repost patterns | Competition, cornering | **Collect now or lose** (raw pulls) |
+| 26 | **Lot-size mix of new listings** | Deposit-change study, undercut behaviour | **Collect now or lose** (raw, before ~11-28) |
+| 27 | **Expiry waves**: when large batches posted at the evening peak will expire | Sell timing, short-lived shortages | **Collect now or lose** (raw time-left) |
+| 28 | **"Wall" listings**: one big lot at a price that caps any rise | Flips and posting price | **Collect now or lose** (raw price ladder) |
+| 29 | **Market age**: first date an item appeared | New-content speculation | Have |
+| 30 | **Stock-outs**: hours with zero listings | Shortage selling, cornering | Have |
+| 31 | **Overall activity**: total listings and postings per house per hour | Reading demand across the whole market | Have |
+| 32 | **Leveling-demand index** across level-banded items | Level and phase trend, gathering | New: item levels |
+| 33 | **Leading signal from other regions** (EU, KR, TW) | Speculation | New, and **collect now or lose** (the API serves only the latest snapshot; we collect US only, ADR 0003) |
+| 34 | **Vendor price changes between game builds** | Vendor floors, vendor-resale plays | New: game tables per build |
+| 35 | **Datamined upcoming content** | Speculation | New source, low trust |
+| 36 | **Disenchant value floor** | Enchanters, gear flips | New source |
+| 37 | **Supply caps from cooldowns** | Crafting | New: game tables |
+| 38 | **How fast the other faction's home price reacts to Blackwater listings** | Bridge trades | Derived |
+| 39 | **Advisor agreement**: how many advisors back or oppose a trade | Trusting advice | Derived (advice log) |
+| 40 | **The player's own record** on this item or kind of trade | Sizing, which advisor to follow | New: trade journal |
+
+### 3. When more signals start to hurt, and the guard for each
+
+- **False alarms from testing many things at once.** There are about 6,950 items, 15 houses and many
+  signals. Even a 1-in-20 false-alarm rate produces hundreds of fake "deals" a day.
+  **Guard:** fix a small set of signals in advance; require a signal to persist across 2 or more
+  snapshots; raise the bar as more things are tested; publish each signal's measured hit rate.
+- **Overfitting to a two-week-old launch market.** Patterns found in week 1 may simply be launch noise.
+  **Guard:** prove each signal on later data it wasn't built on (build on week 1, test on week 2);
+  keep formulas simple and versioned; re-test monthly; show "not yet established" until there are
+  4 weeks or more of data.
+- **Double counting.** Discount (S2) and flood (S9) both come from quantity, so confidence looks
+  higher than it is. **Guard:** group signals into families (price, sales, supply, timing, fees) and
+  count one vote per family.
+- **Slower decisions.** A wall of numbers delays action and hides the answer. **Guard:** one headline
+  answer per tool, with detail only when asked for.
+- **Advisors contradicting each other.** **Guard:** all advisors read the same data snapshot and
+  formula version. Any disagreement must name the signal and the risk profile behind it ("the banker
+  skips this because sell-through is 0.08"). Show agreement (#39).
+- **Crowding.** Shared signals stop working if many users act on them. **Guard:** count how many users
+  saw each piece of advice (N9).
+
+### 4. Suggested structure
+
+**In front of the player (3–5 per view):**
+- Net margin after fees (S1)
+- Will it sell, and how fast (S3 and S6)
+- How sure we are, including data age (confidence and S7)
+- One piece of context that depends on the tool: trend check (S2) on the deal scanner, clearing price
+  (S4) on the posting helper, timing (S10) on the watchlist
+
+**Advisors only (as data):** all of S1–S10 in full detail; signals 21–28, 32–33 and 36–40 where
+available; each with its confidence and its family label.
+
+**Silent gates and warnings** (each blocks a row or adds a label; none is shown as a number):
+- Wrong house
+- Variant identity
+- Stale data or missed hours
+- Penny item or price-step noise
+- Unconfirmed fees
+- Bait: a single cheapest unit
+- Reset signature
+- Falling knife
+- Thin market
+- An event in the window
+- Too little history
+- Patterns that look like gold trading (economy-hold risk)
+
+Gates are cheap to add and protect trust. Each signal in front of the player has to earn its place
+with a measured hit rate.
