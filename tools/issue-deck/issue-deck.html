@@ -90,6 +90,11 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
   margin-top: 12px; padding-bottom: 6px; scrollbar-width: none; overscroll-behavior-x: contain; align-items: flex-start; }
 .track::-webkit-scrollbar { display: none; }
+/* Reloads (e.g. a link clicked in chat) fade in instead of popping: the page first, then the cards when they arrive. */
+@keyframes deck-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.wrap { animation: deck-in .35s ease-out both; }
+.track.ready { animation: deck-in .3s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .wrap, .track.ready { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .track { scroll-behavior: auto; } }
 .empty { padding: 32px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; width: 100%; }
 
@@ -331,6 +336,7 @@ function render() {
   }
   renderNav(list);
   if (S.current != null) jump(S.current, false);
+  track.classList.add("ready");   // first time only: the fade-in runs once, later renders don't re-trigger it
 }
 
 // Briefings are written by Claude during syncs (collection `briefings`, doc b<number>).
