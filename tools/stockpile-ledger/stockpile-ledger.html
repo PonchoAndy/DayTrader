@@ -151,16 +151,19 @@ tr:last-child td { border-bottom: 0 }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   // Money: stored as integer copper; shown as gold with 4 decimals (owner's format: 1.0101 = 1g 1s 1c).
+  // ADR 0011: round once at display, integer arithmetic only; a non-zero amount under 1c shows "< 0.0001".
   const gold = (c, signed) => {
     if (c == null || !isFinite(c)) return "—";
-    const s = (Math.round(c) / 10000).toFixed(4);
-    return signed && c > 0 ? "+" + s : s;
+    const r = Math.round(Math.abs(c)) * Math.sign(c);
+    if (r === 0 && c !== 0) return "< 0.0001";
+    const a = Math.abs(r), s = (r < 0 ? "-" : signed && r > 0 ? "+" : "") + Math.trunc(a / 10000).toLocaleString("en-US") + "." + String(a % 10000).padStart(4, "0");
+    return s;
   };
   const gsc = (c) => { c = Math.round(Math.abs(c)); const g = Math.floor(c / 10000), s = Math.floor(c % 10000 / 100), k = c % 100;
     return [g ? g + "g" : "", s ? s + "s" : "", (k || (!g && !s)) ? k + "c" : ""].filter(Boolean).join(" "); };
   const money = (c, signed) => `<span class="money" title="${c == null ? "" : gsc(c)}">${gold(c, signed)}</span>`;
-  // Per-unit values can fall between coppers (5 for 0.0012 total); show them with up to 2 more places.
-  const unit = (c) => c == null ? "—" : (Number.isInteger(Math.round(c * 100) / 100) ? gold(c) : (c / 10000).toFixed(6).replace(/0+$/, ""));
+  // Per-unit values (averages) are rounded to whole copper for display; totals stay exact.
+  const unit = (c) => c == null ? "—" : gold(c);
 
   function parseMoney(raw) {
     const t = String(raw || "").trim().toLowerCase().replace(/,/g, ".");
