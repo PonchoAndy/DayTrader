@@ -1,0 +1,37 @@
+<title>DayTrader Mock-ups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a short contents page for the Designer's first mock-ups; one card per page. Prototype tokens. */
+:root { --bg: #eef1f4; --surface: #ffffff; --fg: #18212b; --muted: #5b6875; --line: #d9dfe5; --gold: #a87412; --gold-soft: #f6ead0;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif; --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0f1419; --surface: #171e26; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542; --gold: #e3b34f; --gold-soft: #3a2f17; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #0f1419; --surface: #171e26; --fg: #e4e9ee; --muted: #93a0ad; --line: #2b3542; --gold: #e3b34f; --gold-soft: #3a2f17; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+.eyebrow { font: 600 12px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 28px/1.2 var(--f-display); margin: 6px 0 0; text-wrap: balance; }
+p { margin: 0; max-width: 65ch; }
+.muted { color: var(--muted); }
+.note { background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.cards { display: grid; gap: 12px; }
+a.card { display: grid; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; color: inherit; text-decoration: none; }
+a.card:hover, a.card:focus-visible { border-color: var(--gold); outline: none; }
+a.card b { font: 600 17px/1.3 var(--f-display); }
+a.card span { color: var(--muted); font-size: 14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DayTrader · Designer's first mock-ups · 2026-11-15</div>
+    <h1>DayTrader Mock-ups</h1>
+  </header>
+  <p class="muted">The Designer turned the Strategist's intents into two tools and a shared visual language. Open each page; they work on a phone and in dark mode.</p>
+  <p class="note"><b>Sample data:</b> prices and quantities are real (house 113, 14 Nov 2026, 03:17–18:17 UTC). Sale rates, depth, clearing prices, survival odds and the verdicts are invented to show the design, and are marked † or "sample". The controls don't change anything yet.</p>
+  <div class="cards">
+    <a class="card" href="deal-scanner.html"><b>Deal scanner →</b><span>"What's worth a look in my house right now?" Ranked by worse-case gold after fees, with certain and probable deals apart, and a section of traps that look like deals but aren't (Thorium Bar's reset, Crimson Lotus's falling price, a 1-silver bait).</span></a>
+    <a class="card" href="item-page.html"><b>Item page: Thorium Bar →</b><span>"Buy, post, wait or skip?" A verdict split by role (buyer: wait; holder: post), price and supply on one time line with the 17:17 reset marked, and all ten signals grouped by the question they answer.</span></a>
+    <a class="card" href="visual-language.html"><b>Visual language →</b><span>The shared rules every screen follows: signal speed, data age, confidence, estimate versus firm, warning flags, and certain versus probable.</span></a>
+  </div>
+</div>
