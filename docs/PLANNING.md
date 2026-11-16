@@ -247,9 +247,16 @@ This explains "five per faction" and the always-empty houses. The API can't show
 and houses have no ruleset field (re-checked 2026-11-15). **Take the ruleset from the house ID, never from the query.**
 Mail between rulesets is blocked ("You can't send mail to that ruleset", client text) and characters can't change ruleset
 (Blizzard; dead Hardcore characters excepted). Factions on the same ruleset meet only at their shared Blackwater house. An
-unplaced "Auction House" (ID 122) in the files shows each faction its own market; where it is and what cut it charges are
-unknown. Matches wowauctionhouse.com's labels. One in-game marker listing makes it firm (#13). Note: earlier docs and
+unplaced "Auction House" (ID 122) is Blackwater in the files (FactionID 369, deposit rate 25, **15% cut** [datamined, build
+70938]), yet the redirect table points each faction to its own ruleset market; where it is in the world is unknown. Matches wowauctionhouse.com's labels. One in-game marker listing makes it firm (#13). Note: earlier docs and
 mock-ups treat **113 (PvP Horde)** as the owner's house; they need switching to 114.
+
+**Durations confirmed (2026-11-15, Researcher, #13) [our data]:** of 213k listings under 1 h old, 12% showed MEDIUM (30 min–2 h
+left), so a 2-hour option exists; none showed SHORT. Listing lengths are 2/8/24 h, not retail's 12/24/48 (a 48 h option isn't
+ruled out yet: a listing living over ~25 h would show it). Cut and deposit rates in the files (build 70938): faction houses
+5% cut, deposit rate 5; Blackwater 15% cut, deposit rate 25. **#13 status:** only the marker listing (house 114), one
+sale-mail cut and one Blackwater deposit still need the owner, none time-limited; the pre-maintenance 1-silver deposit is
+already confirmed by many player tests.
 
 ### Path B: In-game addon scan (how Auctionator works)
 
