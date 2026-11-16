@@ -36,7 +36,7 @@ folders under `eu/`.
 |---|---|---|---|
 | `raw/`, `eu/raw/` | Full hourly pulls, gzipped (US ~15 MB, Europe ~18 MB an hour at gzip level 1) | **14 days for now** (back to 7 once #37's measurements are done, #38) | ~11 GB at 14 days (US 5, Europe 6); ~5.5 GB at 7 |
 | `hourly/`, `eu/hourly/` | Per-item summaries (~1.3–1.6 MB each) | 90 days | ~6.3 GB (US 2.8, Europe 3.5) |
-| `flows/` | Listing flows + extra measures (#37, nightly since 2026-11-15; US only for now, Europe is #56) | 90 days | ~3 GB (estimate; measure after a week) |
+| `flows/` | Listing flows + extra measures (#37, nightly since 2026-11-15; US only for now, Europe is #56). From 2026-11-16 also early/expired by duration (#69) and the cancel check (#81): ~4% larger files | 90 days | ~3 GB (estimate; measure after a week) |
 | `daily/` | Daily roll-up (#26, not built yet) | Forever | +~1.3 GB a year |
 | `items/`, `runs/`, `state/` | Names, run logs, collector state | Forever | tiny |
 
@@ -66,7 +66,8 @@ Gzip level 1 (for speed, #54) made raw files ~25% bigger than the first estimate
 | Workload | Minutes a month (est.) |
 |---|---|
 | Hourly collector, US + Europe (1 min × 24 × 31) | ~744 |
-| Nightly flows, US (measured 2026-11-15: ~5 min a day, billed 6) | ~190 |
+| Nightly flows, US (measured 2026-11-15: ~5 min a day, billed 6; the #69/#81 columns add ~4% locally, still billed 6) | ~190 |
+| One-off flows rebuild (`flows_rebuild` switch, #69/#81): ~5–8 min per region per day still in raw/, e.g. ~4 days × US + EU ≈ 50 min, once | (+~50 once) |
 | Nightly flows, Europe, if chosen (#56; estimate ~7–8 min a day) | (+~250) |
 | Daily roll-up (#26, not built yet) | (+~30–60) |
 | Manual report / demo / health / market runs (1 min each; market ~1–3 min once the bucket holds weeks of hourly files) | ~20–30 |

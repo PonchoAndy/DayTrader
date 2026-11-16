@@ -28,6 +28,9 @@ analysis layer and build-helper agents in progress (`.claude/agents/`, ADR 0010)
   `docs/PLANNING.md` section 5. Never delete an ADR; supersede it with a new one.
 - Session recaps: `docs/sessions/` — read the latest one first.
 - The user is not deeply technical: explain steps plainly and say where to click.
+- **Questions are questions, not requests** (owner's preference, 2026-11-16): the owner often asks about
+  capabilities and what's happening from a place of not knowing. Answer, offer options, and wait for an
+  imperative ("do it", "go ahead", "fix it") before acting. If unsure whether something is a request, ask.
 - When listing issues in chat, link each issue number to its Issue Deck card, e.g.
   [#30](https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL#i30). The `#i<N>` suffix opens that card.
 - Never commit secrets. Keys live in GitHub Actions secrets or the cloud environment's

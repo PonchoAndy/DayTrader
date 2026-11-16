@@ -7,15 +7,41 @@ expires) and writes one row per region × house × kind × item × variant × ho
 Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later one):
 - hours_between, new_listings, new_units
 - gone_{short,medium,long,very_long}_units: listings that vanished, by their last time-left bucket.
-  LONG/VERY_LONG vanishings are "early" (sold or cancelled); SHORT/MEDIUM are probably expiries.
+- early_units / expired_units: vanished units split into "early" (sold or cancelled) and "probably
+  expired" (#69). A listing's duration (2, 8 or 24 h) follows from its FIRST time-left bucket (MEDIUM,
+  LONG, VERY_LONG; time-left labels: SHORT < 30 min, MEDIUM 30 min-2 h, LONG 2-12 h, VERY_LONG > 12 h).
+  It was posted between the snapshot before its first sighting ("posted_after") and the first sighting,
+  so it can't have expired before posted_after + duration: vanishing by then is early. Vanishing later
+  counts as expired (it may still have been bought in its last hour; that stays invisible). Listings with
+  an unknown start, first seen SHORT, or first seen after a gap of over 6 h use the old rule: early if
+  last seen LONG/VERY_LONG. Before the 2026-11-16 code, "early" always meant the old rule, so a 2-hour
+  listing's sales counted as expiries; files with an `early_units` column use the new rule.
+- early_2h_units / early_8h_units / early_24h_units / early_unknown_dur_units: early units by duration
+- early_short_medium_units: early units last seen SHORT/MEDIUM (the ones the old rule called expired)
 - partial_units, partial_value: units bought out of a listing that stayed up (certain sales), copper
 - early_at_min / early_within5 / early_within20 / early_above: early-vanished units by price position
   against prev's cheapest unit price (where buyers actually buy)
 - early_value: copper value of early vanishings, unit price capped at 2x prev's median
 - relist_guess_units: early vanishings matched by a new listing of the same size at <= the price
-- age_lt2h / age_2_12h / age_12_24h / age_24_48h / age_48h_plus: early-vanished units by how long the
-  listing had been up (first seen -> last seen); first-seen times are carried across days in
-  [<region>/]state/first_seen.parquet
+- age_lt2h / age_2_12h / age_12_24h / age_24_48h / age_48h_plus / age_unknown: early-vanished units by
+  how long the listing had been up (first seen -> last seen); first-seen times are carried across days in
+  [<region>/]state/first_seen.parquet (id, first_seen, posted_after, first_tl, burst)
+  (early_*, age_* and relist_guess_units follow the early rule above, so they too include 2-hour
+  listings from the 2026-11-16 code on.)
+- Cancel check (#81): "sold" is inferred from early vanishing, so cancels that aren't reposted look like
+  sales. Per early-vanished listing:
+  - early_skipped_units (commodities only): a commodity buyer always gets the cheapest units first, so a
+    listing that vanished while a cheaper one stayed up all hour wasn't bought.
+  - early_burst_units: the listing was posted in a burst, an hour when the item got at least 3x its usual
+    new units (trailing 24-hour hourly average, at least 6 hours of history) in at least 5 new listings.
+  - early_batch_units: at least 3 lots with the same size, price and first-seen hour vanished together.
+  - suspect_cancel_units: skipped, or burst AND batch (a batch that went up suddenly came down whole).
+  - suspect_cheap_units: the suspects inside early_at_min + early_within5 (what sold estimates count),
+    leaving out listings already matched as relists. A "clean" sold estimate is
+    partial_units + early_at_min + early_within5 - relist_guess_units - suspect_cheap_units.
+  - burst_units: new units this hour, if this hour was a burst for the item (else 0)
+  - cancel_flag: 1 when suspect_cheap_units is at least a quarter of partial_units + early_at_min +
+    early_within5 (this hour's sale signal is likely cancel noise)
 - undercut_listings, undercut_units: new listings priced below prev's cheapest
 - new_lot_lt1s / new_lot_1_10s / new_lot_10s_1g / new_lot_1_10g / new_lot_ge10g: new listings by
   total listing value (the deposit-change baseline), plus new_lot_sizes (distinct quantities)
@@ -25,8 +51,14 @@ Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later on
 - wall_units, wall_price: the largest single listing within 5% of cur's cheapest
 - cur_tl_{short,medium,long,very_long}_units: time-left mix now (expiry waves)
 
-Usage: python collector/flows.py [--regions us,eu] [--local DIR] [--day YYYY-MM-DD] [--max-days N]
-Without --day it processes every complete UTC day in raw/ that has no flows file yet.
+Each day's log line (and runs/flows/*.json) also carries checks: new units by first time-left bucket
+(H-D1/H-D3: MEDIUM well above zero means 2-hour listings are in use), `overlived` (listing-hours still
+up after their implied duration; should be ~0, else the duration rule is wrong), and day totals of
+early_short_medium_units and suspect_cheap_units.
+
+Usage: python collector/flows.py [--regions us,eu] [--local DIR] [--day YYYY-MM-DD] [--max-days N] [--rebuild]
+Without --day it processes every complete UTC day in raw/ that has no flows file yet. --rebuild redoes
+every complete day still in raw/, oldest first, from an empty first-seen state (overwrites flows files).
 """
 from __future__ import annotations
 
@@ -47,6 +79,20 @@ from collect import LocalStore, R2Store, _loads, prefix, variant_key  # noqa: E4
 
 TL = ["SHORT", "MEDIUM", "LONG", "VERY_LONG"]
 KEYS = ["house_id", "kind", "item_id", "variant"]
+
+# Early vs expired (#69): durations are 2/8/24 h, and the first time-left bucket tells which one.
+DURATION_H = {"MEDIUM": 2, "LONG": 8, "VERY_LONG": 24}
+SLACK_H = 0.25          # allows for the refresh minute drifting a few minutes between snapshots
+MAX_FIRST_GAP_H = 6     # after a longer gap an 8 h listing can be first seen MEDIUM: duration unknown
+# Cancel check (#81)
+BURST_X, BURST_MIN_LISTINGS, BURST_MIN_HOURS, BURST_WINDOW = 3, 5, 6, 24
+BATCH_MIN_LOTS = 3
+FLAG_SHARE = 0.25
+STATE_COLS = ["first_seen", "posted_after", "first_tl", "burst"]
+FIXED_COLS = (["early_units", "expired_units", "early_2h_units", "early_8h_units", "early_24h_units",
+               "early_unknown_dur_units", "early_short_medium_units", "early_at_min", "early_within5",
+               "early_within20", "early_above", "early_skipped_units", "early_burst_units", "early_batch_units",
+               "suspect_cancel_units", "suspect_cheap_units", "burst_units"])
 
 
 def list_keys(store, pfx: str) -> list[str]:
@@ -85,11 +131,15 @@ def load_snapshot(store, keys: list[str]) -> pd.DataFrame:
     return df.astype({"id": "int64", "house_id": "int16", "item_id": "int32", "qty": "int32", "price": "int64"})
 
 
-def flows(prev: pd.DataFrame, cur: pd.DataFrame, first_seen: pd.Series, t_prev, t_cur) -> pd.DataFrame:
+def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_cur,
+          base: pd.Series, base_hours: int) -> tuple[pd.DataFrame, np.ndarray, dict]:
+    """One hour's flows. state: per listing id (index) first_seen, posted_after, first_tl, burst.
+    base: trailing mean new units per hour per item (KEYS index) over base_hours hours.
+    Returns the table, the ids of new listings posted in a burst, and day-log checks."""
     hrs = (t_cur - t_prev).total_seconds() / 3600
     j = prev.merge(cur[["house_id", "kind", "id", "qty", "price"]], on=["house_id", "kind", "id"], how="left",
                    suffixes=("", "_cur"), indicator=True)
-    gone = j[j["_merge"] == "left_only"].copy()
+    gone = j[j["_merge"] == "left_only"].join(state, on="id")
     stay = j[j["_merge"] == "both"]
     part = stay[stay["qty_cur"] < stay["qty"]].copy()
     part["pu"] = part["qty"] - part["qty_cur"]
@@ -104,15 +154,26 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, first_seen: pd.Series, t_prev, 
     # gone by time-left
     g = gone.pivot_table(index=KEYS, columns="tl", values="qty", aggfunc="sum", fill_value=0)
     out.append(g.reindex(columns=TL, fill_value=0).rename(columns={t: f"gone_{t.lower()}_units" for t in TL}))
-    early = gone[gone["tl"].isin(["LONG", "VERY_LONG"])].join(pref, on=KEYS)
+    # early vs expired (#69): it can't have expired before posted_after + its duration
+    t_cur_ts = pd.Timestamp(t_cur)
+    since = (t_cur_ts - gone["posted_after"]).dt.total_seconds() / 3600
+    gap = (gone["first_seen"] - gone["posted_after"]).dt.total_seconds() / 3600
+    dur = gone["first_tl"].map(DURATION_H).where(gap <= MAX_FIRST_GAP_H)
+    gone["dur"] = np.select([dur == 2, dur == 8, dur == 24], ["early_2h_units", "early_8h_units", "early_24h_units"],
+                            "early_unknown_dur_units")
+    gone["early"] = np.where(dur.notna(), since <= dur + SLACK_H, gone["tl"].isin(["LONG", "VERY_LONG"]))
+    out.append(gone[~gone["early"]].groupby(KEYS)["qty"].sum().rename("expired_units"))
+    early = gone[gone["early"]].join(pref, on=KEYS)
+    out.append(early.groupby(KEYS)["qty"].sum().rename("early_units"))
+    out.append(early.pivot_table(index=KEYS, columns="dur", values="qty", aggfunc="sum", fill_value=0))
+    out.append(early[early["tl"].isin(["SHORT", "MEDIUM"])].groupby(KEYS)["qty"].sum().rename("early_short_medium_units"))
     r = early["price"] / early["p_min"]
     early["pos"] = np.select([r <= 1.0001, r <= 1.05, r <= 1.20], ["early_at_min", "early_within5", "early_within20"], "early_above")
     out.append(early.pivot_table(index=KEYS, columns="pos", values="qty", aggfunc="sum", fill_value=0))
     early["val"] = early["qty"] * np.minimum(early["price"], 2 * early["p_med"])
     out.append(early.groupby(KEYS)["val"].sum().rename("early_value"))
     # listing age at vanishing (first seen -> last seen in prev)
-    fs = early["id"].map(first_seen)
-    age = (pd.Timestamp(t_prev) - pd.to_datetime(fs, utc=True)).dt.total_seconds() / 3600
+    age = (pd.Timestamp(t_prev) - early["first_seen"]).dt.total_seconds() / 3600
     early["age"] = pd.cut(age.fillna(-1), [-np.inf, 0, 2, 12, 24, 48, np.inf],
                           labels=["age_unknown", "age_lt2h", "age_2_12h", "age_12_24h", "age_24_48h", "age_48h_plus"], right=False)
     out.append(early.pivot_table(index=KEYS, columns="age", values="qty", aggfunc="sum", fill_value=0, observed=False))
@@ -124,13 +185,40 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, first_seen: pd.Series, t_prev, 
     lot = newl["qty"] * newl["price"]
     newl["lot"] = pd.cut(lot, [0, 100, 1000, 10000, 100000, np.inf], right=False,
                          labels=["new_lot_lt1s", "new_lot_1_10s", "new_lot_10s_1g", "new_lot_1_10g", "new_lot_ge10g"])
-    out.append(newl.groupby(KEYS).agg(new_listings=("id", "size"), new_units=("qty", "sum"),
-                                      undercut_listings=("under", "sum"), new_lot_sizes=("qty", "nunique")))
+    nk = newl.groupby(KEYS).agg(new_listings=("id", "size"), new_units=("qty", "sum"),
+                                undercut_listings=("under", "sum"), new_lot_sizes=("qty", "nunique"))
+    out.append(nk)
     out.append(newl[newl["under"]].groupby(KEYS)["qty"].sum().rename("undercut_units"))
     out.append(newl.pivot_table(index=KEYS, columns="lot", values="id", aggfunc="size", fill_value=0, observed=False))
-    rl = early[KEYS + ["qty", "price"]].merge(newl[KEYS + ["qty", "price"]], on=KEYS + ["qty"], suffixes=("", "_n"))
-    rl = rl[rl["price_n"] <= rl["price"]].drop_duplicates(KEYS + ["qty", "price"])
+    rl = early[KEYS + ["id", "qty", "price"]].merge(newl[KEYS + ["qty", "price"]], on=KEYS + ["qty"], suffixes=("", "_n"))
+    rl = rl[rl["price_n"] <= rl["price"]]
+    relisted = rl["id"].unique()
+    rl = rl.drop_duplicates(KEYS + ["qty", "price"])
     out.append(rl.groupby(KEYS)["qty"].sum().rename("relist_guess_units"))
+
+    # cancel check (#81)
+    # bursts: this hour's new units >= 3x the item's trailing hourly mean, in >= 5 new listings
+    burst_ids = np.array([], dtype="int64")
+    if base_hours >= BURST_MIN_HOURS and len(nk):
+        bb = nk[["new_listings", "new_units"]].join(base.rename("base"))
+        bb = bb[(bb["new_listings"] >= BURST_MIN_LISTINGS) & (bb["new_units"] >= BURST_X * np.maximum(bb["base"].fillna(0), 1))]
+        out.append(bb["new_units"].rename("burst_units"))
+        burst_ids = newl.loc[newl.set_index(KEYS).index.isin(bb.index), "id"].values
+    # commodities: cheapest price among listings that stayed up all hour
+    smin = stay[stay["kind"] == "commodities"].groupby(KEYS)["price"].min().rename("s_min")
+    early = early.join(smin, on=KEYS)
+    early["skip"] = early["price"] > early["s_min"]                  # NaN (no survivor) -> False
+    early["burst"] = early["burst"].eq(True)
+    lots = early.groupby(KEYS + ["qty", "price", "first_seen"], dropna=True)["id"].transform("size")
+    early["batch"] = lots.reindex(early.index).fillna(0) >= BATCH_MIN_LOTS
+    early["suspect"] = early["skip"] | (early["burst"] & early["batch"])
+    early["sus_cheap"] = (early["suspect"] & early["pos"].isin(["early_at_min", "early_within5"])
+                          & ~early["id"].isin(relisted))
+    fl = pd.DataFrame({c: early["qty"] * early[f] for c, f in [
+        ("early_skipped_units", "skip"), ("early_burst_units", "burst"), ("early_batch_units", "batch"),
+        ("suspect_cancel_units", "suspect"), ("suspect_cheap_units", "sus_cheap")]})
+    out.append(fl.groupby([early[k] for k in KEYS]).sum())
+
     # current book: depth, at-min crowding, wall, time-left mix
     c = cur.join(cmin, on=KEYS)
     rr = c["price"] / c["c_min"]
@@ -148,14 +236,24 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, first_seen: pd.Series, t_prev, 
 
     df = pd.concat(out, axis=1).fillna(0)
     df.columns = [str(c) for c in df.columns]
+    for col in FIXED_COLS:                      # same columns every hour, even when nothing of a kind happened
+        if col not in df:
+            df[col] = 0
     df = df.reset_index()
     for col in df.columns:
         if col not in KEYS and col != "variant" and df[col].dtype.kind == "f":
             df[col] = df[col].round().astype("int64")
+    sale = df["partial_units"] + df["early_at_min"] + df["early_within5"]
+    df["cancel_flag"] = ((df["suspect_cheap_units"] > 0) & (df["suspect_cheap_units"] >= FLAG_SHARE * sale)).astype("int8")
     df.insert(0, "hours_between", round(hrs, 2))
     df.insert(0, "prev_snapshot", pd.Timestamp(t_prev))
     df.insert(0, "snapshot", pd.Timestamp(t_cur))
-    return df
+
+    # checks for the day log: first time-left bucket of new listings (H-D1/H-D3)
+    checks = {"new_units_first_tl": {k: int(v) for k, v in newl.groupby("tl")["qty"].sum().items()},
+              "early_short_medium_units": int(df["early_short_medium_units"].sum()),
+              "suspect_cheap_units": int(df["suspect_cheap_units"].sum())}
+    return df, burst_ids, checks
 
 
 def snapshots(store, pre: str) -> dict:
@@ -167,44 +265,86 @@ def snapshots(store, pre: str) -> dict:
     return {datetime.strptime(s, "%Y%m%dT%H%MZ").replace(tzinfo=timezone.utc): ks for s, ks in sorted(snaps.items())}
 
 
-def run_region(store, region: str, days: list[str] | None, max_days: int) -> list[dict]:
+def load_state(raw: bytes | None) -> pd.DataFrame:
+    """First-seen state per listing id. Files from before 2026-11-16 have only first_seen: their listings
+    get an unknown posted_after / first_tl, so they're classified by the old rule (#69)."""
+    st = pd.read_parquet(io.BytesIO(raw)).set_index("id") if raw else add_state(None, [])
+    if "posted_after" not in st:
+        st["posted_after"] = pd.Series(pd.NaT, index=st.index, dtype="datetime64[ns, UTC]")
+        st["first_tl"] = pd.Series(None, index=st.index, dtype="object")
+        st["burst"] = False
+    return st[STATE_COLS]
+
+
+def add_state(st: pd.DataFrame | None, ids, first_seen=None, posted_after=None, first_tl=None) -> pd.DataFrame:
+    """Append listings first seen at first_seen (None = start unknown), posted after posted_after."""
+    idx = pd.Index(ids, dtype="int64", name="id")
+    ts = lambda t: pd.Series(pd.Timestamp(t) if t is not None else pd.NaT, index=idx, dtype="datetime64[ns, UTC]")
+    new = pd.DataFrame({"first_seen": ts(first_seen), "posted_after": ts(posted_after),
+                        "first_tl": pd.Series(first_tl, index=idx, dtype="object"),
+                        "burst": pd.Series(False, index=idx, dtype="bool")}, index=idx)
+    return new if st is None or not len(st) else pd.concat([st, new])
+
+
+def run_region(store, region: str, days: list[str] | None, max_days: int, rebuild: bool = False) -> list[dict]:
     pre = prefix(region)
     snaps = snapshots(store, pre)
     times = sorted(snaps)
     done = {k.rsplit("/", 1)[1][:10] for k in list_keys(store, f"{pre}flows/")}
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    todo = sorted({t.strftime("%Y-%m-%d") for t in times[1:]} - done - {today}) if not days else days
+    if rebuild:      # every complete day still in raw/, oldest first, from an empty state
+        todo, done = sorted({t.strftime("%Y-%m-%d") for t in times[1:]} - {today}), set()
+    else:
+        todo = sorted({t.strftime("%Y-%m-%d") for t in times[1:]} - done - {today}) if not days else days
     todo = todo[:max_days]
-    fs_raw = store.get(f"{pre}state/first_seen.parquet")
-    first_seen = pd.read_parquet(io.BytesIO(fs_raw)).set_index("id")["first_seen"] if fs_raw else pd.Series(dtype="datetime64[ns, UTC]")
+    state = load_state(None if rebuild else store.get(f"{pre}state/first_seen.parquet"))
+    hist: list[pd.DataFrame] = []          # last 24 hours' new units per item, for burst detection (#81)
     logs = []
     for day in todo:
         t0 = time.time()
         pairs = [(a, b) for a, b in zip(times, times[1:]) if b.strftime("%Y-%m-%d") == day]
+        if not hist and not rebuild:       # seed the burst baseline from the previous day's flows
+            pd_ = (datetime.strptime(day, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+            raw = store.get(f"{pre}flows/{pd_[:7]}/{pd_}.parquet")
+            if raw:
+                pf = pd.read_parquet(io.BytesIO(raw), columns=["snapshot"] + KEYS + ["new_units"])
+                hist = [x[x["new_units"] > 0] for _, x in pf.groupby("snapshot")][-BURST_WINDOW:]
         rows, prev_df, prev_t = [], None, None
+        checks = {"new_units_first_tl": {}, "overlived": 0, "early_short_medium_units": 0, "suspect_cheap_units": 0}
         for a, b in pairs:
             if prev_t != a:
                 prev_df = load_snapshot(store, snaps[a])
                 # Listings already up when this chain starts (no earlier processed hour) have an unknown
                 # start; mark them NaT so they count as age_unknown, not as brand new.
-                unseen = prev_df["id"][~prev_df["id"].isin(first_seen.index)].values
-                first_seen = pd.concat([first_seen, pd.Series(pd.NaT, index=unseen, dtype="datetime64[ns, UTC]")])
+                state = add_state(state, prev_df["id"][~prev_df["id"].isin(state.index)].values)
             cur_df = load_snapshot(store, snaps[b])
-            first_seen = pd.concat([first_seen, pd.Series(pd.Timestamp(b), index=cur_df["id"][~cur_df["id"].isin(first_seen.index)].values, dtype="datetime64[ns, UTC]")])
-            f = flows(prev_df, cur_df, first_seen, a, b)
+            nw = cur_df[~cur_df["id"].isin(state.index)]
+            state = add_state(state, nw["id"].values, b, a, nw["tl"].values)
+            base = (pd.concat(hist).groupby(KEYS)["new_units"].sum() / len(hist)) if hist else pd.Series(dtype=float)
+            f, burst_ids, ck = flows(prev_df, cur_df, state, a, b, base, len(hist))
+            if len(burst_ids):
+                state.loc[state.index.isin(burst_ids), "burst"] = True
             f.insert(1, "region", region)
             rows.append(f)
+            hist = (hist + [f.loc[f["new_units"] > 0, KEYS + ["new_units"]]])[-BURST_WINDOW:]
+            for k, v in ck["new_units_first_tl"].items():
+                checks["new_units_first_tl"][k] = checks["new_units_first_tl"].get(k, 0) + v
+            for k in ("early_short_medium_units", "suspect_cheap_units"):
+                checks[k] += ck[k]
             prev_df, prev_t = cur_df, b
-            first_seen = first_seen[first_seen.index.isin(cur_df["id"])]   # only listings still up
+            state = state[state.index.isin(cur_df["id"])]   # only listings still up
+            # data check: a listing still up after its implied duration means the duration rule is off (#69)
+            sdur = state["first_tl"].map(DURATION_H).where(state["first_seen"] - state["posted_after"] <= pd.Timedelta(hours=MAX_FIRST_GAP_H))
+            checks["overlived"] += int(((pd.Timestamp(b) - state["posted_after"]) > pd.to_timedelta(sdur + SLACK_H, unit="h")).sum())
         if not rows:
             continue
         table = pd.concat(rows, ignore_index=True)
         buf = io.BytesIO(); table.to_parquet(buf, index=False, compression="zstd")
         store.put(f"{pre}flows/{day[:7]}/{day}.parquet", buf.getvalue())
-        fsb = io.BytesIO(); first_seen.rename("first_seen").rename_axis("id").reset_index().to_parquet(fsb, index=False)
+        fsb = io.BytesIO(); state.reset_index().to_parquet(fsb, index=False)
         store.put(f"{pre}state/first_seen.parquet", fsb.getvalue())
         log = {"region": region, "day": day, "pairs": len(pairs), "rows": len(table), "bytes": buf.tell(),
-               "seconds": round(time.time() - t0, 1)}
+               "seconds": round(time.time() - t0, 1), **checks}
         print(json.dumps(log)); logs.append(log)
     return logs
 
@@ -215,12 +355,14 @@ def main() -> int:
     ap.add_argument("--local", help="read/write this folder instead of R2")
     ap.add_argument("--day", action="append", help="process this UTC day (repeatable); default: all missing complete days")
     ap.add_argument("--max-days", type=int, default=31)
+    ap.add_argument("--rebuild", action="store_true",
+                    help="redo every complete day still in raw/ from an empty first-seen state (overwrites flows)")
     args = ap.parse_args()
     use_r2 = not args.local and all(os.environ.get(k) for k in ("R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
     store = R2Store(os.environ.get("R2_BUCKET", "daytrader-data")) if use_r2 else LocalStore(Path(args.local or "data/store"))
     t0 = time.time(); logs = []
     for region in [r.strip() for r in args.regions.split(",") if r.strip()]:
-        logs += run_region(store, region, args.day, args.max_days)
+        logs += run_region(store, region, args.day, args.max_days, args.rebuild)
     summary = {"finished": datetime.now(timezone.utc).isoformat(), "seconds": round(time.time() - t0, 1), "days": logs}
     store.put(f"runs/flows/{datetime.now(timezone.utc):%Y-%m-%dT%H%M%S}.json", json.dumps(summary, indent=1).encode(), "application/json")
     print(f"Flows done in {summary['seconds']} s: {len(logs)} region-days")

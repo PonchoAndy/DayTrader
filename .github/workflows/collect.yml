@@ -27,6 +27,10 @@ on:
         description: "Don't collect; build listing flows for every complete day not done yet (collector/flows.py, #37)"
         type: boolean
         default: false
+      flows_rebuild:
+        description: "Don't collect; rebuild listing flows for every day still in raw/, overwriting them (new rules, #69/#81)"
+        type: boolean
+        default: false
       demo:
         description: "Don't collect; commit the overnight series for the demo page (tools/overnight-demo/) to this branch"
         type: boolean
@@ -41,7 +45,8 @@ on:
         default: false
 
 concurrency:
-  group: collect
+  # A flows rebuild can take an hour; its own group keeps it from holding up (and cancelling) hourly runs.
+  group: ${{ inputs.flows_rebuild && 'flows-rebuild' || 'collect' }}
   cancel-in-progress: false
 
 permissions:
@@ -49,7 +54,7 @@ permissions:
 
 jobs:
   collect:
-    if: ${{ !inputs.demo && !inputs.flows && !inputs.health && !inputs.market && github.event.schedule != '35 1 * * *' }}
+    if: ${{ !inputs.demo && !inputs.flows && !inputs.flows_rebuild && !inputs.health && !inputs.market && github.event.schedule != '35 1 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -85,9 +90,9 @@ jobs:
 
   # Daily (01:35 UTC) or manual: listing flows from raw pulls (#37, ADR 0008). Catches up on any missed days.
   flows:
-    if: ${{ inputs.flows || github.event.schedule == '35 1 * * *' }}
+    if: ${{ inputs.flows || inputs.flows_rebuild || github.event.schedule == '35 1 * * *' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150   # a nightly run takes ~5-12 min; a full rebuild (flows_rebuild) ~5-7 min per day still in raw/
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -109,7 +114,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: .venv/bin/python collector/flows.py
+        run: .venv/bin/python collector/flows.py ${{ inputs.flows_rebuild && '--rebuild' || '' }}
 
   # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
   demo:
@@ -138,7 +143,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/overnight-demo/demo-data.json
-          git commit -m "Demo data export" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Demo data export" && git push; fi
 
   # Manual only: the last 48 hours of run health per region (#18, #54) for Claude sessions, which
   # can't read R2 or download logs. Read-only on R2; the only job besides demo that writes to the repo.
@@ -176,7 +181,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/health/health.json
-          git commit -m "Health summary export" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Health summary export" && git push; fi
 
   # Manual only: price history, listing flows and vendor prices of crafting materials (Trade Goods,
   # reagents) for US and EU, for Claude sessions, which can't read R2. Read-only on R2; Blizzard is
@@ -217,4 +222,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/market/market.json
-          git commit -m "Market export: crafting-material prices" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Market export: crafting-material prices" && git push; fi

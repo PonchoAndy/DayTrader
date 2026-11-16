@@ -1,0 +1,72 @@
+{
+ "generated_at": "2026-11-16T04:08:13+00:00",
+ "regions": {
+  "us": {
+   "region": "us",
+   "from": "2026-11-14T04:08+00:00",
+   "to": "2026-11-16T04:08+00:00",
+   "runs": 50,
+   "stored": 48,
+   "no_new_data": 2,
+   "deadline": 0,
+   "failed": 0,
+   "with_errors": 0,
+   "first_snapshot": "20261114T0417Z",
+   "last_snapshot": "20261116T0317Z",
+   "hours_since_last_snapshot": 0.9,
+   "hours_missed": [
+    "2026-11-14T06",
+    "2026-11-14T12",
+    "2026-11-15T00",
+    "2026-11-15T01",
+    "2026-11-16T01"
+   ],
+   "houses_flagged": [],
+   "other_flags": {
+    "1 hour(s) missed since 20261116T0017Z": 1
+   },
+   "refresh_minutes": {
+    ":17": 48
+   },
+   "job_seconds": {
+    "runs": 29,
+    "median": 18.1,
+    "max": 67.5,
+    "over_55": 2,
+    "over_60": 1
+   }
+  },
+  "eu": {
+   "region": "eu",
+   "from": "2026-11-14T04:08+00:00",
+   "to": "2026-11-16T04:08+00:00",
+   "runs": 29,
+   "stored": 29,
+   "no_new_data": 0,
+   "deadline": 0,
+   "failed": 0,
+   "with_errors": 0,
+   "first_snapshot": "20261115T0219Z",
+   "last_snapshot": "20261116T0318Z",
+   "hours_since_last_snapshot": 0.8,
+   "hours_missed": [
+    "2026-11-16T01"
+   ],
+   "houses_flagged": [],
+   "other_flags": {
+    "1 hour(s) missed since 20261116T0019Z": 1
+   },
+   "refresh_minutes": {
+    ":18": 8,
+    ":19": 21
+   },
+   "job_seconds": {
+    "runs": 29,
+    "median": 18.1,
+    "max": 67.5,
+    "over_55": 2,
+    "over_60": 1
+   }
+  }
+ }
+}

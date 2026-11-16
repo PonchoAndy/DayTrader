@@ -60,8 +60,13 @@ FIELDS = ["min", "p25", "median", "quantity"]
 LADDER = [(72, 1, 0), (72, 3, 0), (48, 3, 0), (48, 6, 0), (24, 6, 0), (24, 12, 0), (24, 24, 0),
           (24, 24, 10), (24, 24, 25)]
 # Daily sums from flows.py (units). sold_est is the best guess at units bought:
-#   partial (certain sales) + early_cheap (vanished with 2+ h left, within 5% of the cheapest) - relist
-FLOW_FIELDS = ["sold_est", "partial", "early_cheap", "early", "gone_short_medium", "relist", "new"]
+#   partial (certain sales) + early_cheap (vanished early, within 5% of the cheapest) - relist
+# "Early" = vanished before the listing could have expired (#69; flows from 2026-11-16 on; older days: with
+# 2+ h left). early_short_medium = early units the old rule counted as expired. suspect = early_cheap units
+# that look like cancels (#81), sold_clean = sold_est - suspect, cancel_flag = 1 when suspect is at least a
+# quarter of partial + early_cheap. New fields go at the end so existing positions don't move.
+FLOW_FIELDS = ["sold_est", "partial", "early_cheap", "early", "gone_short_medium", "relist", "new",
+               "expired", "early_short_medium", "suspect", "sold_clean", "cancel_flag"]
 
 
 def get_parquet(store, key: str, columns: list[str] | None = None) -> pd.DataFrame | None:
@@ -116,18 +121,25 @@ def load_flows(store, region: str, ids: set[int]) -> tuple[pd.DataFrame, pd.Seri
         hours[day] = float(f.drop_duplicates("snapshot")["hours_between"].sum())
         f = f[f["item_id"].isin(ids) & (f["variant"] == "")]
         g = lambda c: f[c] if c in f else 0   # a column is absent when nothing of that kind happened that day
+        gsm = g("gone_short_units") + g("gone_medium_units")
+        new_rule = "early_units" in f           # flows built from 2026-11-16 on (#69)
         d = pd.DataFrame({"house_id": f["house_id"], "item_id": f["item_id"], "day": day,
                           "partial": g("partial_units"),
                           "early_cheap": g("early_at_min") + g("early_within5"),
-                          "early": g("gone_long_units") + g("gone_very_long_units"),
-                          "gone_short_medium": g("gone_short_units") + g("gone_medium_units"),
-                          "relist": g("relist_guess_units"), "new": g("new_units")})
+                          "early": g("early_units") if new_rule else g("gone_long_units") + g("gone_very_long_units"),
+                          "gone_short_medium": gsm,
+                          "relist": g("relist_guess_units"), "new": g("new_units"),
+                          "expired": g("expired_units") if new_rule else gsm,
+                          "early_short_medium": g("early_short_medium_units"),
+                          "suspect": g("suspect_cheap_units")})
         rows.append(d.groupby(["house_id", "item_id", "day"], as_index=False).sum())
     print(f"[{region}] {len(keys)} flows files read")
     if not rows:
         return pd.DataFrame(), pd.Series(dtype=float)
     t = pd.concat(rows, ignore_index=True)
     t["sold_est"] = (t["partial"] + t["early_cheap"] - t["relist"]).clip(lower=0)
+    t["sold_clean"] = (t["sold_est"] - t["suspect"]).clip(lower=0)
+    t["cancel_flag"] = ((t["suspect"] > 0) & (t["suspect"] >= 0.25 * (t["partial"] + t["early_cheap"]))).astype(int)
     return t, pd.Series(hours).sort_index()
 
 
@@ -254,9 +266,13 @@ def main() -> int:
 
     notes = ("Prices: copper per unit (100 copper = 1 silver, 10000 = 1 gold); quantity = units listed; null = not "
              "listed that hour. Percentiles are quantity-weighted. Flows are units per UTC day, summed over the "
-             "hours in flow_hours (24 = a full day). sold_est = partial + early_cheap - relist: a low estimate, "
-             "because a listing bought while it showed SHORT/MEDIUM time left counts as gone_short_medium (expired?), "
-             "and every 2-hour listing shows MEDIUM from the start (#69). gone_short_medium is the upper margin.")
+             "hours in flow_hours (24 = a full day). sold_est = partial + early_cheap - relist. Early = vanished before "
+             "the listing could have expired, judged from its duration (2/8/24 h, #69); days built before 2026-11-16 "
+             "used 'vanished with 2+ h left', which counted 2-hour listings' sales as expired. Sales in a listing's "
+             "last hour still count as expired, so sold_est stays a low estimate; expired is the upper margin. "
+             "suspect = early_cheap units that look like cancels (a commodity that vanished while a cheaper one "
+             "stayed up, or a sudden batch pulled down whole, #81); sold_clean = sold_est - suspect; cancel_flag = 1 "
+             "when suspect is at least a quarter of partial + early_cheap that day.")
     budget = args.max_mb * 1e6
     for full, every, min_l in LADDER:
         regions_out = {}
