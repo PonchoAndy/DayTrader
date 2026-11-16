@@ -1,19 +1,19 @@
 {
- "generated_at": "2026-11-16T04:08:13+00:00",
+ "generated_at": "2026-11-16T05:08:37+00:00",
  "regions": {
   "us": {
    "region": "us",
-   "from": "2026-11-14T04:08+00:00",
-   "to": "2026-11-16T04:08+00:00",
-   "runs": 50,
-   "stored": 48,
+   "from": "2026-11-14T05:08+00:00",
+   "to": "2026-11-16T05:08+00:00",
+   "runs": 49,
+   "stored": 47,
    "no_new_data": 2,
    "deadline": 0,
    "failed": 0,
    "with_errors": 0,
-   "first_snapshot": "20261114T0417Z",
+   "first_snapshot": "20261114T0517Z",
    "last_snapshot": "20261116T0317Z",
-   "hours_since_last_snapshot": 0.9,
+   "hours_since_last_snapshot": 1.9,
    "hours_missed": [
     "2026-11-14T06",
     "2026-11-14T12",
@@ -26,7 +26,7 @@
     "1 hour(s) missed since 20261116T0017Z": 1
    },
    "refresh_minutes": {
-    ":17": 48
+    ":17": 47
    },
    "job_seconds": {
     "runs": 29,
@@ -38,8 +38,8 @@
   },
   "eu": {
    "region": "eu",
-   "from": "2026-11-14T04:08+00:00",
-   "to": "2026-11-16T04:08+00:00",
+   "from": "2026-11-14T05:08+00:00",
+   "to": "2026-11-16T05:08+00:00",
    "runs": 29,
    "stored": 29,
    "no_new_data": 0,
@@ -48,7 +48,7 @@
    "with_errors": 0,
    "first_snapshot": "20261115T0219Z",
    "last_snapshot": "20261116T0318Z",
-   "hours_since_last_snapshot": 0.8,
+   "hours_since_last_snapshot": 1.8,
    "hours_missed": [
     "2026-11-16T01"
    ],
