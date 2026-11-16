@@ -44,6 +44,10 @@ so formulas must be able to change later. Missed hours happen (#28).
   version × hour, units newly posted, units vanished by last time-left bucket, units partly
   bought, a guessed repost count, and the capped value of early vanishings. Built from raw pulls by
   matching listing IDs between consecutive hours.
+  *Update 2026-11-16 (#69, #81):* "early" (sold or cancelled) vs. expired is judged from each
+  listing's duration (2/8/24 h, read from its first time-left bucket), not its last bucket; files
+  built from 2026-11-16 carry `early_units` / `expired_units` and the cancel-check columns
+  (`suspect_cancel_units`, `suspect_cheap_units`, `cancel_flag`). See `collector/flows.py`.
 - **Daily roll-up** (`daily/<YYYY-MM>/<date>.parquet`, kept forever): price percentiles
   (low/median/high of hourly p10, median p25 and median), quantity open/close/low/median/high,
   hours seen, net drain, and the day's flow sums. Every row carries region, ruleset, house, faction.

@@ -219,6 +219,21 @@ reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #1
     Europe from 11-18; no jump by 11-20 means it didn't ship.
   - **H-D5** Blackwater sellers pick 2 h more often (weak; the in-game check is better).
   - **H-D6** maintenance hours: listings returned at maintenance must not count as sales.
+  - **Results (2026-11-16, Data engineer, #69; US, live pulls 01:17–04:17 UTC):** **H-D1 holds so far:**
+    of ~501k new listings (first seen 02:17 and 03:17), 11.7% were first seen MEDIUM (17% of units), 69% LONG,
+    19% VERY_LONG, none SHORT;
+    only 60 of 29,243 first-seen-MEDIUM listings were still up 2 h later (0.2%, all showing SHORT: probably
+    expired listings the API hadn't cleared yet). "Almost none over ~25 h" needs a day of data: the nightly
+    flows log's `overlived` count now checks it. **H-D3:** MEDIUM share of new listings 11.6% for both
+    commodities and gear; by house 3–14% (faction houses 110/111/113/114 11–14%, Blackwater and 119/120/124
+    3–13%). **Miscount:** 107k–214k units an hour that the old rule called expired were 2-hour listings
+    vanishing early (+10–19% early units; hour-sum sold estimate +16% at 03:17), mostly ammunition by units
+    (Razor Arrow, Solid Shot, Sharp Arrow), then cloth, bars and leather. Fixed in `flows.py` (#69).
+  - **Cancel check (#81, 2026-11-16):** commodity buyers get the cheapest units first: 99.9% of partly bought
+    units (certain sales) were at the cheapest surviving price. So a commodity listing that vanished while a
+    cheaper one stayed up all hour was not bought ("skipped"): 14–19% of commodity early units an hour,
+    mostly priced well above the cheapest (already outside the sold estimate); 4–5% of the "cheap" early
+    units that sold estimates count. `flows.py` now flags these and burst-posted batches pulled down whole.
 - **Sale gold** arrives by mail after 60 minutes for stackable goods (about 2 minutes for gear), a
   change players noticed around Nov 10–11. No evidence that new listings or undercuts appear late on
   the house itself; the delay that matters for us is Blizzard's hourly snapshot at :17.

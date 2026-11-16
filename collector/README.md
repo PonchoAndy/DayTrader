@@ -16,7 +16,7 @@
 | `hourly/<YYYY-MM-DD>/<snapshot>.parquet` | One row per house × kind × item × **variant**: listings, quantity, min / p10 / p25 / median / max unit price (copper). `variant` = the listing's bonus IDs joined with `:` (`""` = no variant; always `""` for commodities). Files before 2026-11-14 ~04:00 UTC have no `variant` column (variants merged). | 90 days (R2 rule `expire-hourly-summaries-90d`; ADR 0007) |
 | `items/items.parquet` | Item names: `item_id, name, quality, item_class, item_subclass, inventory_type, source, checked_at`. `source` = `forever` / `retail` / `missing`. Join it to the summaries on `item_id`. | indefinitely (~0.3 MB) |
 | `items/bonuses.parquet` | Variant names: `bonus_id, suffix, stats, source_build, fetched_at`, e.g. 12718 → "of the Eagle", "Intellect + Stamina". From WoW Forever's game data on wago.tools (branch `wowf`), refreshed weekly. | replaced weekly |
-| `flows/<YYYY-MM>/<day>.parquet` (and `eu/flows/`) | Listing flows per hour from matching listing IDs in `raw/` (`flows.py`, #37, ADR 0008): posted, vanished by time-left, partly bought, price position and age of early vanishings, undercuts, lot-value mix, depth, crowding at the cheapest, walls, time-left mix. Columns are listed at the top of `flows.py`. Built daily at 01:35 UTC; catches up on missed days. `state/first_seen.parquet` carries listing start times across days. | 90 days (R2 rule `expire-flows-90d`) |
+| `flows/<YYYY-MM>/<day>.parquet` (and `eu/flows/`) | Listing flows per hour from matching listing IDs in `raw/` (`flows.py`, #37, ADR 0008): posted, vanished by time-left, early (sold or cancelled) vs. expired, partly bought, price position and age of early vanishings, undercuts, lot-value mix, depth, crowding at the cheapest, walls, time-left mix, and a cancel check (`suspect_cancel_units`, `suspect_cheap_units`, `cancel_flag`, #81). Columns are listed at the top of `flows.py`. **Meaning change (#69):** "early" is judged from the listing's duration (2/8/24 h, from its first time-left bucket) in files built by the 2026-11-16 code, which have an `early_units` column; older files used "vanished with 2+ h left", which counted 2-hour listings' sales as expiries. `early_at_min`…`early_above`, `early_value`, `age_*` and `relist_guess_units` follow whichever rule built the file; `gone_*_units` (by last time-left bucket) never changed. Built daily at 01:35 UTC; catches up on missed days. `state/first_seen.parquet` carries per listing `first_seen`, `posted_after` (the snapshot before it), `first_tl` (first time-left bucket) and `burst` across days. The workflow's **flows_rebuild** switch redoes every day still in `raw/` with the current rules. | 90 days (R2 rule `expire-flows-90d`) |
 | `runs/<YYYY-MM-DD>/<HHMMSS>.json` | Log of each run: result, sizes, timings (`seconds`, `job_seconds`), errors, and a `health` record (below) | indefinitely (tiny) |
 | `state/latest.json` | Last stored snapshot, each house's Last-Modified (used to skip runs with no new data) and, from 2026-11-15, `listings` per `<house>-<kind>` (priced listings, for the health check) | — |
 
@@ -70,10 +70,16 @@ branch (from `main` it only writes it on the runner). Read-only on R2.
   region's `snapshots`: min, p25, median unit price (copper, `null` = not listed) and quantity listed.
 - **Flows**, per region → house → item: one array per `flow_fields` entry, aligned with `flow_days`
   (`flow_hours` = hours covered that day). Units per day: `partial` (certain sales), `early_cheap`
-  (vanished with 2+ h left within 5% of the cheapest), `early` (all vanished with 2+ h left: sold or
-  cancelled), `gone_short_medium` (vanished in the last 2 h: expired, or bought), `relist`, `new`, and
-  `sold_est = partial + early_cheap - relist`. `sold_est` is a low estimate: a 2-hour listing shows
-  MEDIUM from the start, so its sales land in `gone_short_medium` (#69).
+  (vanished early, within 5% of the cheapest), `early` (all early vanishings: sold or cancelled),
+  `gone_short_medium` (vanished while showing under 2 h left), `relist`, `new`, and
+  `sold_est = partial + early_cheap - relist`. Then (added 2026-11-16): `expired` (vanished when it could
+  have expired), `early_short_medium` (early units the old rule called expired: the #69 correction),
+  `suspect` (early_cheap units that look like cancels, #81), `sold_clean = sold_est - suspect`, and
+  `cancel_flag` (1 when `suspect` is at least a quarter of `partial + early_cheap`). "Early" means
+  vanished before the listing could have expired, judged from its 2/8/24 h duration, in flows built from
+  2026-11-16; older days used "vanished with 2+ h left", which counted 2-hour listings' sales as expired
+  (for those days `expired` = `gone_short_medium` and the new fields are 0). `sold_est` stays a low
+  estimate: a sale in a listing's last hour still looks like expiry.
 - **Size:** ~73 KB per region per hour kept. Over 8 MB (`--max-mb`), the newest 72/48/24 hours stay
   hourly and older hours are thinned to every 3rd/6th/12th/24th UTC hour; as a last step, series
   averaging under 10, then 25, listings an hour are dropped. `sampling` in the file says what was used.
