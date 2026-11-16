@@ -389,6 +389,7 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Ruleset: Normal** first; collect all rulesets if it costs nothing extra. Right now every
   ruleset returns the same houses, so "all rulesets" is the same data as one.
 - **Three phases of use** (ADR 0013): playground (now), the app, the AH terminal (addon).
+- **Trading day:** 12:00–12:00 UTC (7am Eastern in winter; ADR 0014, #44), named by its start date.
 - **Home house: 114** (US, Normal, Horde; ADR 0012, #85). Reachable: 114 and Blackwater 117. A row's ruleset
   comes from its house ID (map in §1), never from the API query.
 - **Faction: Horde** is the primary market. Collect **Alliance** (and neutral) too. The API
