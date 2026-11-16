@@ -138,7 +138,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/overnight-demo/demo-data.json
-          git commit -m "Demo data export" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Demo data export" && git push; fi
 
   # Manual only: the last 48 hours of run health per region (#18, #54) for Claude sessions, which
   # can't read R2 or download logs. Read-only on R2; the only job besides demo that writes to the repo.
@@ -176,7 +176,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/health/health.json
-          git commit -m "Health summary export" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Health summary export" && git push; fi
 
   # Manual only: price history, listing flows and vendor prices of crafting materials (Trade Goods,
   # reagents) for US and EU, for Claude sessions, which can't read R2. Read-only on R2; Blizzard is
@@ -217,4 +217,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/market/market.json
-          git commit -m "Market export: crafting-material prices" && git push || echo "Nothing new to commit"
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Market export: crafting-material prices" && git push; fi
