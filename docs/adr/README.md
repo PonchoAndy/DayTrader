@@ -21,6 +21,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0011](0011-money-whole-copper-shown-as-four-decimal-gold.md) | Money is whole copper underneath; shown as gold with four decimals | Accepted |
 | [0012](0012-home-house-114-ruleset-from-house-id.md) | Home house is 114 (US Normal Horde); the ruleset comes from the house ID | Accepted |
 | [0013](0013-three-phases-of-use.md) | Three phases of use: playground, app, AH terminal | Accepted |
+| [0014](0014-trading-day-starts-12-utc.md) | A trading day starts at 12:00 UTC (7am US Eastern in winter) | Accepted |
 
 ## Statuses
 
