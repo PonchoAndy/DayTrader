@@ -37,7 +37,7 @@ W = your scratchpad directory.
    "Write the Stockpile Ticker briefing. For each held item, 2-4 plain sentences for the owner: what the lowest
    and middle price, units listed and sales did since the last briefing and over the last 24-48 hours, and
    whether that is normal for this item and hour (label observation / pattern). Prices as gold with 4 decimals
-   (copper / 10000), times in US Eastern with UTC in brackets. No trade calls. Also a one-sentence headline for
+   (copper / 10000), times in US Eastern on the 24-hour clock with UTC in brackets, e.g. 14:25 ET (19:25 UTC). No trade calls. Also a one-sentence headline for
    the whole stockpile, and for each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the
    last 24 hours at 0.0300+'; no numbering). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}}."
    Spot-check any hour counts and prices it quotes against brief.json and fix mistakes before writing.
