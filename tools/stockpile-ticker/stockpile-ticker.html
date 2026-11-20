@@ -102,8 +102,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
 .shit{stroke:transparent;stroke-width:12;cursor:pointer}
 .shit:hover{stroke:var(--sales);stroke-opacity:.15}
 .sgrid{stroke:var(--sales);stroke-opacity:.12;stroke-width:1;stroke-dasharray:1 3}
-.lline{fill:none;stroke:var(--sales);stroke-width:1.25;stroke-opacity:.8;stroke-dasharray:1.5 3;stroke-linecap:round;pointer-events:none}
-.ldot{fill:var(--sales);fill-opacity:.7;stroke:transparent;stroke-width:8}
+.lline{fill:none;stroke:var(--sales);stroke-width:1;stroke-opacity:.8;stroke-dasharray:3 2;stroke-linejoin:round;pointer-events:none}
 .msg{background:var(--panel);border:1px dashed var(--line);padding:24px 16px;color:var(--muted);text-align:center}
 </style>
 
@@ -127,7 +126,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
       <span><i style="background:repeating-linear-gradient(90deg,var(--floor) 0 6px,transparent 6px 10px);height:2px"></i>Vendor floor</span>
       <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
       <span><i style="background:var(--sales);opacity:.55;height:2px"></i><em class="zx">Units sold per hour, bottom band (low estimate)</em><em class="zn">Sold/hour (low est.)</em></span>
-      <span><i style="background:repeating-linear-gradient(90deg,var(--sales) 0 2px,transparent 2px 5px);height:2px"></i><em class="zx">Units listed, same band and scale (steps of ten)</em><em class="zn">Listed</em></span>
+      <span><i style="background:repeating-linear-gradient(90deg,var(--sales) 0 3px,transparent 3px 5px);height:2px"></i><em class="zx">Units listed, same band and scale (steps of ten)</em><em class="zn">Listed</em></span>
     </div>
   </div>
 
@@ -141,7 +140,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
 
   <section class="notes">
     <h2>About these numbers</h2>
-    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. The purple band along the bottom shows units listed (dotted line: how many were up for sale at each snapshot) and units sold per hour (solid steps), on one scale that goes up in steps of ten (0, 10, 100, 1,000), so a day with ten times more listed is one step higher (6-hour averages on the all-days view, every hour when zoomed), from listings that vanished; it's counted each night, so the most recent 12 to 36 hours have none yet. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
+    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. The purple band along the bottom shows units listed (dashed steps: how many were up for sale at each snapshot) and units sold per hour (solid steps), on one scale that goes up in steps of ten (0, 10, 100, 1,000), so a day with ten times more listed is one step higher (6-hour averages on the all-days view, every hour when zoomed), from listings that vanished; it's counted each night, so the most recent 12 to 36 hours have none yet. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
     <p>Numbers refresh every hour (about 15 minutes past). The Analyst writes a new briefing for each holding every 6 hours, and sooner if a lowest price moves 30% or more. Units sold comes from listing flows, built each night, and runs low: it counts only sales we can be sure of. GitHub skips about 3 hourly runs a day, so a few hours are missing. Briefings describe what the data shows; they aren't a forecast or a promise of profit.</p>
   </section>
 </div>
@@ -331,19 +330,21 @@ function render() {
     }
     // Units listed (the stock on the auction house at each snapshot), in the same band on the same scale, as a
     // dotted line: supply next to sales. Known for every hour (no nightly wait). 6-hour means on the all-days view.
-    const lpts = it.qty.map((q, i) => q == null || !inView[i] ? null : {t: times[i], v: q}).filter(Boolean);
+    // Drawn as steps like the sales line: each snapshot's count spans the hour(s) since the previous snapshot.
+    const lpts = it.qty.map((q, i) => q == null || !inView[i] ? null :
+      {i, e: times[i], s: i > 0 && times[i] - times[i-1] <= 3*H ? times[i-1] : times[i] - H, v: q}).filter(Boolean);
     let listed;
-    if (ZOOM) listed = lpts.map(o => ({...o, tip: `${o.v.toLocaleString()} units listed at ${when(o.t)}`}));
+    if (ZOOM) listed = lpts.map(o => ({...o, tip: `${o.v.toLocaleString()} units listed at ${when(o.e)}`}));
     else {
       const lb = new Map();
       lpts.forEach(o => {
-        const k = Math.floor((o.t - 1 - Date.UTC(2026, 0, 1, 12)) / (6*H));
-        const bk = lb.get(k) || {k, sum: 0, n: 0, ts: 0, last: 0};
-        bk.sum += o.v; bk.n++; bk.ts += o.t; bk.last = Math.max(bk.last, o.t); lb.set(k, bk);
+        const k = Math.floor((o.e - 1 - Date.UTC(2026, 0, 1, 12)) / (6*H));
+        const bk = lb.get(k) || {k, sum: 0, n: 0, s: Infinity, e: 0};
+        bk.sum += o.v; bk.n++; bk.s = Math.min(bk.s, o.s); bk.e = Math.max(bk.e, o.e); lb.set(k, bk);
       });
       listed = [...lb.values()].sort((a, b) => a.k - b.k).map(bk => {
-        const v = Math.round(bk.sum / bk.n);
-        return {t: bk.ts / bk.n, v, tip: `about ${v.toLocaleString()} units listed on average in the 6 hours to ${ETd.format(bk.last)} ET (${bk.n} snapshots)`};
+        const v = Math.round(bk.sum / bk.n), day = tday(new Date(bk.s + H).toISOString().slice(0, 16) + "Z");
+        return {s: bk.s, e: bk.e, v, day, tip: `about ${v.toLocaleString()} units listed on average in the 6 hours to ${ETd.format(bk.e)} ET (${bk.n} snapshots). Click to see ${dayLabel(day)} hour by hour.`};
       });
     }
     // One scale for both, in steps of ten (0, 10, 100, 1,000 ...): listings run 10-50x sales per hour, so on an
@@ -386,13 +387,16 @@ function render() {
         if (!ZOOM) hit.addEventListener("click", () => setZoom(days.includes(o.day) ? o.day : days[days.length - 1]));
       });
     }
-    if (listed.length) {
-      const gap = ZOOM ? 2.5*H : 8*H;   // a longer gap (missing snapshots) breaks the line
-      const d = listed.map((o, k) => `${k && o.t - listed[k-1].t <= gap ? "L" : "M"}${x(o.t).toFixed(1)},${ys(o.v).toFixed(1)}`).join(" ");
+    if (listed.length) {   // same step shape as sales; a gap breaks the line rather than dropping to zero
+      const d = listed.map((o, k) => {
+        const joined = k && Math.abs(o.s - listed[k-1].e) < 60e3;
+        return `${joined ? "L" : "M"}${x(o.s).toFixed(1)},${ys(o.v).toFixed(1)} L${x(o.e).toFixed(1)},${ys(o.v).toFixed(1)}`;
+      }).join(" ");
       el("path", {d, class:"lline"}, salesG);
       listed.forEach(o => {
-        const c = el("circle", {cx:x(o.t), cy:ys(o.v), r: ZOOM ? 2 : 1.5, class:"ldot"}, salesG);
-        el("title", {}, c).textContent = o.tip;
+        const hit = el("line", {x1:x(o.s), x2:x(o.e), y1:ys(o.v), y2:ys(o.v), class:"shit"}, salesG);
+        el("title", {}, hit).textContent = o.tip;
+        if (!ZOOM) hit.addEventListener("click", () => setZoom(days.includes(o.day) ? o.day : days[days.length - 1]));
       });
     }
 
@@ -450,7 +454,7 @@ function render() {
         : counted ? `About ${total.toLocaleString()} sold in the ${counted} hour${counted > 1 ? "s" : ""} counted so far${counted < n ? " (the rest are counted tonight, about 20:35 ET)" : ""}.`
         : "Sales for this day are counted tonight (about 20:35 ET).");
     } else if (steps.length) {
-      cap.textContent = `Bottom band: units listed (dotted) and sold per hour (solid), 6-hour averages. Sales are counted through ${ETd.format(steps[steps.length-1].e)} ET; newer hours are counted tonight, about 20:35 ET.`;
+      cap.textContent = `Bottom band: units listed (dashed) and sold per hour (solid), 6-hour averages. Sales are counted through ${ETd.format(steps[steps.length-1].e)} ET; newer hours are counted tonight, about 20:35 ET.`;
     } else cap.remove();
   });
 }
