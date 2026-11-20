@@ -1,0 +1,12 @@
+{
+  "about": "What the owner holds, for the Stockpile Ticker (#99). Copied from the Stockpile Ledger (buys on 2026-11-15 22:31 UTC). Edit on main when the ledger changes: the next hourly run picks it up. Money in copper per unit.",
+  "region": "us",
+  "house": 114,
+  "house_name": "US house 114 (Horde)",
+  "bought_at": "2026-11-15T22:31Z",
+  "items": [
+    {"id": 249391, "name": "Pyrite", "sym": "PYRT", "units": 60, "cost": 195, "vendor": 100},
+    {"id": 249428, "name": "Pristine Hide", "sym": "HIDE", "units": 60, "cost": 251, "vendor": 250},
+    {"id": 1529, "name": "Jade", "sym": "JADE", "units": 10, "cost": 700, "vendor": 700}
+  ]
+}

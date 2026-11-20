@@ -50,6 +50,10 @@ on:
         description: "Don't collect; rebuild the Analyst's hourly export (tools/analyst/pulse.json) and commit it (to branch analyst-data when run from main)"
         type: boolean
         default: false
+      ticker:
+        description: "Don't collect; just update the Stockpile Ticker's numbers (tools/stockpile-ticker/ticker.json on branch analyst-data, #99)"
+        type: boolean
+        default: false
 
 concurrency:
   # A flows rebuild can take an hour; its own group keeps it from holding up (and cancelling) hourly runs.
@@ -61,10 +65,14 @@ permissions:
   contents: read
 
 jobs:
+  # Also, every hour after collecting: the Stockpile Ticker's numbers (#99), in this job rather than a new
+  # one so a run stays inside GitHub's one-minute billing unit (a separate job would add ~720 min/month).
   collect:
     if: ${{ !inputs.demo && !inputs.flows && !inputs.flows_rebuild && !inputs.health && !inputs.market && !inputs.pulse && github.event.schedule != '35 1 * * *' && github.event.schedule != '0 12 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write   # the ticker step commits to the data-only branch analyst-data
     steps:
       - name: Start the job clock (job_seconds in run logs, #54)
         run: echo "JOB_STARTED=$(date +%s.%N)" >> "$GITHUB_ENV"
@@ -84,6 +92,7 @@ jobs:
         if: steps.venv.outputs.cache-hit != 'true'
         run: python -m venv .venv && .venv/bin/pip install -q -r requirements.txt
       - name: Collect
+        if: ${{ !inputs.ticker }}
         env:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
@@ -95,6 +104,31 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
         run: .venv/bin/python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+      # Reads only hours and flow days it hasn't seen (~2-5 s; a new flow day once a night adds ~10 s). Runs even
+      # when a region failed to collect, and never fails the job: a missed update just waits for the next hour.
+      - name: Stockpile Ticker numbers (#99)
+        if: ${{ !cancelled() && !inputs.report }}
+        continue-on-error: true
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: |
+          F=tools/stockpile-ticker/ticker.json
+          git fetch -q --depth 1 origin analyst-data && git show "FETCH_HEAD:$F" > "$RUNNER_TEMP/prev.json" 2>/dev/null || echo "No previous ticker export; reading every hour"
+          .venv/bin/python collector/ticker.py --out "$RUNNER_TEMP/ticker.json" --prev "$RUNNER_TEMP/prev.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # the daily pulse job pushes to the same branch: on a refused push, start again from its new tip
+          for i in 1 2 3; do
+            git fetch -q --depth 1 origin analyst-data && git checkout -q -B analyst-data FETCH_HEAD
+            mkdir -p "$(dirname $F)" && cp "$RUNNER_TEMP/ticker.json" "$F" && git add "$F"
+            if git diff --cached --quiet; then echo "Nothing new to commit"; exit 0; fi
+            git commit -q -m "Stockpile Ticker export" && git push -q origin HEAD:analyst-data && exit 0
+            echo "Push refused, retrying in 10 s ($i/3)"; sleep 10
+          done
+          exit 1
 
   # Daily (01:35 UTC) or manual: listing flows from raw pulls (#37, ADR 0008). Catches up on any missed days.
   flows:
@@ -279,4 +313,11 @@ jobs:
           fi
           mkdir -p tools/analyst && cp "$RUNNER_TEMP/pulse.json" tools/analyst/pulse.json
           git add tools/analyst/pulse.json
-          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -q -m "Analyst pulse export" && { for i in 1 2 3; do git push origin "HEAD:$B" && break; [ "$i" = 3 ] && exit 1; echo "Push refused, retrying in 10 s ($i/3)"; sleep 10; done; }; fi
+          if git diff --cached --quiet; then echo "Nothing new to commit"; exit 0; fi
+          git commit -q -m "Analyst pulse export"
+          for i in 1 2 3; do
+            git push origin "HEAD:$B" && exit 0
+            [ "$i" = 3 ] && exit 1; echo "Push refused, retrying in 10 s ($i/3)"; sleep 10
+            # the hourly ticker step pushes to analyst-data too: replay this commit on its new tip
+            if [ "$B" = analyst-data ]; then git fetch -q --depth 1 origin "$B" && git checkout -q -B "$B" FETCH_HEAD && cp "$RUNNER_TEMP/pulse.json" tools/analyst/pulse.json && git add tools/analyst/pulse.json && git commit -q -m "Analyst pulse export"; else git pull -q --rebase origin "$B"; fi
+          done
