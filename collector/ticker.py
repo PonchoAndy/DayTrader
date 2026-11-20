@@ -9,7 +9,9 @@ Read-only on R2. Reads, for the region and house in tools/stockpile-ticker/posit
 Output (JSON; money in copper per unit; null = not listed or not known, never zero):
   {generated_at, since, region, house, positions: [...from positions.json],
    hours: ["YYYY-MM-DDTHH:MMZ", ...]            every stored snapshot, oldest first
-   items: {item_id: {min: [...], median: [...], qty: [...]}}    one value per hour
+   flow_hours: [h or null, ...]                 hours since the previous snapshot; null = flows not built yet
+   items: {item_id: {min, median, qty, sold, posted: [...]}}    one value per hour; sold (clean, a low estimate)
+                                                and posted cover the hour(s) ENDING at that snapshot
    flow_days: ["YYYY-MM-DD", ...]               UTC days with listing flows built (nightly, ~01:35 UTC)
    flows: {item_id: {sold: [...], posted: [...]}}               one value per flow day}
 
@@ -100,16 +102,29 @@ def main() -> int:
     items = {str(i): {f: [(rows[h].get(i) or (None, None, None))[n] for h in hours]
                       for n, f in enumerate(("min", "median", "qty"))} for i in sorted(ids)}
 
-    # listing flows: one file per UTC day, built nightly; read days not in the previous export
-    days = list(prev["flow_days"]) if prev else []
-    flows = {str(i): {f: list(prev["flows"][str(i)][f]) for f in ("sold", "posted")} if prev else {"sold": [], "posted": []}
+    # listing flows: one file per UTC day, built nightly; read days not in the previous export.
+    # Kept per hour (the hour ending at each snapshot) and summed per UTC day. An export from before hourly
+    # sales were kept (#99) re-reads every flow day once.
+    hourly_prev = bool(prev) and "flow_hours" in prev
+    days = list(prev["flow_days"]) if hourly_prev else []
+    flows = {str(i): {f: list(prev["flows"][str(i)][f]) for f in ("sold", "posted")} if hourly_prev else {"sold": [], "posted": []}
              for i in sorted(ids)}
+    # per-hour sales: {hour: hours_between} for hours with flows built, {(hour, item): (sold, posted)}
+    fhours = {h: v for h, v in zip(prev["hours"], prev["flow_hours"]) if v is not None} if hourly_prev else {}
+    fvals = {(h, int(i)): (prev["items"][i]["sold"][n], prev["items"][i]["posted"][n])
+             for i in prev["items"] for n, h in enumerate(prev["hours"]) if h in fhours} if hourly_prev else {}
     built = sorted(k.rsplit("/", 1)[1][:10] for k in list_keys(store, f"{prefix(region)}flows/") if k.endswith(".parquet"))
     new_days = [d for d in built if d >= args.since and d not in set(days)]
     if new_days:
-        _, fw, _ = load_flows(store, region, new_days[0], {house}, ids)
+        _, fw, fh = load_flows(store, region, new_days[0], {house}, ids)
+        for ts, v in fh.items():
+            if not pd.isna(v):
+                fhours[pd.Timestamp(ts).strftime("%Y-%m-%dT%H:%MZ")] = round(float(v), 2)
         if len(fw):
-            fw["day"] = pd.to_datetime(fw["snapshot"], utc=True).dt.strftime("%Y-%m-%d")
+            snap = pd.to_datetime(fw["snapshot"], utc=True)
+            fw["day"], fw["hour"] = snap.dt.strftime("%Y-%m-%d"), snap.dt.strftime("%Y-%m-%dT%H:%MZ")
+            for r in fw.itertuples():
+                fvals[(r.hour, int(r.item_id))] = (int(r.sold_clean), int(r.posted))
             per = fw.groupby(["day", "item_id"])[["sold_clean", "posted"]].sum()
         for d in new_days:
             days.append(d)
@@ -118,12 +133,18 @@ def main() -> int:
                 flows[str(i)]["sold"].append(int(per.loc[(d, i), "sold_clean"]) if got else 0)
                 flows[str(i)]["posted"].append(int(per.loc[(d, i), "posted"]) if got else 0)
 
-    if prev and not keys and not new_days:   # nothing new (the collector skipped this hour): leave the file as is
+    # per hour: null = flows not built yet for that hour (never zero); built but no row for the item = 0
+    flow_hours = [fhours.get(h) for h in hours]
+    for i in sorted(ids):
+        for n, f in enumerate(("sold", "posted")):
+            items[str(i)][f] = [None if h not in fhours else (fvals.get((h, i)) or (0, 0))[n] for h in hours]
+
+    if prev and hourly_prev and not keys and not new_days:   # nothing new (the collector skipped this hour): leave the file as is
         Path(args.out).write_text(Path(args.prev).read_text())
         print(f"Ticker export: nothing new since {prev['generated_at']}; newest {hours[-1]}")
         return 0
     res = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "since": args.since,
-           "region": region, "house": house, "bought_at": pos.get("bought_at"), "positions": pos["items"], "hours": hours, "items": items,
+           "region": region, "house": house, "bought_at": pos.get("bought_at"), "positions": pos["items"], "hours": hours, "flow_hours": flow_hours, "items": items,
            "flow_days": days, "flows": flows}
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(res, separators=(",", ":")) + "\n")
