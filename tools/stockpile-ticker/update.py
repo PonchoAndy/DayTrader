@@ -9,7 +9,7 @@ Reads the export collector/ticker.py commits to branch analyst-data, and the pag
 and prints one JSON line: {newest_hour, new_data, briefing_due, reasons, prices}.
 
 A briefing is due when there is none yet, when a 6-hour slot (00, 06, 12, 18 UTC) began since the last one,
-or on a big move since the last one: a held item's lowest price changed by --move (30%) or more. (Hourly
+(and at least 3 hours after the last one), or on a big move since the last one: a held item's lowest price changed by --move (30%) or more. (Hourly
 prices on our houses swing a median ~23% over 12 hours, so a smaller threshold would fire most hours; and
 Pristine Hide sits within a copper of its buy price, so "crossed the buy price" would fire constantly.)
 
@@ -70,7 +70,7 @@ def main() -> int:
     else:
         slot = now.replace(minute=0, second=0, microsecond=0)
         slot -= timedelta(hours=slot.hour % SLOT_HOURS)
-        if ts(last) < slot:
+        if ts(last) < slot and now - ts(last) >= timedelta(hours=3):   # not right after an extra one
             reasons.append(f"6-hour slot {slot:%H:%M} UTC")
         was = state.get("pricesAtBriefing", {})
         for p in t["positions"]:

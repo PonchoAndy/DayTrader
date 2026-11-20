@@ -122,7 +122,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # the daily pulse job pushes to the same branch: on a refused push, start again from its new tip
           for i in 1 2 3; do
-            git fetch -q --depth 1 origin analyst-data && git checkout -q -B analyst-data FETCH_HEAD
+            # the data branch holds only exports, with no code (created by whichever job writes first)
+            if git fetch -q --depth 1 origin analyst-data; then git checkout -q -B analyst-data FETCH_HEAD; else git checkout -q --orphan analyst-data && git rm -rfq .; fi
             mkdir -p "$(dirname $F)" && cp "$RUNNER_TEMP/ticker.json" "$F" && git add "$F"
             if git diff --cached --quiet; then echo "Nothing new to commit"; exit 0; fi
             git commit -q -m "Stockpile Ticker export" && git push -q origin HEAD:analyst-data && exit 0

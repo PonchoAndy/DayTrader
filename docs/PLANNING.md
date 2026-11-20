@@ -446,6 +446,9 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Money** (ADR 0011, #61): stored and computed as whole copper; shown everywhere as **gold with 4 decimals**
   (1g 1s 1c = 1.0101), copper digits set apart visually. Tables keep 4 decimals; prose may round 100g+; amounts under
   a copper per unit are shown per trade.
+- **Stockpile Ticker live** (ADR 0015, #99): numbers refresh hourly (an export at the end of the collect job, copied
+  into the page's database by an hourly Claude task at :15); the Analyst writes a briefing per holding every 6 hours
+  and on a 30% price move.
 
 ## 6. Open questions for you
 
