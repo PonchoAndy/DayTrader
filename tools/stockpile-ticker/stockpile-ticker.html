@@ -6,7 +6,7 @@
 /* Layout: a single-theme trading-terminal screen. Tape on top, summary strip, one panel per holding (Analyst briefing, price bars vs buy price, daily sales volume, Economist's stance), watch list. Numbers and briefings come from the page's database, refreshed hourly by a scheduled Claude session (#99). */
 :root{
   --bg:#0b0f0e; --panel:#121816; --panel2:#0f1513; --line:#22302b; --fg:#d8e4df; --muted:#7f948c;
-  --up:#3fd18a; --down:#ff6b5e; --cost:#e8c14a; --floor:#6aa2ff; --vol:#4a6b60; --sales:#c58cff; --brief:#9fd8c0;
+  --up:#3fd18a; --down:#ff6b5e; --cost:#e8c14a; --floor:#6aa2ff; --vol:#4a6b60; --sales:#9a86c4; --brief:#9fd8c0;
   --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
   --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
   color-scheme:dark;
@@ -72,11 +72,11 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 .daylink rect{fill:transparent;stroke:var(--line)}
 .daylink text{fill:var(--brief);font-weight:600}
 .daylink:hover rect,.daylink:focus-visible rect{fill:var(--line);stroke:var(--brief)}
-.sline{fill:none;stroke:var(--sales);stroke-width:2;stroke-linejoin:round;pointer-events:none}
-.sfill{fill:var(--sales);opacity:.08;pointer-events:none}
+.sline{fill:none;stroke:var(--sales);stroke-width:1;stroke-opacity:.7;stroke-linejoin:round;pointer-events:none}
+.sfill{fill:var(--sales);opacity:.045;pointer-events:none}
 .shit{stroke:transparent;stroke-width:12;cursor:pointer}
-.shit:hover{stroke:var(--sales);stroke-opacity:.25}
-svg text.saxis,svg text.slabel{fill:var(--sales)}
+.shit:hover{stroke:var(--sales);stroke-opacity:.15}
+svg text.saxis,svg text.slabel{fill:var(--sales);fill-opacity:.85}
 svg text.slabel{font-size:11px;pointer-events:none}
 svg text.slabel,svg text.halo{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 .msg{background:var(--panel);border:1px dashed var(--line);padding:24px 16px;color:var(--muted);text-align:center}
