@@ -39,7 +39,7 @@ W = your scratchpad directory.
    whether that is normal for this item and hour (label observation / pattern). Prices as gold with 4 decimals
    (copper / 10000), times in US Eastern with UTC in brackets. No trade calls. Also a one-sentence headline for
    the whole stockpile, and for each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the
-   last 24 hours at 0.0300+'). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}}."
+   last 24 hours at 0.0300+'; no numbering). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}}."
    Spot-check any hour counts and prices it quotes against brief.json and fix mistakes before writing.
    Then one ArtifactData batch: set briefings/<id> {text, writtenAt: now ISO, reasons} for each item,
    set briefings/overall {headline, watch, writtenAt, reasons}. Read the existing docs first for if_version.
