@@ -1,0 +1,25 @@
+{
+  "about": "Items and houses in the Analyst's daily export (collector/pulse.py, #19). Edit freely: add {\"id\": <item id>, \"name\": \"...\"} to items, or house IDs per region. Whole-market totals always cover every house of each exported region.",
+  "houses": {"us": [114, 113], "eu": []},
+  "items": [
+    {"id": 249391, "name": "Pyrite"},
+    {"id": 249428, "name": "Pristine Hide"},
+    {"id": 1529, "name": "Jade"},
+    {"id": 5500, "name": "Iridescent Pearl"},
+    {"id": 1210, "name": "Shadowgem"},
+    {"id": 1705, "name": "Lesser Moonstone"},
+    {"id": 5498, "name": "Small Lustrous Pearl"},
+    {"id": 818, "name": "Tigerseye"},
+    {"id": 774, "name": "Malachite"},
+    {"id": 249427, "name": "Pristine Leather"},
+    {"id": 249410, "name": "Sulfuric Acid"},
+    {"id": 249425, "name": "Bauxite"},
+    {"id": 249399, "name": "Frilled Lichen"},
+    {"id": 249409, "name": "Cerulean Dye"},
+    {"id": 249430, "name": "Magenta Dye"},
+    {"id": 249424, "name": "Rosecap"},
+    {"id": 10940, "name": "Strange Dust"},
+    {"id": 1206, "name": "Moss Agate"},
+    {"id": 2589, "name": "Linen Cloth"}
+  ]
+}

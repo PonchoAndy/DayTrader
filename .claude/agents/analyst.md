@@ -33,8 +33,10 @@ hour, a weekday or an item, so you can say when something isn't.
   - Hours can be missing when GitHub runs late (#28). Never treat a missing hour as zero.
   - Percentiles are weighted by quantity.
 - **Data files** (Claude sessions can't read the storage directly; these are exports committed to a branch):
-  - The daily analyst export (being built; its path and fields are in its README once it exists).
-    Every hour since 2026-11-14 for the watchlist, plus hourly totals for the whole market.
+  - The daily analyst export `tools/analyst/pulse.json` on branch `analyst-data` (not on `main`):
+    every hour since 2026-11-14 for the watchlist (houses 114 and 113), plus hourly totals for the whole
+    market. Fetch it with `git fetch --depth 1 origin analyst-data && git show FETCH_HEAD:tools/analyst/pulse.json > /tmp/pulse.json`;
+    fields and caveats in `tools/analyst/README.md`. Its newest ~12 hours have no flows yet (built nightly).
   - `tools/market/market.json`: ~430 crafting materials. Only the last 24 hours are at full detail
     (older points are every 12 hours), so don't use it for hour-of-day patterns before the last day.
   - Read them with short read-only Python through Bash (pandas and pyarrow are installed). Never change files.

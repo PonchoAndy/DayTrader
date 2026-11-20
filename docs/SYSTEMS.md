@@ -71,7 +71,8 @@ Gzip level 1 (for speed, #54) made raw files ~25% bigger than the first estimate
 | Nightly flows, Europe, if chosen (#56; estimate ~7–8 min a day) | (+~250) |
 | Daily roll-up (#26, not built yet) | (+~30–60) |
 | Manual report / demo / health / market runs (1 min each; market ~1–3 min once the bucket holds weeks of hourly files) | ~20–30 |
-| **Total today** | **~955 of 2,000** (~1,200 with Europe flows) |
+| Daily Analyst export (`pulse`, #19, from 2026-11-20): re-reads the last 3 days (~85 hourly + 4 flows files, est. 35–60 s); a manual full rebuild grows to ~5–10 min at 90 days | ~30–60 |
+| **Total today** | **~1,000 of 2,000** (~1,250 with Europe flows) |
 
 - If the free minutes run out, GitHub's default is to **stop running jobs until the next month**
   (unless a spending limit is set; check Settings → Billing). For a collector, that means lost hours
