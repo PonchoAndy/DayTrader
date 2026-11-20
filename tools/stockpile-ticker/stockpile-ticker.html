@@ -1,0 +1,234 @@
+<title>Stockpile Ticker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single-theme trading-terminal screen. Tape on top, summary strip, one panel per holding (price bars vs buy price + daily sales volume), watch list. */
+:root{
+  --bg:#0b0f0e; --panel:#121816; --line:#22302b; --fg:#d8e4df; --muted:#7f948c;
+  --up:#3fd18a; --down:#ff6b5e; --cost:#e8c14a; --floor:#6aa2ff; --vol:#4a6b60;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header{display:grid;gap:6px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--mono);font-size:26px;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.headline{max-width:68ch;color:var(--fg);margin:0}
+.tape{overflow:hidden;border-block:1px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:14px;white-space:nowrap}
+.tape-inner{display:inline-flex;gap:40px;padding:8px 0;animation:scroll 28s linear infinite}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.tape-inner{animation:none}}
+.sym{font-weight:700}.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--muted)}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.strip>div{background:var(--panel);padding:12px 14px;display:grid;gap:2px}
+.k{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.v{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+.s{font-family:var(--mono);font-size:12px;color:var(--muted)}
+@media (max-width:860px){.strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.panel{background:var(--panel);border:1px solid var(--line);padding:16px;display:grid;gap:10px;min-width:0}
+.ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+.ph .sym{font-size:20px}
+.ph .name{color:var(--muted)}
+.ph .last{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums;margin-left:auto}
+.ph .chg{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pill{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;padding:2px 8px;border:1px solid var(--up);color:var(--up);text-transform:uppercase}
+.facts{display:flex;flex-wrap:wrap;gap:4px 20px;font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.facts b{color:var(--fg);font-weight:600}
+.why{margin:0;max-width:75ch}
+.chart{overflow-x:auto}
+svg{display:block;width:100%;height:auto;min-width:520px}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:-1px}
+.watch{display:grid;gap:8px}
+.watch h2,.notes h2{font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin:0;color:var(--muted)}
+.watch ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.notes{font-size:13px;color:var(--muted);display:grid;gap:6px;max-width:80ch}
+.notes p{margin:0}
+</style>
+
+<div class="tape" aria-label="Ticker tape"><div class="tape-inner" id="tape"></div></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Economist check-in · US house 114 (Horde) · as of 2026-11-20 00:25 UTC</div>
+    <h1>Stockpile Ticker</h1>
+    <p class="headline" id="headline"></p>
+  </header>
+
+  <section class="strip" id="strip" aria-label="Whole position"></section>
+
+  <div class="legend">
+    <span><i style="background:var(--up)"></i>Lowest listing above your buy price</span>
+    <span><i style="background:var(--down)"></i>Below your buy price</span>
+    <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
+    <span><i style="background:var(--floor);height:2px"></i>Vendor floor</span>
+    <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
+    <span><i style="background:var(--vol)"></i>Units sold per day (low estimate)</span>
+  </div>
+
+  <div id="panels" style="display:grid;gap:16px"></div>
+
+  <section class="panel watch">
+    <h2>What the Economist is watching</h2>
+    <ul id="watch"></ul>
+    <div class="s">Next review: <b style="color:var(--fg)">2026-11-23</b>, or sooner if Pyrite's lowest price stays at 0.0300 or more for 24 hours.</div>
+  </section>
+
+  <section class="notes">
+    <h2>About these numbers</h2>
+    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 at one snapshot: every 12 hours up to 11-19, then hourly for the last 24 hours. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. Pessimistic never goes below what a vendor pays, since you'd vendor instead. Optimistic is mostly Pyrite's one-hour spike to 0.0515 on 11-19, so treat it as a ceiling seen once, not a target.</p>
+    <p>Units sold per day comes from listing flows and runs low: it counts only sales we can be sure of. 11-19 isn't finished yet. Source: the market export of 2026-11-20 01:44 UTC, and your Stockpile Ledger (buys on 2026-11-15 22:31 UTC). This isn't a forecast or a promise of profit.</p>
+  </section>
+</div>
+
+<script>
+const DATA = {"snapshots":["2026-11-14T00:17Z","2026-11-15T12:17Z","2026-11-16T00:17Z","2026-11-17T00:17Z","2026-11-17T12:17Z","2026-11-18T00:25Z","2026-11-18T12:25Z","2026-11-19T00:25Z","2026-11-19T01:25Z","2026-11-19T03:25Z","2026-11-19T04:25Z","2026-11-19T05:25Z","2026-11-19T06:25Z","2026-11-19T07:25Z","2026-11-19T09:25Z","2026-11-19T10:25Z","2026-11-19T11:25Z","2026-11-19T12:25Z","2026-11-19T13:25Z","2026-11-19T15:25Z","2026-11-19T16:25Z","2026-11-19T17:25Z","2026-11-19T18:25Z","2026-11-19T19:25Z","2026-11-19T20:25Z","2026-11-19T21:25Z","2026-11-19T22:25Z","2026-11-19T23:25Z","2026-11-20T00:25Z"],"flow_days":["2026-11-14","2026-11-15","2026-11-16","2026-11-17","2026-11-18"],"items":[{"id":249391,"name":"Pyrite","vendor":100,"cost":195,"min":[178,142,175,110,470,224,189,115,112,156,150,175,160,151,150,196,187,155,215,200,190,190,219,515,275,318,306,317,239],"median":[230,150,196,173,789,355,238,182,174,200,200,200,200,200,200,200,230,230,220,230,245,245,235,530,490,475,464,480,458],"qty":[570,461,333,1132,2275,1717,695,766,817,414,824,1509,1485,1617,1546,1503,908,758,1070,412,578,564,685,420,989,1070,1078,952,1332],"sold":[0,191,0,901,702],"new":[8168,7133,6310,8762,7263]},{"id":249428,"name":"Pristine Hide","vendor":250,"cost":251,"min":[250,250,250,248,250,270,249,250,250,250,250,250,251,249,249,250,250,225,292,296,259,252,250,251,265,254,269,251,255],"median":[258,254,260,256,420,281,252,256,255,255,255,255,255,254,255,255,255,254,298,299,275,268,268,271,296,270,295,269,269],"qty":[2311,2409,1520,1825,3607,1095,1466,1761,1658,1907,1609,1563,1484,1961,1285,1209,849,1034,642,425,1239,1634,1707,1305,864,1354,824,1462,1085],"sold":[3231,2892,3347,3680,4459],"new":[10573,7254,10824,12314,8816]},{"id":1529,"name":"Jade","vendor":700,"cost":700,"min":[714,700,698,700,799,733,794,730,700,742,899,700,774,725,700,715,711,845,788,776,774,734,740,724,723,734,730,750,745],"median":[765,736,777,716,855,749,798,743,1050,1022,980,950,968,910,948,850,850,899,898,845,790,780,780,780,780,780,780,899,930],"qty":[450,356,294,497,182,341,286,508,115,674,696,924,770,997,857,724,695,275,447,487,563,731,687,676,491,448,406,250,222],"sold":[819,1167,820,1135,1035],"new":[1670,1837,2053,1823,2801]}]};
+const REPORT = {
+  headline: "Roughly break-even. Pyrite demand is picking up; Hide and Jade sit safely on their vendor floors. The Economist says: hold all three.",
+  total: {cost: 33760, valueNow: 35236, pessimistic: 28384, realistic: 33250, optimistic: 54768, vendorFloor: 28000},
+  items: {
+    249391: {sym:"PYRT", stance:"Hold", valueNow:13623, pnl:16.4, why:"Sales rose from almost none to 700–900 a day after the 11-17 maintenance, and on the evening of 11-19 the price jumped to about twice its usual level. One evening isn't a trend. If the lowest price holds at 0.0300 or more for a full day, selling part of the stack would lock in about +46% on that part. 60 units won't move this market."},
+    249428: {sym:"HIDE", stance:"Hold", valueNow:14535, pnl:-3.5, why:"Pinned at the vendor price all week. A vendor pays 1.5000 for the stack against the 1.5060 you paid, so there's almost no risk. Selling on the auction house beats the vendor only above 0.0263, which has happened for a few hours at most."},
+    1529:   {sym:"JADE", stance:"Hold", valueNow:7078,  pnl:1.1,  why:"Can't fall below the vendor price, which is what you paid. The middle price rose from about 0.0760 to 0.0930 in the last day, and on house 113 it's near 0.1900, so this house may follow it up."}
+  },
+  watch: [
+    "Pyrite's lowest price on 114 staying at 0.0300 or more for 24 hours: consider selling part.",
+    "Pyrite at 0.0150 or less again: your rule says add.",
+    "Pyrite sales falling back below about 200 a day: the demand pickup was a blip.",
+    "Pristine Hide above 0.0263: the auction house beats the vendor.",
+    "Jade's middle price on 114 following 113 up past 0.1000.",
+    "More undercutting and relisting now that posting costs only 1 copper."
+  ]
+};
+
+const g = c => (c/10000).toFixed(4);
+const pct = x => (x>=0?"+":"") + x.toFixed(1) + "%";
+const cls = x => x>0.05 ? "up" : x<-0.05 ? "down" : "flat";
+const arrow = x => x>0.05 ? "▲" : x<-0.05 ? "▼" : "■";
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+const t = s => Date.parse(s.replace("Z", ":00Z"));
+const H = 3600e3;
+
+document.getElementById("headline").textContent = REPORT.headline;
+
+// Tape
+const tapeBits = DATA.items.map(it => {
+  const r = REPORT.items[it.id], last = it.min[it.min.length-1], ch = (last/it.cost - 1)*100;
+  return `<span><span class="sym">${r.sym}</span> ${g(last)} <span class="${cls(ch)}">${arrow(ch)} ${pct(ch)}</span> <span class="flat">vs buy ${g(it.cost)} · ${r.stance.toUpperCase()}</span></span>`;
+}).join("");
+document.getElementById("tape").innerHTML = tapeBits + tapeBits;
+
+// Summary strip
+const T = REPORT.total;
+const strip = [
+  ["You paid", T.cost, "130 units, 2026-11-15"],
+  ["Value now", T.valueNow, pct((T.valueNow/T.cost-1)*100) + " at lowest prices"],
+  ["Pessimistic", T.pessimistic, pct((T.pessimistic/T.cost-1)*100) + " worst hour, 24 h"],
+  ["Realistic", T.realistic, pct((T.realistic/T.cost-1)*100) + " at typical Pyrite"],
+  ["Optimistic", T.optimistic, pct((T.optimistic/T.cost-1)*100) + " best hour, 24 h"],
+  ["Vendor floor", T.vendorFloor, pct((T.vendorFloor/T.cost-1)*100) + " worst case"]
+];
+document.getElementById("strip").innerHTML = strip.map(([k,v,s]) => {
+  const c = cls((v/T.cost-1)*100);
+  return `<div><span class="k">${k}</span><span class="v ${k==="You paid"?"":c}">${g(v)}</span><span class="s">${s}</span></div>`;
+}).join("");
+
+// Panels
+const t0 = t(DATA.snapshots[0]) - 2*H, t1 = t(DATA.snapshots[DATA.snapshots.length-1]) + 2*H;
+const W = 900, PL = 56, PR = 12, PT = 10, PH = 190, GAP = 26, VH = 60, PB = 22;
+const HT = PT + PH + GAP + VH + PB;
+const x = ms => PL + (ms - t0) / (t1 - t0) * (W - PL - PR);
+
+function niceStep(range){ const raw = range/4, p = Math.pow(10, Math.floor(Math.log10(raw))); for (const m of [1,2,2.5,5,10]) if (m*p >= raw) return m*p; }
+
+DATA.items.forEach(it => {
+  const r = REPORT.items[it.id], last = it.min[it.min.length-1], ch = (last/it.cost - 1)*100;
+  const panel = document.createElement("section");
+  panel.className = "panel";
+  panel.innerHTML = `
+    <div class="ph">
+      <span class="sym">${r.sym}</span><span class="name"></span>
+      <span class="pill">${r.stance}</span>
+      <span class="last">${g(last)}</span><span class="chg ${cls(ch)}">${arrow(ch)} ${pct(ch)}</span>
+    </div>
+    <div class="facts">
+      <span>Bought at <b>${g(it.cost)}</b></span>
+      <span>Vendor pays <b>${g(it.vendor)}</b></span>
+      <span>Your stack now <b class="${cls(r.pnl)}">${g(r.valueNow)}</b> (${pct(r.pnl)} after the cut)</span>
+      <span>Listed now <b>${it.qty[it.qty.length-1].toLocaleString()}</b></span>
+    </div>
+    <div class="chart"></div>
+    <p class="why">${r.why}</p>`;
+  panel.querySelector(".name").textContent = `${it.name} · ${it.id===1529?10:60} units held`;
+  document.getElementById("panels").appendChild(panel);
+
+  const svg = el("svg", {viewBox:`0 0 ${W} ${HT}`, role:"img", "aria-label":`${it.name} price and sales chart`}, panel.querySelector(".chart"));
+
+  // y scale for price
+  const vals = [...it.min, ...it.median, it.cost, it.vendor].filter(v => v != null);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const step = niceStep(hi - lo);
+  lo = Math.floor(lo*0.97/step)*step; hi = Math.ceil(hi/step)*step;
+  const y = v => PT + PH - (v - lo)/(hi - lo)*PH;
+
+  for (let v = lo; v <= hi + 1e-9; v += step) {
+    el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), stroke:"var(--line)", "stroke-width":1}, svg);
+    el("text", {x:PL-6, y:y(v)+4, "text-anchor":"end"}, svg).textContent = g(v);
+  }
+  // day ticks
+  const dayStart = new Date(t0); dayStart.setUTCHours(0,0,0,0);
+  for (let d = dayStart.getTime() + 864e5; d < t1; d += 864e5) {
+    el("line", {x1:x(d), x2:x(d), y1:PT, y2:PT+PH+GAP+VH, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
+    const dt = new Date(d);
+    if (x(d) > W - PR - 40) continue;
+    el("text", {x:x(d)+3, y:HT-6}, svg).textContent = `${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
+  }
+  // buy marker
+  const tb = Date.parse("2026-11-15T22:31:00Z");
+  el("line", {x1:x(tb), x2:x(tb), y1:PT, y2:PT+PH, stroke:"var(--cost)", "stroke-width":1, opacity:.6}, svg);
+  el("text", {x:x(tb)+4, y:PT+12, fill:"var(--cost)", style:"fill:var(--cost)"}, svg).textContent = "bought";
+
+  // price bars from the buy line
+  const times = DATA.snapshots.map(t);
+  it.min.forEach((v, i) => {
+    if (v == null) return;
+    const gap = Math.min(i+1 < times.length ? times[i+1]-times[i] : H, i > 0 ? times[i]-times[i-1] : H, 12*H);
+    const w = Math.max(3, Math.min(14, (x(times[i]+gap) - x(times[i]))*0.7));
+    const top = Math.min(y(v), y(it.cost)), h = Math.max(1.5, Math.abs(y(v) - y(it.cost)));
+    const col = v > it.cost ? "var(--up)" : v < it.cost ? "var(--down)" : "var(--muted)";
+    const b = el("rect", {x:x(times[i]) - w/2, y:top, width:w, height:h, fill:col, style:`fill:${col}`}, svg);
+    el("title", {}, b).textContent = `${DATA.snapshots[i]}: lowest ${g(v)}, median ${it.median[i]!=null?g(it.median[i]):"–"}, ${it.qty[i]} listed`;
+  });
+  // median line
+  const pts = it.median.map((v,i) => v==null ? null : `${x(times[i]).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(" ");
+  el("polyline", {points:pts, fill:"none", stroke:"var(--muted)", "stroke-width":1.2, opacity:.8}, svg);
+  // reference lines
+  [[it.vendor, "var(--floor)", "vendor"], [it.cost, "var(--cost)", "buy"]].forEach(([v, c, lab]) => {
+    el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), stroke:c, "stroke-width":1.5, "stroke-dasharray": lab==="vendor" ? "6 4" : "0"}, svg);
+  });
+  // endpoint
+  const li = it.min.length-1;
+  el("circle", {cx:x(times[li]), cy:y(last), r:4, fill:"var(--fg)", style:"fill:var(--fg)"}, svg);
+
+  // volume
+  const vTop = PT + PH + GAP, vmax = Math.max(...it.sold, 1);
+  el("text", {x:PL-6, y:vTop+8, "text-anchor":"end"}, svg).textContent = vmax.toLocaleString();
+  el("text", {x:PL-6, y:vTop+VH, "text-anchor":"end"}, svg).textContent = "0";
+  el("text", {x:PL, y:vTop-8}, svg).textContent = "units sold per day";
+  DATA.flow_days.forEach((d, i) => {
+    const s = Date.parse(d+"T00:00:00Z"), w = (x(s+864e5)-x(s))*0.8;
+    const h = it.sold[i]/vmax*VH;
+    const b = el("rect", {x:x(s)+(x(s+864e5)-x(s))*0.1, y:vTop+VH-h, width:w, height:Math.max(h,1), fill:"var(--vol)", style:"fill:var(--vol)"}, svg);
+    el("title", {}, b).textContent = `${d}: about ${it.sold[i].toLocaleString()} sold, ${it.new[i].toLocaleString()} posted`;
+    if (h > 14) el("text", {x:x(s)+(x(s+864e5)-x(s))/2, y:vTop+VH-h+12, "text-anchor":"middle", style:"fill:var(--fg)"}, svg).textContent = it.sold[i].toLocaleString();
+  });
+});
+
+document.getElementById("watch").innerHTML = REPORT.watch.map(w => `<li>${w}</li>`).join("");
+</script>
