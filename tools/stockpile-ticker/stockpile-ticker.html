@@ -60,9 +60,22 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 .watch .st{display:block;font-family:var(--mono);font-size:12px;color:var(--brief)}
 .notes{font-size:13px;color:var(--muted);display:grid;gap:6px;max-width:80ch}
 .notes p{margin:0}
-.zoombar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--bg);border-block:1px solid var(--line);padding-block:8px;font-size:13px;color:var(--muted);min-height:20px}
-.zoombar b{color:var(--fg);font-family:var(--mono);font-weight:600}
-.zoombar span{flex:1 1 240px;min-width:0}
+.zoombar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:grid;gap:7px;background:var(--bg);border-block:1px solid var(--line);padding-block:8px}
+.zrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;color:var(--muted);min-height:20px}
+.zrow b{color:var(--fg);font-family:var(--mono);font-weight:600}
+.zrow span{flex:1 1 240px;min-width:0}
+.zoombar .legend{border-top:1px dashed var(--line);padding-top:7px;gap:4px 16px}
+.zoombar em{font-style:normal}
+.zn{display:none}
+@media (max-width:600px){
+  .zoombar{gap:5px;padding-block:6px}
+  .zrow{gap:6px}
+  .zrow span{flex-basis:100%;order:-1}
+  .zrow button{padding:4px 8px}
+  .zx{display:none}.zn{display:inline}
+  .zoombar .legend{font-size:11px;gap:2px 10px;padding-top:5px}
+  .zoombar .legend i{width:10px;margin-right:4px}
+}
 .zoombar button{font:600 12px var(--mono);color:var(--brief);background:var(--panel);border:1px solid var(--line);padding:5px 10px;cursor:pointer}
 .zoombar button:hover:not(:disabled){border-color:var(--brief)}
 .zoombar button:disabled{opacity:.35;cursor:default}
@@ -93,16 +106,17 @@ svg text.slabel,svg text.halo{paint-order:stroke;stroke:var(--panel);stroke-widt
 
   <section class="strip" id="strip" aria-label="Whole position"></section>
 
-  <div class="legend">
-    <span><i style="background:var(--up)"></i>Lowest listing above your buy price</span>
-    <span><i style="background:var(--down)"></i>Below your buy price</span>
-    <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
-    <span><i style="background:var(--floor);height:2px"></i>Vendor floor</span>
-    <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
-    <span><i style="background:var(--sales);height:2px"></i>Units sold per hour, right-hand scale (low estimate)</span>
+  <div class="zoombar" id="zoombar">
+    <div class="zrow" id="zoomrow" aria-live="polite"></div>
+    <div class="legend">
+      <span><i style="background:var(--up)"></i>Lowest listing above<em class="zx"> your</em> buy price</span>
+      <span><i style="background:var(--down)"></i>Below your buy price</span>
+      <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
+      <span><i style="background:var(--floor);height:2px"></i>Vendor floor</span>
+      <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
+      <span><i style="background:var(--sales);height:2px"></i>Units sold per hour<em class="zx">, right-hand scale (low estimate)</em></span>
+    </div>
   </div>
-
-  <div class="zoombar" id="zoombar" aria-live="polite"></div>
 
   <div id="panels" style="display:grid;gap:16px"><div class="msg" id="msg">Loading the ticker's numbers…</div></div>
 
@@ -324,13 +338,13 @@ function render() {
       el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), stroke:c, "stroke-width":1.5, "stroke-dasharray": lab==="vendor" ? "6 4" : "0"}, svg);
     });
     if (ZOOM) {   // name the day's high and low hour
-      const tag = (i, above) => {
+      const tag = (i, above, word) => {
         const v = it.min[i], ty = above ? Math.min(y(v), y(p.cost)) - 5 : Math.max(y(v), y(p.cost)) + 13;
         el("text", {x:x(times[i]), y:Math.max(PT - 4, Math.min(PT + PH + 14, ty)), "text-anchor":"middle", class:"halo", style:"fill:var(--fg)"}, svg)
-          .textContent = `${above ? "high" : "low"} ${g(v)}`;
+          .textContent = `${word} ${g(v)}`;
       };
-      if (hiI >= 0) tag(hiI, it.min[hiI] >= p.cost);
-      if (loI >= 0 && loI !== hiI) tag(loI, it.min[loI] >= p.cost);
+      if (hiI >= 0) tag(hiI, it.min[hiI] >= p.cost, "high");
+      if (loI >= 0 && loI !== hiI) tag(loI, it.min[loI] > p.cost, "low");
     } else {
       let li = it.min.length - 1; while (li > 0 && it.min[li] == null) li--;
       if (last != null) el("circle", {cx:x(times[li]), cy:y(last), r:4, style:"fill:var(--fg)"}, svg);
@@ -372,7 +386,7 @@ function setZoom(d) {
   if (bar.getBoundingClientRect().top < 0) bar.scrollIntoView({block:"start", behavior:"smooth"});
 }
 function renderZoombar(days) {
-  const bar = document.getElementById("zoombar");
+  const bar = document.getElementById("zoomrow");
   const label = dayLabel;
   if (!ZOOM) {
     bar.innerHTML = `<span><b>All ${days.length} days</b> · click a date under any chart to see that day hour by hour</span>`;
@@ -381,7 +395,7 @@ function renderZoombar(days) {
   const i = days.indexOf(ZOOM), prev = days[i-1], next = days[i+1];
   bar.innerHTML = `
     <button type="button" id="zprev" ${prev ? "" : "disabled"} aria-label="Previous day">‹ ${prev ? label(prev) : ""}</button>
-    <span><b>${label(ZOOM)}</b> · hour by hour · times in US Eastern, 24-hour clock (the trading day runs 07:00 to 07:00 the next morning)</span>
+    <span><b>${label(ZOOM)}</b> · hour by hour<em class="zx"> · times in US Eastern, 24-hour clock (the trading day runs 07:00 to 07:00 the next morning)</em><em class="zn"> · 07:00–07:00 ET</em></span>
     <button type="button" id="znext" ${next ? "" : "disabled"} aria-label="Next day">${next ? label(next) : ""} ›</button>
     <button type="button" id="zall" class="all">Show all ${days.length} days</button>`;
   bar.querySelector("#zprev").onclick = () => prev && setZoom(prev);
