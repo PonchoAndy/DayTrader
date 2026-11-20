@@ -6,7 +6,7 @@
 /* Layout: a single-theme trading-terminal screen. Tape on top, summary strip, one panel per holding (Analyst briefing, price bars vs buy price, daily sales volume, Economist's stance), watch list. Numbers and briefings come from the page's database, refreshed hourly by a scheduled Claude session (#99). */
 :root{
   --bg:#0b0f0e; --panel:#121816; --panel2:#0f1513; --line:#22302b; --fg:#d8e4df; --muted:#7f948c;
-  --up:#3fd18a; --down:#ff6b5e; --cost:#e8c14a; --floor:#6aa2ff; --vol:#4a6b60; --brief:#9fd8c0;
+  --up:#3fd18a; --down:#ff6b5e; --cost:#e8c14a; --floor:#6aa2ff; --vol:#4a6b60; --sales:#c58cff; --brief:#9fd8c0;
   --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
   --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
   color-scheme:dark;
@@ -72,7 +72,13 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 .daylink rect{fill:transparent;stroke:var(--line)}
 .daylink text{fill:var(--brief);font-weight:600}
 .daylink:hover rect,.daylink:focus-visible rect{fill:var(--line);stroke:var(--brief)}
-.volbar{cursor:pointer}.volbar:hover{opacity:.8}
+.sline{fill:none;stroke:var(--sales);stroke-width:2;stroke-linejoin:round;pointer-events:none}
+.sfill{fill:var(--sales);opacity:.08;pointer-events:none}
+.shit{stroke:transparent;stroke-width:12;cursor:pointer}
+.shit:hover{stroke:var(--sales);stroke-opacity:.25}
+svg text.saxis,svg text.slabel{fill:var(--sales)}
+svg text.slabel{font-size:11px;pointer-events:none}
+svg text.slabel,svg text.halo{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 .msg{background:var(--panel);border:1px dashed var(--line);padding:24px 16px;color:var(--muted);text-align:center}
 </style>
 
@@ -93,7 +99,7 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
     <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
     <span><i style="background:var(--floor);height:2px"></i>Vendor floor</span>
     <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
-    <span><i style="background:var(--vol)"></i>Units sold per day (low estimate)</span>
+    <span><i style="background:var(--sales);height:2px"></i>Units sold per day, right-hand scale (low estimate)</span>
   </div>
 
   <div class="zoombar" id="zoombar" aria-live="polite"></div>
@@ -108,7 +114,7 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 
   <section class="notes">
     <h2>About these numbers</h2>
-    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. Sales are counted each night for 19:00 to 19:00 Eastern, so the sales bars sit half a day off the date columns. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
+    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. Sales are counted each night for 19:00 to 19:00 Eastern, so the steps of the purple sales line sit half a day off the date columns. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
     <p>Numbers refresh every hour (about 15 minutes past). The Analyst writes a new briefing for each holding every 6 hours, and sooner if a lowest price moves 30% or more. Units sold per day comes from listing flows, built each night, and runs low: it counts only sales we can be sure of. GitHub skips about 3 hourly runs a day, so a few hours are missing. Briefings describe what the data shows; they aren't a forecast or a promise of profit.</p>
   </section>
 </div>
@@ -191,8 +197,8 @@ function render() {
   const z0 = ZOOM ? Date.parse(ZOOM + "T12:00:00Z") : null;
   const t0 = ZOOM ? z0 - 0.6*H : times[0] - 2*H, t1 = ZOOM ? z0 + 24.6*H : newest + 2*H;
   const inView = ZOOM ? hrs.map(h => tday(h) === ZOOM) : times.map(() => true);
-  const W = 900, PL = 56, PR = 12, PT = 18, PH = 190, GAP = 26, VH = 60, PB = 26;
-  const HT = PT + PH + GAP + VH + PB;
+  const W = 900, PL = 56, PR = 58, PT = 20, PH = 220;
+  const HT = PT + PH + (ZOOM ? 46 : 30);
   const x = ms => PL + (ms - t0) / (t1 - t0) * (W - PL - PR);
   const niceStep = range => { const raw = Math.max(range, 4)/4, p = Math.pow(10, Math.floor(Math.log10(raw))); for (const m of [1,2,2.5,5,10]) if (m*p >= raw) return m*p; };
   const md2 = ms => { const d = new Date(ms); return `${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`; };
@@ -245,10 +251,10 @@ function render() {
       days.forEach(d => {
         const s = Date.parse(d + "T12:00:00Z"), xs = Math.max(x(s), PL), xe = Math.min(x(s + 864e5), W - PR);
         if (xe - xs < 18) return;
-        if (x(s) > PL) el("line", {x1:x(s), x2:x(s), y1:PT, y2:PT+PH+GAP+VH, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
+        if (x(s) > PL) el("line", {x1:x(s), x2:x(s), y1:PT, y2:PT+PH+26, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
         const a = el("g", {class:"daylink", tabindex:0, role:"button", "aria-label":`Show ${d} hour by hour`}, svg);
-        el("rect", {x:xs+1, y:HT-PB+4, width:xe-xs-2, height:PB-6, rx:3}, a);
-        el("text", {x:(xs+xe)/2, y:HT-8, "text-anchor":"middle"}, a).textContent = md2(s);
+        el("rect", {x:xs+1, y:PT+PH+6, width:xe-xs-2, height:20, rx:3}, a);
+        el("text", {x:(xs+xe)/2, y:PT+PH+20, "text-anchor":"middle"}, a).textContent = md2(s);
         el("title", {}, a).textContent = `Show ${dayLabel(d)}, 07:00 to 07:00 ET, hour by hour`;
         a.addEventListener("click", () => setZoom(d));
         a.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setZoom(d); } });
@@ -260,6 +266,39 @@ function render() {
         el("line", {x1:x(ms), x2:x(ms), y1:PT, y2:PT+PH, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
         el("text", {x:x(ms), y:PT+PH+15, "text-anchor":"middle"}, svg).textContent = hourET.format(ms);
       }
+    }
+    // Units sold: a step line on the same chart, read on the right-hand axis. One step per nightly count
+    // (19:00-19:00 ET), drawn where it really falls. The scale's divisions sit on the price gridlines.
+    const f = DATA.flows[p.id] || {sold:[], posted:[]};
+    const steps = DATA.flow_days.map((d, k) => ({d, s: Date.parse(d + "T00:00:00Z"), v: f.sold[k], posted: f.posted[k]}))
+      .filter(o => o.s + 864e5 > t0 && o.s < t1 && o.v != null);
+    const nDiv = Math.max(1, Math.round((hi - lo) / step));
+    const niceUp = v => { const p10 = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); for (const m of [1,2,2.5,5,10]) if (m*p10 >= v) return m*p10; };
+    const sStep = niceUp(Math.max(...steps.map(o => o.v), 1) * 1.08 / nDiv), sMax = sStep * nDiv;
+    const ys = v => PT + PH - v / sMax * PH;
+    for (let k = 0; k <= nDiv; k++)
+      el("text", {x:W-PR+6, y:ys(k*sStep)+4, class:"saxis"}, svg).textContent = (k*sStep).toLocaleString();
+    el("text", {x:W-2, y:PT-6, "text-anchor":"end", class:"saxis"}, svg).textContent = "sold / day";
+    const clip = el("clipPath", {id:`clip-${p.id}`}, el("defs", {}, svg));
+    el("rect", {x:PL, y:PT-2, width:W-PL-PR, height:PH+4}, clip);
+    const salesG = el("g", {"clip-path":`url(#clip-${p.id})`}, svg);
+    if (steps.length) {
+      // the line never drops to zero where counts start, end or skip a day (that would read as "none sold");
+      // only the faint fill closes down to the axis
+      let line = "", fill = "", runStart = null;
+      steps.forEach((o, k) => {
+        const xs = x(o.s).toFixed(1), xe = x(o.s + 864e5).toFixed(1), yv = ys(o.v).toFixed(1);
+        const joined = k && o.s === steps[k-1].s + 864e5;
+        if (!joined) {
+          if (runStart !== null) fill += ` L${x(steps[k-1].s + 864e5).toFixed(1)},${ys(0)} Z`;
+          fill += ` M${xs},${ys(0)}`; runStart = k;
+        }
+        line += `${joined ? " L" : " M"}${xs},${yv} L${xe},${yv}`;
+        fill += ` L${xs},${yv} L${xe},${yv}`;
+      });
+      fill += ` L${x(steps[steps.length-1].s + 864e5).toFixed(1)},${ys(0)} Z`;
+      el("path", {d: fill, class:"sfill"}, salesG);
+      salesG.dataset.line = line;
     }
     const tb = DATA.boughtAt ? t(DATA.boughtAt) : null;
     if (tb && tb > t0 && tb < t1) {
@@ -287,7 +326,7 @@ function render() {
     if (ZOOM) {   // name the day's high and low hour
       const tag = (i, above) => {
         const v = it.min[i], ty = above ? Math.min(y(v), y(p.cost)) - 5 : Math.max(y(v), y(p.cost)) + 13;
-        el("text", {x:x(times[i]), y:Math.max(PT - 4, Math.min(PT + PH + 14, ty)), "text-anchor":"middle", style:"fill:var(--fg)"}, svg)
+        el("text", {x:x(times[i]), y:Math.max(PT - 4, Math.min(PT + PH + 14, ty)), "text-anchor":"middle", class:"halo", style:"fill:var(--fg)"}, svg)
           .textContent = `${above ? "high" : "low"} ${g(v)}`;
       };
       if (hiI >= 0) tag(hiI, it.min[hiI] >= p.cost);
@@ -297,36 +336,23 @@ function render() {
       if (last != null) el("circle", {cx:x(times[li]), cy:y(last), r:4, style:"fill:var(--fg)"}, svg);
     }
 
-    const f = DATA.flows[p.id] || {sold:[], posted:[]};
-    const vTop = PT + PH + GAP;
-    if (ZOOM) {
-      el("text", {x:PL, y:vTop+12}, svg).textContent = "units sold (a low estimate; counted per 19:00–19:00 ET day, so this day spans two counts)";
-      [ZOOM, nextDate(ZOOM)].forEach((d, j) => {
-        const k = DATA.flow_days.indexOf(d), s0 = Date.parse(d + "T00:00:00Z");
-        const span = `${ETd.format(s0)} – ${ETd.format(s0 + 864e5)} ET`;
-        el("text", {x:PL, y:vTop+32+j*18, style:"fill:var(--fg);font-size:13px"}, svg).textContent = k < 0
-          ? `${span}: not counted yet (tallied each night, about 20:35 ET)`
-          : `${span}: about ${f.sold[k].toLocaleString()} sold, ${f.posted[k].toLocaleString()} posted`;
+    // the sales line on top of the bars, with a label and a hover/click target per step
+    if (salesG.dataset.line) {
+      el("path", {d: salesG.dataset.line, class:"sline"}, salesG);
+      steps.forEach(o => {
+        const xa = Math.max(x(o.s), PL), xb = Math.min(x(o.s + 864e5), W - PR);
+        const hit = el("line", {x1:xa, x2:xb, y1:ys(o.v), y2:ys(o.v), class:"shit"}, salesG);
+        const td = days.includes(o.d) ? o.d : days[days.length - 1];
+        el("title", {}, hit).textContent = `${ETd.format(o.s)} – ${ETd.format(o.s + 864e5)} ET: about ${o.v.toLocaleString()} sold, ${o.posted.toLocaleString()} posted (a low estimate)${ZOOM ? "" : `. Click to see ${dayLabel(td)} hour by hour.`}`;
+        if (!ZOOM) hit.addEventListener("click", () => setZoom(td));
+        if (xb - xa > 46) el("text", {x:(xa+xb)/2, y:Math.max(PT+10, ys(o.v) - 5), "text-anchor":"middle", class:"slabel"}, svg).textContent = `${o.v.toLocaleString()} sold`;
       });
-      const n = it.min.filter((v, i) => inView[i] && v != null).length;
-      el("text", {x:PL, y:vTop+70}, svg).textContent = `${n} of 24 hours recorded${n < 24 ? " (GitHub skips a few hours a day)" : ""}.`;
-      return;
     }
-    const vmax = Math.max(...f.sold, 1);
-    el("text", {x:PL-6, y:vTop+8, "text-anchor":"end"}, svg).textContent = vmax.toLocaleString();
-    el("text", {x:PL-6, y:vTop+VH, "text-anchor":"end"}, svg).textContent = "0";
-    el("text", {x:PL, y:vTop-8}, svg).textContent = "units sold per day";
-    DATA.flow_days.forEach((d, i) => {
-      const s = Date.parse(d+"T00:00:00Z");
-      if (s + 864e5 < t0) return;
-      const xs = Math.max(x(s), PL), xe = Math.min(x(s+864e5), W-PR), bw = (xe-xs)*0.8;
-      if (bw <= 0) return;
-      const h = f.sold[i]/vmax*VH;
-      const r = el("rect", {x:xs+(xe-xs)*0.1, y:vTop+VH-h, width:bw, height:Math.max(h,1), style:"fill:var(--vol)", class:"volbar"}, svg);
-      el("title", {}, r).textContent = `${ETd.format(s)} – ${ETd.format(s + 864e5)} ET: about ${f.sold[i].toLocaleString()} sold, ${f.posted[i].toLocaleString()} posted. Click to see ${dayLabel(d)} hour by hour.`;
-      r.addEventListener("click", () => setZoom(days.includes(d) ? d : days[days.length - 1]));
-      if (h > 14 && bw > 30) el("text", {x:(xs+xe)/2, y:vTop+VH-h+12, "text-anchor":"middle", style:"fill:var(--fg);pointer-events:none"}, svg).textContent = f.sold[i].toLocaleString();
-    });
+    if (ZOOM) {
+      const n = it.min.filter((v, i) => inView[i] && v != null).length;
+      const pending = !DATA.flow_days.includes(nextDate(ZOOM));
+      el("text", {x:PL, y:PT+PH+38}, svg).textContent = `${n} of 24 hours recorded. Sales are counted 19:00 to 19:00 ET, so this day spans two counts${pending ? "; the later one isn't counted yet" : ""}.`;
+    }
   });
 }
 
