@@ -49,14 +49,23 @@ billing unit:
 
 ## Cost
 
+- **Measured 2026-11-20 (real data):** the first catch-up run did 22 US hours in 502 s, **~22 s per hour**. That's
+  well above the 6–10 s first estimated: today's US snapshots are larger, and the comparison itself is most of the
+  time (only ~5 s is re-reading the raw pull). Grouping on one integer key instead of four columns made it ~20%
+  faster with identical output, so **~18 s per hour** is expected.
 - **Actions minutes (the tight limit):**
-  - The hourly job is ~22 s today. This adds an estimated 6–10 s for the US: no download, flows maths ~3–5 s,
-    state reads and writes ~2–3 s. That stays inside the one-minute billing unit.
-  - The nightly US flows job (~190 min/month) shrinks to a short assembly (~1–2 min a night).
-  - So this should **save about 140 minutes a month**.
-  - Risk: if a run creeps past 60 s it bills 2 minutes. The 45 s guard and a week of `job_seconds` logs watch for that.
+  - The hourly job is ~22 s today, ~40–50 s with the hourly sales step. That's still one billed minute.
+  - Guard: the step starts only if it can end by 45 s after the job started (it allows 20 s per hour), so a slow
+    collection skips that hour's sales instead of making the run bill 2 minutes. The next run or the nightly job
+    fills the skipped hour.
+  - The nightly US flows job (~190 min/month) shrinks to a compare and catch-up of a few minutes.
+  - Net: roughly neutral to a small saving, *if* most runs stay under a minute. The 3-day parallel run checks this
+    with `job_seconds` (run logs) and `runs/flows-hourly/` (how many hours ran or were skipped).
+- **If too many hours are skipped:** the next step is handing the parsed listings to the flows step in memory
+  (saves ~5 s), then further speed work on `flows()`.
 - **R2:** about 24 extra small writes a day per region, and hourly files that live for a day or two. Pennies.
-- **Europe** (#56): the same step would add about 8–12 s more. Europe stays nightly until the US version has run a week.
+- **Europe** (#56): would need the same ~18 s again, which won't fit in the same minute. Europe stays nightly until
+  the US step is faster.
 
 ## Steps
 
