@@ -104,6 +104,19 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
         run: .venv/bin/python collector/${{ inputs.report && 'report.py' || 'collect.py' }} ${{ (!inputs.report && inputs.force) && '--force' || '' }}
+      # Sales every hour (#104): one hour of listing flows right after collecting, US only for now. Runs only if
+      # it can finish within 45 s of the job start (so the run stays inside one billed minute); a skipped hour is
+      # picked up by the next run or the nightly job. While it runs alongside the nightly job it keeps its own
+      # state (state/hourly/) and writes flows-hourly/; the nightly job compares the two.
+      - name: Hourly listing flows (US; issue 104)
+        if: ${{ !cancelled() && !inputs.report && !inputs.ticker }}
+        continue-on-error: true
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: .venv/bin/python collector/flows.py --hourly --regions us --budget 45
       # Reads only hours and flow days it hasn't seen (~2-5 s; a new flow day once a night adds ~10 s). Runs even
       # when a region failed to collect, and never fails the job: a missed update just waits for the next hour.
       - name: Stockpile Ticker numbers (#99)
@@ -157,7 +170,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: daytrader-data
-        run: .venv/bin/python collector/flows.py ${{ inputs.flows_rebuild && '--rebuild' || '' }}
+        # --catch-up (#104): compare each day built with the hourly files, then bring the hourly step up to date
+        run: .venv/bin/python collector/flows.py ${{ inputs.flows_rebuild && '--rebuild' || '--catch-up' }}
 
   # Manual only: writes the demo page's data file and commits it to the branch the run was started from.
   demo:

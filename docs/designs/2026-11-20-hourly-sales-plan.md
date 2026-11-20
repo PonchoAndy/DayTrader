@@ -1,6 +1,7 @@
 # Plan: sales data every hour instead of nightly
 
-- **Date:** 2026-11-20 · **Status:** proposed, waiting on the owner's choices (end of this doc)
+- **Date:** 2026-11-20 · **Status:** owner chose the suggested options (US only first; 3-day parallel run; skip an
+  hour when short on time). Steps 1–2 built 2026-11-20.
 - **Issue:** PonchoAndy/DayTrader#104 · **Changes:** ADR 0008's "a daily job" for listing flows (a new ADR when decided)
 
 ## Why sales arrive late today
@@ -28,14 +29,14 @@ line stops short of the price bars.
 Add a **flows step to the hourly collect job** (US first), after collection, in the same job so there's no extra
 billing unit:
 
-- **Keep listing IDs while collecting.** `listing_rows()` also returns listing ID and time-left. That's a small change;
-  the JSON is already parsed.
-- **Save a compact "previous hour" table** to R2 each hour: `state/flows_tail.parquet`, with the listings of the
+- **Read the new raw pull** just stored (as built: a separate step that re-reads it, ~10 s for the US, to keep the
+  collector itself untouched; handing over the parsed listings in memory is a later optimisation if time gets tight).
+- **Save a compact "previous hour" table** to R2 each hour: `state/hourly/tail.parquet`, with the listings of the
   snapshot just processed (id, house, kind, item, variant, qty, price, time-left), about 3–5 MB. Next hour reads it
   instead of re-downloading raw.
 - **Run one hour of the existing `flows()` function** on (previous table, current listings, first-seen state, burst
-  history). Write `flows-hourly/<YYYY-MM-DD>/<snapshot>.parquet` and update `state/first_seen.parquet` and a new
-  `state/burst_hist.parquet` (24 hours of new units per item).
+  history). Write `flows-hourly/<YYYY-MM-DD>/<snapshot>.parquet` and update the step's own state in
+  `state/hourly/` (first-seen times, 24 hours of new units per item, the last snapshot's listings).
 - **Guards:** the step runs only if collection succeeded, stops if the job clock passes ~45 s, and never fails the
   job. If it misses an hour, the next run computes the longer pair, or the nightly job fills it from raw.
 - **The nightly job becomes the assembler and safety net.** For each finished day it stitches the hourly files into
