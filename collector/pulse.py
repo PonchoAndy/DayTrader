@@ -81,6 +81,8 @@ def load_hourly(store, region: str, since: str, houses: set[int], ids: set[int],
         df = get_parquet(store, k, HOURLY_COLS)
         if df is None or not len(df):
             return None
+        if "variant" not in df.columns:   # files before 2026-11-14 ~04:00 UTC merged variants (collector/README.md)
+            df["variant"] = ""
         df["snapshot"] = pd.to_datetime(df["snapshot"], utc=True).dt.floor("min")   # = the raw/flows folder minute
         tot = df.groupby(["snapshot", "house_id"], as_index=False).agg(
             listings=("listings", "sum"), units=("quantity", "sum"), faction=("faction", "first"))
