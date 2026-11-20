@@ -49,8 +49,9 @@ h1{font-family:var(--mono);font-size:26px;margin:0;text-wrap:balance;letter-spac
 .brief.empty p{color:var(--muted)}
 .econ{margin:0;max-width:75ch;font-size:13px;color:var(--muted)}
 .econ b{color:var(--fg);font-weight:600}
-.chart{overflow-x:auto}
-svg{display:block;width:100%;height:auto;min-width:520px}
+.chart{overflow:visible;min-width:0}
+.chart svg{display:block;max-width:100%;height:auto}
+.cap{font:12px var(--mono);color:var(--muted);margin:0}
 svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:-1px}
@@ -84,14 +85,22 @@ svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
 .daylink{cursor:pointer;outline:none}
 .daylink rect{fill:transparent;stroke:var(--line)}
 .daylink text{fill:var(--brief);font-weight:600}
+svg text{pointer-events:none}.daylink text{pointer-events:auto}
 .daylink:hover rect,.daylink:focus-visible rect{fill:var(--line);stroke:var(--brief)}
-.sline{fill:none;stroke:var(--sales);stroke-width:1;stroke-opacity:.7;stroke-linejoin:round;pointer-events:none}
+.sline{fill:none;stroke:var(--sales);stroke-width:1;stroke-opacity:.55;stroke-linejoin:round;pointer-events:none}
+.grid{stroke:var(--line);stroke-width:1}
+.sep{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4}
+.buyline{stroke:var(--cost);stroke-width:1.5}
+.vendorline{stroke:var(--floor);stroke-width:1.25;stroke-dasharray:6 4;opacity:.8}
+.median{fill:none;stroke:var(--muted);stroke-width:1.25;opacity:.8}
+.mdot{fill:var(--muted);opacity:.8}
+.boughtline{stroke:var(--cost);stroke-width:1;opacity:.5}
+svg text.tick{font-weight:400;fill:var(--muted)}
+svg text.tag{font-weight:600;fill:var(--fg);paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
+svg text.sales{fill:var(--sales);fill-opacity:.85}
 .sfill{fill:var(--sales);opacity:.045;pointer-events:none}
 .shit{stroke:transparent;stroke-width:12;cursor:pointer}
 .shit:hover{stroke:var(--sales);stroke-opacity:.15}
-svg text.saxis,svg text.slabel{fill:var(--sales);fill-opacity:.85}
-svg text.slabel{font-size:11px;pointer-events:none}
-svg text.slabel,svg text.halo{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 .msg{background:var(--panel);border:1px dashed var(--line);padding:24px 16px;color:var(--muted);text-align:center}
 </style>
 
@@ -112,9 +121,9 @@ svg text.slabel,svg text.halo{paint-order:stroke;stroke:var(--panel);stroke-widt
       <span><i style="background:var(--up)"></i>Lowest listing above<em class="zx"> your</em> buy price</span>
       <span><i style="background:var(--down)"></i>Below your buy price</span>
       <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
-      <span><i style="background:var(--floor);height:2px"></i>Vendor floor</span>
+      <span><i style="background:repeating-linear-gradient(90deg,var(--floor) 0 6px,transparent 6px 10px);height:2px"></i>Vendor floor</span>
       <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
-      <span><i style="background:var(--sales);height:2px"></i>Units sold per hour<em class="zx">, right-hand scale (low estimate)</em></span>
+      <span><i style="background:var(--sales);opacity:.55;height:2px"></i>Units sold per hour<em class="zx">, right-hand scale (low estimate)</em><em class="zn"> (low est.)</em></span>
     </div>
   </div>
 
@@ -202,7 +211,8 @@ function render() {
     return `<div><span class="k">${k}</span><span class="v ${k==="You paid"?"":c}">${g(v)}</span><span class="s">${s}</span></div>`;
   }).join("");
 
-  // Panels. View: every day, or one UTC day (ZOOM) hour by hour.
+  // Panels. View: every day, or one trading day (ZOOM) hour by hour.
+  // Charts are drawn at their real pixel width (1 SVG unit = 1 CSS px), so text stays 11px on every screen.
   const panels = document.getElementById("panels");
   panels.textContent = "";
   const days = [...new Set(hrs.map(tday))];
@@ -211,12 +221,11 @@ function render() {
   const z0 = ZOOM ? Date.parse(ZOOM + "T12:00:00Z") : null;
   const t0 = ZOOM ? z0 - 0.6*H : times[0] - 2*H, t1 = ZOOM ? z0 + 24.6*H : newest + 2*H;
   const inView = ZOOM ? hrs.map(h => tday(h) === ZOOM) : times.map(() => true);
-  const W = 900, PL = 56, PR = 58, PT = 20, PH = 220;
-  const HT = PT + PH + (ZOOM ? 46 : 30);
-  const x = ms => PL + (ms - t0) / (t1 - t0) * (W - PL - PR);
   const niceStep = range => { const raw = Math.max(range, 4)/4, p = Math.pow(10, Math.floor(Math.log10(raw))); for (const m of [1,2,2.5,5,10]) if (m*p >= raw) return m*p; };
-  const md2 = ms => { const d = new Date(ms); return `${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`; };
+  const niceUp = v => { const p10 = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); for (const m of [1,2,2.5,5,10]) if (m*p10 >= v) return m*p10; };
   const hourET = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York", hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
+  const chipDate = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", {timeZone:"UTC", month:"short", day:"numeric"});
+  const txt = (attrs, parent, s) => { const e = el("text", attrs, parent); e.textContent = s; return e; };
 
   per.forEach(({p, it, last, now}) => {
     const ch = (last/p.cost - 1)*100, pnl = (now/(p.cost*p.units) - 1)*100;
@@ -240,10 +249,17 @@ function render() {
         ${b?.text ? md(b.text) : "<p>No briefing yet. The Analyst writes one every 6 hours.</p>"}
       </div>
       <div class="chart"></div>
+      <p class="cap"></p>
       ${e?.why ? `<p class="econ"><b>Economist${ECON.asOf ? " (" + esc(ECON.asOf) + ")" : ""}:</b> ${esc(e.why)}</p>` : ""}`;
     panels.appendChild(panel);
 
-    const svg = el("svg", {viewBox:`0 0 ${W} ${HT}`, role:"img", "aria-label":`${p.name} price and sales chart${ZOOM ? ", " + ZOOM + " hour by hour" : ""}`}, panel.querySelector(".chart"));
+    // one frame for both views
+    const box = panel.querySelector(".chart");
+    const W = Math.max(320, Math.round(box.clientWidth || 900)), narrow = W < 480;
+    const PL = narrow ? 46 : 50, PR = narrow ? 40 : 46, PT = 24, PH = narrow ? 180 : 220, HT = PT + PH + 30;
+    const x = ms => PL + (ms - t0) / (t1 - t0) * (W - PL - PR);
+    const svg = el("svg", {viewBox:`0 0 ${W} ${HT}`, width:W, height:HT, role:"img", "aria-label":`${p.name} price and sales chart${ZOOM ? ", " + ZOOM + " hour by hour" : ""}`}, box);
+
     // price scale: only what's in view, so one day's moves fill the height. The buy price stays in (bars start
     // from it); the vendor floor only when it's near the prices shown.
     const shown = [...it.min.filter((v, i) => inView[i]), ...it.median.filter((v, i) => inView[i])].filter(v => v != null);
@@ -256,51 +272,54 @@ function render() {
     if (hi <= lo) hi = lo + step;
     const y = v => PT + PH - (v - lo)/(hi - lo)*PH;
     for (let v = lo; v <= hi + 1e-9; v += step) {
-      el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), stroke:"var(--line)", "stroke-width":1}, svg);
-      el("text", {x:PL-6, y:y(v)+4, "text-anchor":"end"}, svg).textContent = g(v);
+      el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), class:"grid"}, svg);
+      txt({x:PL-6, y:y(v)+4, "text-anchor":"end", class:"tick"}, svg, g(v));
     }
+    txt({x:PL-6, y:PT-10, "text-anchor":"end", class:"tick"}, svg, "gold");
 
     if (!ZOOM) {
       // one clickable date per trading day: opens that day hour by hour
       days.forEach(d => {
         const s = Date.parse(d + "T12:00:00Z"), xs = Math.max(x(s), PL), xe = Math.min(x(s + 864e5), W - PR);
         if (xe - xs < 18) return;
-        if (x(s) > PL) el("line", {x1:x(s), x2:x(s), y1:PT, y2:PT+PH+26, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
-        const a = el("g", {class:"daylink", tabindex:0, role:"button", "aria-label":`Show ${d} hour by hour`}, svg);
-        el("rect", {x:xs+1, y:PT+PH+6, width:xe-xs-2, height:20, rx:3}, a);
-        el("text", {x:(xs+xe)/2, y:PT+PH+20, "text-anchor":"middle"}, a).textContent = md2(s);
+        if (x(s) > PL) el("line", {x1:x(s), x2:x(s), y1:PT, y2:PT+PH, class:"sep"}, svg);
+        const a = el("g", {class:"daylink", tabindex:0, role:"button", "aria-label":`Show ${dayLabel(d)} hour by hour`}, svg);
+        el("rect", {x:xs+1, y:PT+PH+6, width:xe-xs-2, height:20}, a);
+        txt({x:(xs+xe)/2, y:PT+PH+20, "text-anchor":"middle"}, a, xe - xs < 44 ? d.slice(8).replace(/^0/, "") : chipDate(d));
         el("title", {}, a).textContent = `Show ${dayLabel(d)}, 07:00 to 07:00 ET, hour by hour`;
         a.addEventListener("click", () => setZoom(d));
         a.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setZoom(d); } });
       });
     } else {
-      // every 3 hours, labelled in US Eastern
-      for (let h = 0; h <= 24; h += 3) {
+      // every 3 hours (6 on a narrow chart), labelled in US Eastern
+      const every = W - PL - PR < 420 ? 6 : 3;
+      for (let h = 0; h <= 24; h += every) {
         const ms = z0 + h*H;
-        el("line", {x1:x(ms), x2:x(ms), y1:PT, y2:PT+PH, stroke:"var(--line)", "stroke-dasharray":"2 4"}, svg);
-        el("text", {x:x(ms), y:PT+PH+15, "text-anchor":"middle"}, svg).textContent = hourET.format(ms);
+        el("line", {x1:x(ms), x2:x(ms), y1:PT, y2:PT+PH, class:"sep"}, svg);
+        txt({x:x(ms), y:PT+PH+16, "text-anchor":"middle", class:"tick"}, svg, hourET.format(ms));
       }
     }
-    // Units sold per hour: a step line on the same chart, read on the right-hand axis. Each step covers the
-    // hour(s) ending at a snapshot (from the nightly listing flows); the newest ~12-36 hours aren't counted yet.
-    // The scale's divisions sit on the price gridlines.
+
+    // Units sold per hour: a step line drawn behind the price bars, read on the right-hand axis, whose
+    // divisions sit on the price gridlines. Each step covers the hour(s) ending at a snapshot (nightly listing
+    // flows); the newest ~12-36 hours aren't counted yet.
     const fhrs = DATA.flow_hours || [];
     const steps = (it.sold || []).map((v, i) => v == null || !inView[i] ? null :
       {i, e: times[i], s: times[i] - (fhrs[i] || 1) * H, v, posted: it.posted?.[i] ?? 0}).filter(Boolean);
     const nDiv = Math.max(1, Math.round((hi - lo) / step));
-    const niceUp = v => { const p10 = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); for (const m of [1,2,2.5,5,10]) if (m*p10 >= v) return m*p10; };
     const sStep = niceUp(Math.max(...steps.map(o => o.v), 1) * 1.08 / nDiv), sMax = sStep * nDiv;
     const ys = v => PT + PH - v / sMax * PH;
-    for (let k = 0; k <= nDiv; k++)
-      el("text", {x:W-PR+6, y:ys(k*sStep)+4, class:"saxis"}, svg).textContent = (k*sStep).toLocaleString();
-    el("text", {x:W-2, y:PT-6, "text-anchor":"end", class:"saxis"}, svg).textContent = "sold / hour";
+    for (let k = 0; k <= nDiv; k++) txt({x:W-PR+6, y:ys(k*sStep)+4, class:"tick sales"}, svg, (k*sStep).toLocaleString());
+    txt({x:W-1, y:PT-10, "text-anchor":"end", class:"tick sales"}, svg, "sold/h");
     const clip = el("clipPath", {id:`clip-${p.id}`}, el("defs", {}, svg));
     el("rect", {x:PL, y:PT-2, width:W-PL-PR, height:PH+4}, clip);
     const salesG = el("g", {"clip-path":`url(#clip-${p.id})`}, svg);
+    let peak = null;
     if (steps.length) {
       // runs of back-to-back hours share one line; a gap (no count yet) breaks it rather than dropping to zero
       let line = "", fill = "";
       steps.forEach((o, k) => {
+        if (!peak || o.v > peak.v) peak = o;
         const xs = x(o.s).toFixed(1), xe = x(o.e).toFixed(1), yv = ys(o.v).toFixed(1);
         const joined = k && Math.abs(o.s - steps[k-1].e) < 60e3;
         if (!joined) {
@@ -312,14 +331,22 @@ function render() {
       });
       fill += ` L${x(steps[steps.length-1].e).toFixed(1)},${ys(0)} Z`;
       el("path", {d: fill, class:"sfill"}, salesG);
-      salesG.dataset.line = line;
+      el("path", {d: line, class:"sline"}, salesG);
+      steps.forEach(o => {   // hover (and, on the all-days view, click) target per hour
+        const hit = el("line", {x1:x(o.s), x2:x(o.e), y1:ys(o.v), y2:ys(o.v), class:"shit"}, salesG);
+        const span = (o.e - o.s) / H > 1.5 ? `the ${Math.round((o.e - o.s) / H)} hours` : "the hour";
+        el("title", {}, hit).textContent = `${span} to ${when(o.e)}: about ${o.v.toLocaleString()} sold, ${o.posted.toLocaleString()} posted (a low estimate)${ZOOM ? "" : `. Click to see ${dayLabel(tday(hrs[o.i]))} hour by hour.`}`;
+        if (!ZOOM) hit.addEventListener("click", () => setZoom(tday(hrs[o.i])));
+      });
     }
+
     const tb = DATA.boughtAt ? t(DATA.boughtAt) : null;
     if (tb && tb > t0 && tb < t1) {
-      el("line", {x1:x(tb), x2:x(tb), y1:PT, y2:PT+PH, stroke:"var(--cost)", "stroke-width":1, opacity:.6}, svg);
-      el("text", {x:x(tb)+4, y:PT+12, style:"fill:var(--cost)"}, svg).textContent = "bought";
+      el("line", {x1:x(tb), x2:x(tb), y1:PT, y2:PT+PH, class:"boughtline"}, svg);
+      txt({x:x(tb)+4, y:PT+12, class:"tag", style:"fill:var(--cost)"}, svg, "bought");
     }
-    const w = Math.max(1.2, Math.min(ZOOM ? 22 : 10, (x(t0 + H) - x(t0)) * 0.7));
+    // one bar rule for both views: 70% of an hour's slot, 1.5 to 24 px
+    const w = Math.max(1.5, Math.min(24, (x(t0 + H) - x(t0)) * 0.7));
     let hiI = -1, loI = -1;
     it.min.forEach((v, i) => {
       if (v == null || !inView[i]) return;
@@ -331,45 +358,44 @@ function render() {
       el("title", {}, r).textContent = `${when(times[i])}: lowest ${g(v)}, median ${g(it.median[i])}, ${it.qty[i] ?? "–"} listed`;
     });
     const pts = it.median.map((v,i) => v==null || !inView[i] ? null : `${x(times[i]).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(" ");
-    el("polyline", {points:pts, fill:"none", stroke:"var(--muted)", "stroke-width":1.2, opacity:.8}, svg);
-    if (ZOOM) it.median.forEach((v, i) => { if (v != null && inView[i]) el("circle", {cx:x(times[i]), cy:y(v), r:2.2, style:"fill:var(--muted)"}, svg); });
-    [[p.vendor, "var(--floor)", "vendor"], [p.cost, "var(--cost)", "buy"]].forEach(([v, c, lab]) => {
-      if (v < lo || v > hi) return;
-      el("line", {x1:PL, x2:W-PR, y1:y(v), y2:y(v), stroke:c, "stroke-width":1.5, "stroke-dasharray": lab==="vendor" ? "6 4" : "0"}, svg);
-    });
+    el("polyline", {points:pts, class:"median"}, svg);
+    if (ZOOM) it.median.forEach((v, i) => { if (v != null && inView[i]) el("circle", {cx:x(times[i]), cy:y(v), r:2.2, class:"mdot"}, svg); });
+    if (vendorIn && p.vendor >= lo && p.vendor <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.vendor), y2:y(p.vendor), class:"vendorline"}, svg);
+    if (p.cost >= lo && p.cost <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.cost), y2:y(p.cost), class:"buyline"}, svg);
+
+    // tags: "word value", lower case, kept inside the plot
+    const placed = [];
+    const clampY = v => Math.max(PT - 4, Math.min(PT + PH - 4, v));
     if (ZOOM) {   // name the day's high and low hour
       const tag = (i, above, word) => {
-        const v = it.min[i], ty = above ? Math.min(y(v), y(p.cost)) - 5 : Math.max(y(v), y(p.cost)) + 13;
-        el("text", {x:x(times[i]), y:Math.max(PT - 4, Math.min(PT + PH + 14, ty)), "text-anchor":"middle", class:"halo", style:"fill:var(--fg)"}, svg)
-          .textContent = `${word} ${g(v)}`;
+        const v = it.min[i], ty = clampY(above ? Math.min(y(v), y(p.cost)) - 5 : Math.max(y(v), y(p.cost)) + 13);
+        txt({x:x(times[i]), y:ty, "text-anchor":"middle", class:"tag"}, svg, `${word} ${g(v)}`);
+        placed.push([x(times[i]), ty]);
       };
       if (hiI >= 0) tag(hiI, it.min[hiI] >= p.cost, "high");
       if (loI >= 0 && loI !== hiI) tag(loI, it.min[loI] > p.cost, "low");
+      if (peak && peak.v > 0) {
+        const px = (x(peak.s) + x(peak.e)) / 2;
+        let py = clampY(ys(peak.v) - 5);
+        if (placed.some(([qx, qy]) => Math.abs(qx - px) < 60 && Math.abs(qy - py) < 14)) py = clampY(ys(peak.v) + 13);
+        txt({x:px, y:py, "text-anchor":"middle", class:"tag sales"}, svg, `peak ${peak.v.toLocaleString()} sold`);
+      }
     } else {
       let li = it.min.length - 1; while (li > 0 && it.min[li] == null) li--;
       if (last != null) el("circle", {cx:x(times[li]), cy:y(last), r:4, style:"fill:var(--fg)"}, svg);
     }
 
-    // the sales line on top of the bars, with a hover (and, on the all-days view, click) target per hour
-    if (salesG.dataset.line) {
-      el("path", {d: salesG.dataset.line, class:"sline"}, salesG);
-      let peak = steps[0];
-      steps.forEach(o => {
-        if (o.v > peak.v) peak = o;
-        const hit = el("line", {x1:x(o.s), x2:x(o.e), y1:ys(o.v), y2:ys(o.v), class:"shit"}, salesG);
-        const span = (o.e - o.s) / H > 1.5 ? `the ${Math.round((o.e - o.s) / H)} hours` : "the hour";
-        el("title", {}, hit).textContent = `${span} to ${when(o.e)}: about ${o.v.toLocaleString()} sold, ${o.posted.toLocaleString()} posted (a low estimate)${ZOOM ? "" : `. Click to see ${dayLabel(tday(hrs[o.i]))} hour by hour.`}`;
-        if (!ZOOM) hit.addEventListener("click", () => setZoom(tday(hrs[o.i])));
-      });
-      if (ZOOM && peak.v > 0) el("text", {x:(x(peak.s)+x(peak.e))/2, y:Math.max(PT+10, ys(peak.v) - 5), "text-anchor":"middle", class:"slabel"}, svg).textContent = `peak ${peak.v.toLocaleString()} sold`;
-    }
+    // caption, in HTML so it wraps on phones
+    const cap = panel.querySelector(".cap");
     if (ZOOM) {
       const n = it.min.filter((v, i) => inView[i] && v != null).length;
       const total = steps.reduce((a, o) => a + o.v, 0), counted = steps.length;
-      el("text", {x:PL, y:PT+PH+38}, svg).textContent = `${n} of 24 hours recorded. ` + (!it.sold ? "Hourly sales aren't in the data yet."
+      cap.textContent = `${n} of 24 hours recorded. ` + (!it.sold ? "Hourly sales aren't in the data yet."
         : counted ? `About ${total.toLocaleString()} sold in the ${counted} hour${counted > 1 ? "s" : ""} counted so far${counted < n ? " (the rest are counted tonight, about 20:35 ET)" : ""}.`
         : "Sales for this day are counted tonight (about 20:35 ET).");
-    }
+    } else if (steps.length) {
+      cap.textContent = `Sales line counted through ${ETd.format(steps[steps.length-1].e)} ET; newer hours are counted tonight, about 20:35 ET.`;
+    } else cap.remove();
   });
 }
 
@@ -443,6 +469,11 @@ function fail(text) {
     ECON = s.exists ? s.data() : null;
     render(); renderWatch();
   }, () => {});
-  setInterval(render, 5*60e3);   // keep "x min ago" and the Live/Delayed light current
+  setInterval(render, 5*60e3);
+  let lastW = document.getElementById("panels").clientWidth, rt;
+  addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => {
+    const w = document.getElementById("panels").clientWidth;
+    if (w !== lastW) { lastW = w; render(); }
+  }, 150); });   // keep "x min ago" and the Live/Delayed light current
 })();
 </script>
