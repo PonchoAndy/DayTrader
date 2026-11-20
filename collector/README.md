@@ -6,6 +6,7 @@
 - `blizzard.py`: shared API client.
 - `bonuses.py`: variant names (bonus ID → "of the Eagle"), from WoW Forever's game data on wago.tools.
 - `market.py`: the `market` switch's export of crafting-material prices for Claude sessions (below).
+- `pulse.py`: the Analyst's daily export: every hour of the watchlist and whole-market totals (below, #19).
 - `items.py`: item names. IDs are permanent, so each is looked up once: WoW Forever's item database first, then retail WoW's (same IDs; Forever's own database is incomplete). Unknown IDs are retried weekly.
 
 ## What's in the bucket
@@ -85,6 +86,36 @@ branch (from `main` it only writes it on the runner). Read-only on R2.
   averaging under 10, then 25, listings an hour are dropped. `sampling` in the file says what was used.
 
 Locally: `python collector/market.py --local data/store --out /tmp/market.json`.
+
+## Every hour for the Analyst (`pulse`, daily, #19)
+
+`collector/pulse.py` writes `tools/analyst/pulse.json`: **every** stored hour since 2026-11-14 (never
+thinned, unlike `market`), US only by default. It runs daily at 12:00 UTC (lands ~12:30–13:05 because
+GitHub starts late, #28), after the trading day closes (ADR 0014), and with the **pulse** switch.
+- **Where it goes:** runs from `main` (the schedule, or the switch on `main`) commit to the data-only
+  branch **`analyst-data`**, which holds just this file; a switch run from another branch commits to that branch.
+  A session reads it with
+  `git fetch --depth 1 origin analyst-data && git show FETCH_HEAD:tools/analyst/pulse.json > /tmp/pulse.json`.
+- **What:** per watchlist house × item (`tools/analyst/watchlist.json`, editable: seed is 19 materials on
+  houses 114 and 113): hourly `min, p10, p25, median` (copper per unit), `quantity`, `listings`, and the
+  hour's flows `posted, sold_est, sold_clean, expired, suspect, cancel_flag` (meanings as in `market`,
+  summed over the hour instead of the day). Per house of the region (whole market, all items incl.
+  gear): `listings, units, posted, sold_est, sold_clean, value_est, value_clean` (value in copper:
+  the bought-out part at its own price, the rest at the previous hour's cheapest).
+- **Shape:** `regions.us.hours` lists every snapshot (UTC, `YYYY-MM-DDTHH:MMZ`); each series is an array
+  in the same order. `trading_day` names each hour's trading day; `flow_hours` = hours since the
+  previous snapshot (2+ after a missed hour), null where flows aren't built yet. Flows are built nightly
+  at ~01:35 UTC per UTC day, so at 12:30 the newest ~12 hours (00:00–12:00 UTC) have flow fields null;
+  they fill in the next day. Field docs are in `notes` and at the top of `pulse.py`.
+- **null ≠ 0:** null = not known (house missing from that snapshot, item not listed for prices, flows
+  not built yet). A missing hour is simply absent from `hours`.
+- **Cost:** scheduled runs reuse yesterday's file and re-read only the last 3 days (`--prev`,
+  `--recent-days`); the switch rebuilds everything. A changed watchlist or field list also rebuilds
+  everything. If no hourly file can be read the run fails and the old file stays.
+- **Size:** ~50 KB a day with the seed watchlist (~0.35 MB now, ~1.6 MB at 30 days, ~4.7 MB at 90).
+  Europe (`PULSE_REGIONS: us,eu` in the workflow) would add ~1 KB per house per day of totals, no flows yet (#56).
+
+Locally: `python collector/pulse.py --local data/store --out /tmp/pulse.json [--prev old.json]`.
 
 ## Other regions (ADR 0009)
 

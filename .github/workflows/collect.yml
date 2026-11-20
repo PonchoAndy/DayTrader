@@ -9,6 +9,9 @@ on:
     - cron: "5 * * * *"
     # Daily listing flows (#37): every complete UTC day still in raw/ that has no flows file yet.
     - cron: "35 1 * * *"
+    # Daily Analyst export (#19), after the trading day closes at 12:00 UTC (ADR 0014). GitHub starts
+    # runs ~29-63 min late (#28), so it lands ~12:30-13:05; an hour missed by an early start is re-read next day.
+    - cron: "0 12 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -43,10 +46,15 @@ on:
         description: "Don't collect; commit price history for crafting materials (tools/market/market.json) to this branch"
         type: boolean
         default: false
+      pulse:
+        description: "Don't collect; rebuild the Analyst's hourly export (tools/analyst/pulse.json) and commit it (to branch analyst-data when run from main)"
+        type: boolean
+        default: false
 
 concurrency:
   # A flows rebuild can take an hour; its own group keeps it from holding up (and cancelling) hourly runs.
-  group: ${{ inputs.flows_rebuild && 'flows-rebuild' || 'collect' }}
+  # The pulse export only reads R2, so it gets its own group too and never delays an hourly run.
+  group: ${{ inputs.flows_rebuild && 'flows-rebuild' || (inputs.pulse || github.event.schedule == '0 12 * * *') && 'pulse' || 'collect' }}
   cancel-in-progress: false
 
 permissions:
@@ -54,7 +62,7 @@ permissions:
 
 jobs:
   collect:
-    if: ${{ !inputs.demo && !inputs.flows && !inputs.flows_rebuild && !inputs.health && !inputs.market && github.event.schedule != '35 1 * * *' }}
+    if: ${{ !inputs.demo && !inputs.flows && !inputs.flows_rebuild && !inputs.health && !inputs.market && !inputs.pulse && github.event.schedule != '35 1 * * *' && github.event.schedule != '0 12 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -223,3 +231,52 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tools/market/market.json
           if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -m "Market export: crafting-material prices" && { for i in 1 2 3; do git push && break; [ "$i" = 3 ] && exit 1; echo "Push refused, retrying in 10 s ($i/3)"; sleep 10; done; }; fi
+
+  # Daily (12:00 UTC) or manual: every hour since 2026-11-14 for the Analyst's watchlist plus whole-market
+  # totals (collector/pulse.py, #19). Read-only on R2. Runs from main commit to the data-only branch
+  # analyst-data (so main doesn't get a commit a day); manual runs from another branch commit to that branch.
+  # Scheduled runs reuse the previous export and re-read only the last 3 days; the manual switch rebuilds it all.
+  pulse:
+    if: ${{ inputs.pulse || github.event.schedule == '0 12 * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20   # ~1 min a day incremental; a full rebuild grows with the days stored (~10 min at 90 days)
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        id: py
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        id: venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+      - name: Install packages (only when the list changed)
+        if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+      - name: Fetch the previous export (scheduled runs only)
+        if: ${{ github.event_name == 'schedule' }}
+        run: git fetch -q --depth 1 origin analyst-data && git show FETCH_HEAD:tools/analyst/pulse.json > "$RUNNER_TEMP/prev.json" || echo "No previous export; reading every hour"
+      - name: Export the hourly pulse
+        env:
+          PULSE_REGIONS: us
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: daytrader-data
+        run: .venv/bin/python collector/pulse.py --out "$RUNNER_TEMP/pulse.json" ${{ github.event_name == 'schedule' && '--prev "$RUNNER_TEMP/prev.json"' || '' }}
+      - name: Commit it (main -> analyst-data; another branch -> that branch)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          B="$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            B=analyst-data
+            # the data branch holds only the export, with no code (created on the first run)
+            if git fetch -q --depth 1 origin "$B"; then git checkout -q -B "$B" FETCH_HEAD; else git checkout -q --orphan "$B" && git rm -rfq .; fi
+          fi
+          mkdir -p tools/analyst && cp "$RUNNER_TEMP/pulse.json" tools/analyst/pulse.json
+          git add tools/analyst/pulse.json
+          if git diff --cached --quiet; then echo "Nothing new to commit"; else git commit -q -m "Analyst pulse export" && { for i in 1 2 3; do git push origin "HEAD:$B" && break; [ "$i" = 3 ] && exit 1; echo "Push refused, retrying in 10 s ($i/3)"; sleep 10; done; }; fi
