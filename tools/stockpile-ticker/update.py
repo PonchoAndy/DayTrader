@@ -57,7 +57,7 @@ def main() -> int:
     fd = t["flow_days"][-a.days:]
     nf = len(fd)
     data = {"generatedAt": t["generated_at"], "newestHour": hours[-1], "region": t["region"], "house": t["house"], "boughtAt": t.get("bought_at"),
-            "positions": t["positions"], "hours": hours[k:],
+            "positions": t["positions"], "watch": t.get("watch", []), "hours": hours[k:],
             "flow_hours": (t.get("flow_hours") or [None] * len(hours))[k:],
             "items": {i: {f: v[k:] for f, v in s.items()} for i, s in t["items"].items()},
             "flow_days": fd, "flows": {i: {f: (v[-nf:] if nf else []) for f, v in s.items()} for i, s in t["flows"].items()}}
@@ -85,15 +85,17 @@ def main() -> int:
 
     if reasons:
         n48 = next(i for i, h in enumerate(hours) if h >= (ts(hours[-1]) - timedelta(hours=48)).strftime("%Y-%m-%dT%H:%MZ"))
-        rows = [{"hour_utc": h, **{f"{p['sym']}_{f}": t["items"][str(p["id"])][f][n48 + j] for p in t["positions"]
+        both = t["positions"] + t.get("watch", [])
+        rows = [{"hour_utc": h, **{f"{p['sym']}_{f}": t["items"][str(p["id"])][f][n48 + j] for p in both
                                    for f in ("min", "median", "qty", "sold")
                                    if f in t["items"][str(p["id"])]}} for j, h in enumerate(hours[n48:])]
         brief = {"now": now.strftime("%Y-%m-%dT%H:%MZ"), "reasons": reasons, "positions": t["positions"],
+                 "watch": t.get("watch", []),
                  "prices_at_last_briefing": state.get("pricesAtBriefing"), "last_briefing_at": last,
                  "last_48_hours": rows,
                  "flows_last_7_days": {"days": t["flow_days"][-7:],
                                        **{p["sym"]: {f: t["flows"][str(p["id"])][f][-7:] for f in ("sold", "posted")}
-                                          for p in t["positions"]}}}
+                                          for p in both}}}
         (out / "brief.json").write_text(json.dumps(brief, indent=1))
     print(json.dumps({"newest_hour": hours[-1], "new_data": hours[-1] != state.get("lastHour"),
                       "briefing_due": bool(reasons), "reasons": reasons, "prices": prices}))

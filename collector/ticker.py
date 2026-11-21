@@ -76,7 +76,8 @@ def main() -> int:
     t0 = time.time()
     pos = json.loads(Path(args.positions).read_text())
     region, house = pos["region"], int(pos["house"])
-    ids = {int(i["id"]) for i in pos["items"]}
+    watch = pos.get("watch", [])   # items the owner watches but doesn't hold (#99)
+    ids = {int(i["id"]) for i in pos["items"] + watch}
     store = LocalStore(Path(args.local)) if args.local else R2Store(os.environ.get("R2_BUCKET", "daytrader-data"))
 
     prev = None
@@ -145,12 +146,14 @@ def main() -> int:
             items[str(i)][f] = [None if h not in fhours else (fvals.get((h, i)) or (0, 0, None))[n] for h in hours]
 
     # nothing new (the collector skipped this hour): leave the file as is (never with --reread-flows)
-    if prev and hourly_prev and not keys and not new_days:
+    same_lists = prev and prev.get("positions") == pos["items"] and prev.get("watch", []) == watch \
+        and prev.get("bought_at") == pos.get("bought_at")
+    if prev and hourly_prev and same_lists and not keys and not new_days:
         Path(args.out).write_text(Path(args.prev).read_text())
         print(f"Ticker export: nothing new since {prev['generated_at']}; newest {hours[-1]}")
         return 0
     res = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "since": args.since,
-           "region": region, "house": house, "bought_at": pos.get("bought_at"), "positions": pos["items"], "hours": hours, "flow_hours": flow_hours, "items": items,
+           "region": region, "house": house, "bought_at": pos.get("bought_at"), "positions": pos["items"], "watch": watch, "hours": hours, "flow_hours": flow_hours, "items": items,
            "flow_days": days, "flows": flows}
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(res, separators=(",", ":")) + "\n")
