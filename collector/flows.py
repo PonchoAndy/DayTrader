@@ -135,6 +135,29 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
           base: pd.Series, base_hours: int) -> tuple[pd.DataFrame, np.ndarray, dict]:
     """One hour's flows. state: per listing id (index) first_seen, posted_after, first_tl, burst.
     base: trailing mean new units per hour per item (KEYS index) over base_hours hours.
+    Returns the table, the ids of new listings posted in a burst, and day-log checks.
+
+    Speed (#104): the ~40 group-bys run on one integer key instead of the four KEYS columns (two of them
+    text), about 2-3x faster on a full US snapshot, so an hour fits in the hourly job. The key is each
+    item's rank in KEYS order, so rows come out in the same order and the table is identical."""
+    u = pd.concat([prev[KEYS], cur[KEYS]] + ([base.index.to_frame(index=False)] if len(base) else []), ignore_index=True)
+    u = u.drop_duplicates().sort_values(KEYS, kind="mergesort").reset_index(drop=True)
+    ix = pd.MultiIndex.from_frame(u)
+    enc = lambda d: d.assign(gk=ix.get_indexer(pd.MultiIndex.from_frame(d[KEYS])))
+    b2 = pd.Series(base.values, index=pd.Index(ix.get_indexer(base.index), name="gk")) if len(base) else base
+    df, burst_ids, checks = _flows_core(enc(prev), enc(cur), state, t_prev, t_cur, b2, base_hours, ["gk"])
+    keys = u.iloc[df["gk"].to_numpy()].reset_index(drop=True)
+    pos = df.columns.get_loc("gk")
+    df = df.drop(columns="gk")
+    for n, k in enumerate(KEYS):
+        df.insert(pos + n, k, keys[k].values)
+    return df, burst_ids, checks
+
+
+def _flows_core(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_cur,
+                base: pd.Series, base_hours: int, K: list) -> tuple[pd.DataFrame, np.ndarray, dict]:
+    """One hour's flows. state: per listing id (index) first_seen, posted_after, first_tl, burst.
+    base: trailing mean new units per hour per item (KEYS index) over base_hours hours.
     Returns the table, the ids of new listings posted in a burst, and day-log checks."""
     hrs = (t_cur - t_prev).total_seconds() / 3600
     j = prev.merge(cur[["house_id", "kind", "id", "qty", "price"]], on=["house_id", "kind", "id"], how="left",
@@ -147,12 +170,12 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
     newl = cur[~cur.set_index(["house_id", "kind", "id"]).index.isin(prev.set_index(["house_id", "kind", "id"]).index)].copy()
 
     # reference prices per item in prev / cur
-    pref = prev.groupby(KEYS).agg(p_min=("price", "min"), p_med=("price", "median"))
-    cmin = cur.groupby(KEYS)["price"].min().rename("c_min")
+    pref = prev.groupby(K).agg(p_min=("price", "min"), p_med=("price", "median"))
+    cmin = cur.groupby(K)["price"].min().rename("c_min")
 
     out = []
     # gone by time-left
-    g = gone.pivot_table(index=KEYS, columns="tl", values="qty", aggfunc="sum", fill_value=0)
+    g = gone.pivot_table(index=K, columns="tl", values="qty", aggfunc="sum", fill_value=0)
     out.append(g.reindex(columns=TL, fill_value=0).rename(columns={t: f"gone_{t.lower()}_units" for t in TL}))
     # early vs expired (#69): it can't have expired before posted_after + its duration
     t_cur_ts = pd.Timestamp(t_cur)
@@ -162,39 +185,39 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
     gone["dur"] = np.select([dur == 2, dur == 8, dur == 24], ["early_2h_units", "early_8h_units", "early_24h_units"],
                             "early_unknown_dur_units")
     gone["early"] = np.where(dur.notna(), since <= dur + SLACK_H, gone["tl"].isin(["LONG", "VERY_LONG"]))
-    out.append(gone[~gone["early"]].groupby(KEYS)["qty"].sum().rename("expired_units"))
-    early = gone[gone["early"]].join(pref, on=KEYS)
-    out.append(early.groupby(KEYS)["qty"].sum().rename("early_units"))
-    out.append(early.pivot_table(index=KEYS, columns="dur", values="qty", aggfunc="sum", fill_value=0))
-    out.append(early[early["tl"].isin(["SHORT", "MEDIUM"])].groupby(KEYS)["qty"].sum().rename("early_short_medium_units"))
+    out.append(gone[~gone["early"]].groupby(K)["qty"].sum().rename("expired_units"))
+    early = gone[gone["early"]].join(pref, on=K)
+    out.append(early.groupby(K)["qty"].sum().rename("early_units"))
+    out.append(early.pivot_table(index=K, columns="dur", values="qty", aggfunc="sum", fill_value=0))
+    out.append(early[early["tl"].isin(["SHORT", "MEDIUM"])].groupby(K)["qty"].sum().rename("early_short_medium_units"))
     r = early["price"] / early["p_min"]
     early["pos"] = np.select([r <= 1.0001, r <= 1.05, r <= 1.20], ["early_at_min", "early_within5", "early_within20"], "early_above")
-    out.append(early.pivot_table(index=KEYS, columns="pos", values="qty", aggfunc="sum", fill_value=0))
+    out.append(early.pivot_table(index=K, columns="pos", values="qty", aggfunc="sum", fill_value=0))
     early["val"] = early["qty"] * np.minimum(early["price"], 2 * early["p_med"])
-    out.append(early.groupby(KEYS)["val"].sum().rename("early_value"))
+    out.append(early.groupby(K)["val"].sum().rename("early_value"))
     # listing age at vanishing (first seen -> last seen in prev)
     age = (pd.Timestamp(t_prev) - early["first_seen"]).dt.total_seconds() / 3600
     early["age"] = pd.cut(age.fillna(-1), [-np.inf, 0, 2, 12, 24, 48, np.inf],
                           labels=["age_unknown", "age_lt2h", "age_2_12h", "age_12_24h", "age_24_48h", "age_48h_plus"], right=False)
-    out.append(early.pivot_table(index=KEYS, columns="age", values="qty", aggfunc="sum", fill_value=0, observed=False))
+    out.append(early.pivot_table(index=K, columns="age", values="qty", aggfunc="sum", fill_value=0, observed=False))
     # partial buys
-    out.append(part.groupby(KEYS).agg(partial_units=("pu", "sum"), partial_value=("pv", "sum")))
+    out.append(part.groupby(K).agg(partial_units=("pu", "sum"), partial_value=("pv", "sum")))
     # new listings, undercuts, lot mix, relist guess
-    newl = newl.join(pref, on=KEYS)
+    newl = newl.join(pref, on=K)
     newl["under"] = newl["price"] < newl["p_min"]
     lot = newl["qty"] * newl["price"]
     newl["lot"] = pd.cut(lot, [0, 100, 1000, 10000, 100000, np.inf], right=False,
                          labels=["new_lot_lt1s", "new_lot_1_10s", "new_lot_10s_1g", "new_lot_1_10g", "new_lot_ge10g"])
-    nk = newl.groupby(KEYS).agg(new_listings=("id", "size"), new_units=("qty", "sum"),
+    nk = newl.groupby(K).agg(new_listings=("id", "size"), new_units=("qty", "sum"),
                                 undercut_listings=("under", "sum"), new_lot_sizes=("qty", "nunique"))
     out.append(nk)
-    out.append(newl[newl["under"]].groupby(KEYS)["qty"].sum().rename("undercut_units"))
-    out.append(newl.pivot_table(index=KEYS, columns="lot", values="id", aggfunc="size", fill_value=0, observed=False))
-    rl = early[KEYS + ["id", "qty", "price"]].merge(newl[KEYS + ["qty", "price"]], on=KEYS + ["qty"], suffixes=("", "_n"))
+    out.append(newl[newl["under"]].groupby(K)["qty"].sum().rename("undercut_units"))
+    out.append(newl.pivot_table(index=K, columns="lot", values="id", aggfunc="size", fill_value=0, observed=False))
+    rl = early[K + ["id", "qty", "price"]].merge(newl[K + ["qty", "price"]], on=K + ["qty"], suffixes=("", "_n"))
     rl = rl[rl["price_n"] <= rl["price"]]
     relisted = rl["id"].unique()
-    rl = rl.drop_duplicates(KEYS + ["qty", "price"])
-    out.append(rl.groupby(KEYS)["qty"].sum().rename("relist_guess_units"))
+    rl = rl.drop_duplicates(K + ["qty", "price"])
+    out.append(rl.groupby(K)["qty"].sum().rename("relist_guess_units"))
 
     # cancel check (#81)
     # bursts: this hour's new units >= 3x the item's trailing hourly mean, in >= 5 new listings
@@ -203,13 +226,13 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
         bb = nk[["new_listings", "new_units"]].join(base.rename("base"))
         bb = bb[(bb["new_listings"] >= BURST_MIN_LISTINGS) & (bb["new_units"] >= BURST_X * np.maximum(bb["base"].fillna(0), 1))]
         out.append(bb["new_units"].rename("burst_units"))
-        burst_ids = newl.loc[newl.set_index(KEYS).index.isin(bb.index), "id"].values
+        burst_ids = newl.loc[newl.set_index(K).index.isin(bb.index), "id"].values
     # commodities: cheapest price among listings that stayed up all hour
-    smin = stay[stay["kind"] == "commodities"].groupby(KEYS)["price"].min().rename("s_min")
-    early = early.join(smin, on=KEYS)
+    smin = stay[stay["kind"] == "commodities"].groupby(K)["price"].min().rename("s_min")
+    early = early.join(smin, on=K)
     early["skip"] = early["price"] > early["s_min"]                  # NaN (no survivor) -> False
     early["burst"] = early["burst"].eq(True)
-    lots = early.groupby(KEYS + ["qty", "price", "first_seen"], dropna=True)["id"].transform("size")
+    lots = early.groupby(K + ["qty", "price", "first_seen"], dropna=True)["id"].transform("size")
     early["batch"] = lots.reindex(early.index).fillna(0) >= BATCH_MIN_LOTS
     early["suspect"] = early["skip"] | (early["burst"] & early["batch"])
     early["sus_cheap"] = (early["suspect"] & early["pos"].isin(["early_at_min", "early_within5"])
@@ -217,21 +240,21 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
     fl = pd.DataFrame({c: early["qty"] * early[f] for c, f in [
         ("early_skipped_units", "skip"), ("early_burst_units", "burst"), ("early_batch_units", "batch"),
         ("suspect_cancel_units", "suspect"), ("suspect_cheap_units", "sus_cheap")]})
-    out.append(fl.groupby([early[k] for k in KEYS]).sum())
+    out.append(fl.groupby([early[k] for k in K]).sum())
 
     # current book: depth, at-min crowding, wall, time-left mix
-    c = cur.join(cmin, on=KEYS)
+    c = cur.join(cmin, on=K)
     rr = c["price"] / c["c_min"]
     for x in (2, 5, 10, 25):
         m = rr <= 1 + x / 100
-        out.append(c[m].groupby(KEYS).agg(**{f"depth_units_{x}": ("qty", "sum")}))
-        out.append((c[m]["qty"] * c[m]["price"]).groupby([c[m][k] for k in KEYS]).sum().rename(f"depth_gold_{x}"))
+        out.append(c[m].groupby(K).agg(**{f"depth_units_{x}": ("qty", "sum")}))
+        out.append((c[m]["qty"] * c[m]["price"]).groupby([c[m][k] for k in K]).sum().rename(f"depth_gold_{x}"))
     am = c[rr <= 1.01]
-    out.append(am.groupby(KEYS).agg(at_min_listings=("id", "size"), at_min_lot_sizes=("qty", "nunique")))
-    w = c[rr <= 1.05].sort_values("qty", ascending=False).drop_duplicates(KEYS).set_index(KEYS)
+    out.append(am.groupby(K).agg(at_min_listings=("id", "size"), at_min_lot_sizes=("qty", "nunique")))
+    w = c[rr <= 1.05].sort_values("qty", ascending=False).drop_duplicates(K).set_index(K)
     out.append(w[["qty", "price"]].rename(columns={"qty": "wall_units", "price": "wall_price"}))
     out.append(cmin.rename("cur_min_price"))
-    tl = cur.pivot_table(index=KEYS, columns="tl", values="qty", aggfunc="sum", fill_value=0)
+    tl = cur.pivot_table(index=K, columns="tl", values="qty", aggfunc="sum", fill_value=0)
     out.append(tl.reindex(columns=TL, fill_value=0).rename(columns={t: f"cur_tl_{t.lower()}_units" for t in TL}))
 
     df = pd.concat(out, axis=1).fillna(0)
@@ -241,7 +264,7 @@ def flows(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_prev, t_
             df[col] = 0
     df = df.reset_index()
     for col in df.columns:
-        if col not in KEYS and col != "variant" and df[col].dtype.kind == "f":
+        if col not in K and col != "variant" and df[col].dtype.kind == "f":
             df[col] = df[col].round().astype("int64")
     sale = df["partial_units"] + df["early_at_min"] + df["early_within5"]
     df["cancel_flag"] = ((df["suspect_cheap_units"] > 0) & (df["suspect_cheap_units"] >= FLAG_SHARE * sale)).astype("int8")
@@ -286,6 +309,33 @@ def add_state(st: pd.DataFrame | None, ids, first_seen=None, posted_after=None, 
     return new if st is None or not len(st) else pd.concat([st, new])
 
 
+def new_checks() -> dict:
+    return {"new_units_first_tl": {}, "overlived": 0, "early_short_medium_units": 0, "suspect_cheap_units": 0}
+
+
+def step(prev_df: pd.DataFrame, cur_df: pd.DataFrame, state: pd.DataFrame, hist: list, a, b, region: str,
+         checks: dict) -> tuple[pd.DataFrame, pd.DataFrame, list]:
+    """One hour-pair (a -> b): the flows table, the updated first-seen state and burst history (#104).
+    Uses nothing after b, so running it right after b is collected gives the nightly job's numbers."""
+    nw = cur_df[~cur_df["id"].isin(state.index)]
+    state = add_state(state, nw["id"].values, b, a, nw["tl"].values)
+    base = (pd.concat(hist).groupby(KEYS)["new_units"].sum() / len(hist)) if hist else pd.Series(dtype=float)
+    f, burst_ids, ck = flows(prev_df, cur_df, state, a, b, base, len(hist))
+    if len(burst_ids):
+        state.loc[state.index.isin(burst_ids), "burst"] = True
+    f.insert(1, "region", region)
+    hist = (hist + [f.loc[f["new_units"] > 0, KEYS + ["new_units"]]])[-BURST_WINDOW:]
+    for k, v in ck["new_units_first_tl"].items():
+        checks["new_units_first_tl"][k] = checks["new_units_first_tl"].get(k, 0) + v
+    for k in ("early_short_medium_units", "suspect_cheap_units"):
+        checks[k] += ck[k]
+    state = state[state.index.isin(cur_df["id"])]   # only listings still up
+    # data check: a listing still up after its implied duration means the duration rule is off (#69)
+    sdur = state["first_tl"].map(DURATION_H).where(state["first_seen"] - state["posted_after"] <= pd.Timedelta(hours=MAX_FIRST_GAP_H))
+    checks["overlived"] += int(((pd.Timestamp(b) - state["posted_after"]) > pd.to_timedelta(sdur + SLACK_H, unit="h")).sum())
+    return f, state, hist
+
+
 def run_region(store, region: str, days: list[str] | None, max_days: int, rebuild: bool = False) -> list[dict]:
     pre = prefix(region)
     snaps = snapshots(store, pre)
@@ -310,7 +360,7 @@ def run_region(store, region: str, days: list[str] | None, max_days: int, rebuil
                 pf = pd.read_parquet(io.BytesIO(raw), columns=["snapshot"] + KEYS + ["new_units"])
                 hist = [x[x["new_units"] > 0] for _, x in pf.groupby("snapshot")][-BURST_WINDOW:]
         rows, prev_df, prev_t = [], None, None
-        checks = {"new_units_first_tl": {}, "overlived": 0, "early_short_medium_units": 0, "suspect_cheap_units": 0}
+        checks = new_checks()
         for a, b in pairs:
             if prev_t != a:
                 prev_df = load_snapshot(store, snaps[a])
@@ -318,24 +368,9 @@ def run_region(store, region: str, days: list[str] | None, max_days: int, rebuil
                 # start; mark them NaT so they count as age_unknown, not as brand new.
                 state = add_state(state, prev_df["id"][~prev_df["id"].isin(state.index)].values)
             cur_df = load_snapshot(store, snaps[b])
-            nw = cur_df[~cur_df["id"].isin(state.index)]
-            state = add_state(state, nw["id"].values, b, a, nw["tl"].values)
-            base = (pd.concat(hist).groupby(KEYS)["new_units"].sum() / len(hist)) if hist else pd.Series(dtype=float)
-            f, burst_ids, ck = flows(prev_df, cur_df, state, a, b, base, len(hist))
-            if len(burst_ids):
-                state.loc[state.index.isin(burst_ids), "burst"] = True
-            f.insert(1, "region", region)
+            f, state, hist = step(prev_df, cur_df, state, hist, a, b, region, checks)
             rows.append(f)
-            hist = (hist + [f.loc[f["new_units"] > 0, KEYS + ["new_units"]]])[-BURST_WINDOW:]
-            for k, v in ck["new_units_first_tl"].items():
-                checks["new_units_first_tl"][k] = checks["new_units_first_tl"].get(k, 0) + v
-            for k in ("early_short_medium_units", "suspect_cheap_units"):
-                checks[k] += ck[k]
             prev_df, prev_t = cur_df, b
-            state = state[state.index.isin(cur_df["id"])]   # only listings still up
-            # data check: a listing still up after its implied duration means the duration rule is off (#69)
-            sdur = state["first_tl"].map(DURATION_H).where(state["first_seen"] - state["posted_after"] <= pd.Timedelta(hours=MAX_FIRST_GAP_H))
-            checks["overlived"] += int(((pd.Timestamp(b) - state["posted_after"]) > pd.to_timedelta(sdur + SLACK_H, unit="h")).sum())
         if not rows:
             continue
         table = pd.concat(rows, ignore_index=True)
@@ -349,6 +384,114 @@ def run_region(store, region: str, days: list[str] | None, max_days: int, rebuil
     return logs
 
 
+# --- Hourly flows (#104): one hour-pair right after each collection, same numbers as the nightly job ---
+# [<region>/]flows-hourly/<YYYY-MM-DD>/<snapshot>.parquet   one hour (UTC date of the later snapshot)
+# [<region>/]state/hourly/{meta.json, first_seen.parquet, hist.parquet, tail.parquet}
+#   The hourly step's own state while it runs alongside the nightly job: the last processed snapshot (meta),
+#   first-seen times, 24 pairs of new units (burst baseline) and the last snapshot's listings (tail), so the
+#   next hour reads one small file instead of re-downloading the previous raw pull.
+HOURLY_DIR, HSTATE = "flows-hourly", "state/hourly"
+EST_PAIR_S = 20     # a US hour-pair: read the new raw pull, compare, write (~22 s measured 2026-11-20 before the
+                    # one-key speed-up, ~18 s expected after; see each run's log in runs/flows-hourly/)
+
+
+def _pq(df: pd.DataFrame) -> bytes:
+    buf = io.BytesIO(); df.to_parquet(buf, index=False, compression="zstd"); return buf.getvalue()
+
+
+def recent_snapshots(store, pre: str, days_back: int = 2) -> dict:
+    """Like snapshots(), but lists only the last few UTC days of raw/ (fast enough for the hourly job)."""
+    snaps, today = {}, datetime.now(timezone.utc).date()
+    for n in range(days_back, -1, -1):
+        for k in list_keys(store, f"{pre}raw/{today - timedelta(days=n)}/"):
+            snaps.setdefault(k.split("/")[-2], []).append(k)
+    return {datetime.strptime(s, "%Y%m%dT%H%MZ").replace(tzinfo=timezone.utc): ks for s, ks in sorted(snaps.items())}
+
+
+def hourly_region(store, region: str, deadline: float | None = None, full: bool = False) -> dict:
+    """Process every snapshot after the last one done, oldest first, while time allows (deadline: a
+    time.time() by which no new pair may start unless it can finish, est. EST_PAIR_S). full = list all of
+    raw/ (catch-up after an outage, nightly job); otherwise only the last 2 UTC days."""
+    t0, pre = time.time(), prefix(region)
+    hs = f"{pre}{HSTATE}/"
+    meta = json.loads(store.get(hs + "meta.json") or b"{}")
+    snaps = snapshots(store, pre) if full else recent_snapshots(store, pre)
+    log = {"region": region, "mode": "hourly", "pairs": 0, "written": []}
+    if meta.get("tail"):
+        a = datetime.fromisoformat(meta["tail"])
+        if not full and snaps and a < min(snaps):
+            snaps = snapshots(store, pre)             # fell behind more than 2 days: list everything
+        state = load_state(store.get(hs + "first_seen.parquet"))
+        h = store.get(hs + "hist.parquet")
+        hd = pd.read_parquet(io.BytesIO(h)) if h else pd.DataFrame(columns=KEYS + ["new_units", "n"])
+        by_n = {int(n): x.drop(columns="n") for n, x in hd.groupby("n")}
+        empty = pd.DataFrame(columns=KEYS + ["new_units"])
+        hist = [by_n.get(i, empty) for i in range(int(meta.get("hist_len", len(by_n))))]   # empty hours count too
+        prev_df = pd.read_parquet(io.BytesIO(store.get(hs + "tail.parquet")))
+    else:
+        # First run: start where the nightly job stopped (its state is as of the last snapshot of its newest day)
+        done = sorted(k.rsplit("/", 1)[1][:10] for k in list_keys(store, f"{pre}flows/") if k.endswith(".parquet"))
+        if not done:
+            log["status"] = "no nightly flows yet"; return log
+        snaps = snapshots(store, pre)
+        ends = [t for t in snaps if t.strftime("%Y-%m-%d") == done[-1]]
+        if not ends:
+            log["status"] = f"raw for {done[-1]} has expired"; return log
+        a = max(ends)
+        state = load_state(store.get(f"{pre}state/first_seen.parquet"))
+        pf = pd.read_parquet(io.BytesIO(store.get(f"{pre}flows/{done[-1][:7]}/{done[-1]}.parquet")), columns=["snapshot"] + KEYS + ["new_units"])
+        hist = [x.loc[x["new_units"] > 0, KEYS + ["new_units"]] for _, x in pf.groupby("snapshot")][-BURST_WINDOW:]
+        prev_df = load_snapshot(store, snaps[a])
+        state = add_state(state, prev_df["id"][~prev_df["id"].isin(state.index)].values)
+        log["started_from"] = done[-1]
+    checks = new_checks()
+    for b in [t for t in sorted(snaps) if t > a]:
+        if deadline is not None and time.time() + EST_PAIR_S > deadline:
+            log["status"] = "stopped for time; the next run (or the nightly job) carries on"; break
+        cur_df = load_snapshot(store, snaps[b])
+        f, state, hist = step(prev_df, cur_df, state, hist, a, b, region, checks)
+        key = f"{pre}{HOURLY_DIR}/{b:%Y-%m-%d}/{b:%Y%m%dT%H%MZ}.parquet"
+        store.put(key, _pq(f))
+        log["pairs"] += 1; log["written"].append(f"{b:%Y-%m-%dT%H:%MZ}")
+        prev_df, a = cur_df, b
+    if log["pairs"] or log.get("started_from"):
+        store.put(hs + "first_seen.parquet", _pq(state.reset_index()))
+        parts = [x[KEYS + ["new_units"]].assign(n=i) for i, x in enumerate(hist) if len(x)]
+        store.put(hs + "hist.parquet", _pq(pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=KEYS + ["new_units", "n"])))
+        store.put(hs + "tail.parquet", _pq(prev_df))
+        store.put(hs + "meta.json", json.dumps({"tail": a.isoformat(), "hist_len": len(hist),
+                                                "updated": datetime.now(timezone.utc).isoformat()}).encode(), "application/json")
+    log.setdefault("status", "up to date" if log["pairs"] else "nothing new")
+    log["tail"], log["seconds"] = f"{a:%Y-%m-%dT%H:%MZ}", round(time.time() - t0, 1)
+    log["checks"] = checks
+    return log
+
+
+def compare_hourly(store, region: str, day: str) -> dict | None:
+    """Check the parallel run (#104): the hourly files of a UTC day against the nightly file for it.
+    Returns None when there are no hourly files for that day."""
+    pre = prefix(region)
+    keys = [k for k in list_keys(store, f"{pre}{HOURLY_DIR}/{day}/") if k.endswith(".parquet")]
+    raw = store.get(f"{pre}flows/{day[:7]}/{day}.parquet")
+    if not keys or not raw:
+        return None
+    night = pd.read_parquet(io.BytesIO(raw))
+    hour = pd.concat([pd.read_parquet(io.BytesIO(store.get(k))) for k in keys], ignore_index=True)
+    on = ["snapshot"] + KEYS
+    for d in (night, hour):
+        d["snapshot"] = pd.to_datetime(d["snapshot"], utc=True)
+    hours_both = set(night["snapshot"]) & set(hour["snapshot"])
+    n, h = (d[d["snapshot"].isin(hours_both)] for d in (night, hour))
+    num = [c for c in n.columns if c in h.columns and c not in on and pd.api.types.is_numeric_dtype(n[c])]
+    m = n.merge(h, on=on, how="outer", suffixes=("_n", "_h"), indicator=True)
+    diff = {c: int(((m[f"{c}_n"].fillna(0) - m[f"{c}_h"].fillna(0)).abs() > 1e-6).sum()) for c in num}
+    return {"region": region, "day": day, "hours_nightly": int(night["snapshot"].nunique()),
+            "hours_hourly": int(hour["snapshot"].nunique()), "hours_compared": len(hours_both),
+            "rows_only_nightly": int((m["_merge"] == "left_only").sum()), "rows_only_hourly": int((m["_merge"] == "right_only").sum()),
+            "columns_differing": {c: v for c, v in diff.items() if v}, "match": not any(diff.values())
+            and not (m["_merge"] != "both").any()}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Listing flows from raw pulls (#37)")
     ap.add_argument("--regions", default=os.environ.get("REGIONS", "us,eu"))
@@ -357,15 +500,46 @@ def main() -> int:
     ap.add_argument("--max-days", type=int, default=31)
     ap.add_argument("--rebuild", action="store_true",
                     help="redo every complete day still in raw/ from an empty first-seen state (overwrites flows)")
+    ap.add_argument("--hourly", action="store_true", help="#104: process the newest hour(s) only (hourly job)")
+    ap.add_argument("--budget", type=float, default=None,
+                    help="with --hourly: start no hour-pair that would end later than this many seconds after the "
+                         "job started (JOB_STARTED, set by the workflow)")
+    ap.add_argument("--catch-up", action="store_true",
+                    help="after the nightly build: compare each built day with the hourly files, then bring the "
+                         "hourly state up to date (#104)")
+    ap.add_argument("--hourly-regions", default=os.environ.get("HOURLY_REGIONS", "us"),
+                    help="regions whose flows also run hourly (#104; US only until it has run a week)")
     args = ap.parse_args()
     use_r2 = not args.local and all(os.environ.get(k) for k in ("R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
     store = R2Store(os.environ.get("R2_BUCKET", "daytrader-data")) if use_r2 else LocalStore(Path(args.local or "data/store"))
     t0 = time.time(); logs = []
-    for region in [r.strip() for r in args.regions.split(",") if r.strip()]:
-        logs += run_region(store, region, args.day, args.max_days, args.rebuild)
+    regions = [r.strip() for r in args.regions.split(",") if r.strip()]
+    if args.hourly:   # never fails the job: a missed hour is picked up by the next run or the nightly job
+        job_t0 = float(os.environ.get("JOB_STARTED") or t0)
+        deadline = job_t0 + args.budget if args.budget else None
+        for region in regions:
+            try:
+                log = hourly_region(store, region, deadline)
+            except Exception as e:  # noqa: BLE001
+                log = {"region": region, "mode": "hourly", "status": f"error: {type(e).__name__}: {e}"}
+            log["job_seconds"] = round(time.time() - job_t0, 1)
+            print(json.dumps(log))
+            store.put(f"{prefix(region)}runs/flows-hourly/{datetime.now(timezone.utc):%Y-%m-%dT%H%M%S}.json",
+                      json.dumps(log).encode(), "application/json")
+        return 0
+    for region in regions:
+        built = run_region(store, region, args.day, args.max_days, args.rebuild)
+        logs += built
+        if args.catch_up and region in args.hourly_regions.split(","):
+            for lg in built:
+                cmp = compare_hourly(store, region, lg["day"])
+                if cmp:
+                    print("Hourly vs nightly:", json.dumps(cmp)); lg["hourly_check"] = cmp
+            hl = hourly_region(store, region, full=True)
+            print(json.dumps(hl)); logs.append(hl)
     summary = {"finished": datetime.now(timezone.utc).isoformat(), "seconds": round(time.time() - t0, 1), "days": logs}
     store.put(f"runs/flows/{datetime.now(timezone.utc):%Y-%m-%dT%H%M%S}.json", json.dumps(summary, indent=1).encode(), "application/json")
-    print(f"Flows done in {summary['seconds']} s: {len(logs)} region-days")
+    print(f"Flows done in {summary['seconds']} s: {len([x for x in logs if 'day' in x])} region-days")
     return 0
 
 
