@@ -95,6 +95,11 @@ svg text{pointer-events:none}.daylink text{pointer-events:auto}
 .median{fill:none;stroke:var(--muted);stroke-width:1.25;opacity:.8}
 .mdot{fill:var(--muted);opacity:.8}
 .boughtline{stroke:var(--cost);stroke-width:1;opacity:.5}
+.typline{stroke:var(--fg);stroke-width:1.25;stroke-dasharray:1 3;stroke-linecap:round;opacity:.85}
+.ceilline{stroke:var(--sales);stroke-width:1.25;stroke-dasharray:8 4;opacity:.8}
+.sect{display:grid;gap:4px;padding-top:12px}
+.sect h2{font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin:0;color:var(--muted)}
+.sect p{margin:0;font-size:13px;color:var(--muted);max-width:80ch}
 .wick line{stroke:var(--fg);stroke-width:1.25;stroke-opacity:.8}
 .wick{cursor:default}
 svg text.tick{font-weight:400;fill:var(--muted)}
@@ -125,6 +130,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
       <span><i style="background:var(--up)"></i>Lowest listing above<em class="zx"> your</em> buy price</span>
       <span><i style="background:var(--down)"></i>Below your buy price</span>
       <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
+      <span><i style="background:repeating-linear-gradient(90deg,var(--fg) 0 2px,transparent 2px 5px);height:2px"></i><em class="zx">Typical price (watched items)</em><em class="zn">Typical</em></span>
       <span><i style="background:repeating-linear-gradient(90deg,var(--floor) 0 6px,transparent 6px 10px);height:2px"></i>Vendor floor</span>
       <span><i style="background:linear-gradient(90deg,transparent 6px,var(--fg) 6px 8px,transparent 8px);height:10px"></i><em class="zx">Wick: highest price paid that hour</em><em class="zn">Wick: highest paid</em></span>
       <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
@@ -194,6 +200,15 @@ function render() {
   const sum = k => per.reduce((a, x) => a + (x[k] ?? 0), 0);
   const T = {cost: sum("paid"), now: sum("now"), pess: sum("pess"), real: sum("real"), opt: sum("opt"), vend: sum("vend")};
   const units = P.reduce((a, p) => a + p.units, 0);
+  // Watched items (not held): bars hang from each item's typical price, the middle of its lowest prices over the
+  // last 7 days, instead of a buy price. They don't count toward the totals.
+  const wk0 = newest - 7*24*H;
+  const watched = (DATA.watch || []).filter(w => DATA.items[w.id]).map(w => {
+    const it = DATA.items[w.id];
+    const typ = median(it.min.filter((v, i) => times[i] > wk0 && v != null)) ?? lastOf(it.min);
+    return {p: {...w, cost: typ, watch: true}, it, last: lastOf(it.min)};
+  });
+  const tierText = p => p.group ? `${p.group} tier ${p.tier}${p.ceiling ? ` · Black Market ${g(p.ceiling)}` : ""}` : "";
 
   // Tape
   const stance = id => ECON?.items?.[id]?.stance || "";
@@ -233,22 +248,33 @@ function render() {
   const chipDate = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", {timeZone:"UTC", month:"short", day:"numeric"});
   const txt = (attrs, parent, s) => { const e = el("text", attrs, parent); e.textContent = s; return e; };
 
-  per.forEach(({p, it, last, now}) => {
-    const ch = (last/p.cost - 1)*100, pnl = (now/(p.cost*p.units) - 1)*100;
-    const b = BRIEF[String(p.id)], e = ECON?.items?.[p.id];
+  [...per, ...watched].forEach(({p, it, last, now}) => {
+    if (p.watch && p === watched[0].p) {   // heading before the first watched item
+      const h = document.createElement("section");
+      h.className = "sect";
+      h.innerHTML = `<h2>Watching: scarce gathering materials</h2><p>Not held. Bars hang from each item's typical price
+        (the middle of its lowest prices over the last 7 days, dotted white line): green above, red below. The dashed
+        purple line is the Black Market vendor's fixed price where it fits the chart.</p>`;
+      panels.appendChild(h);
+    }
+    const ch = (last/p.cost - 1)*100, pnl = p.watch ? 0 : (now/(p.cost*p.units) - 1)*100;
+    const b = BRIEF[String(p.id)], e = p.watch ? null : ECON?.items?.[p.id];
     const panel = document.createElement("section");
-    panel.className = "panel";
+    panel.className = "panel" + (p.watch ? " watched" : "");
     panel.innerHTML = `
       <div class="ph">
-        <span class="sym">${esc(p.sym)}</span><span class="name">${esc(p.name)} · ${p.units} units held</span>
+        <span class="sym">${esc(p.sym)}</span><span class="name">${esc(p.name)} · ${p.watch ? esc(tierText(p)) : `${p.units} units held${p.group ? " · " + esc(tierText(p)) : ""}`}</span>
         ${e?.stance ? `<span class="pill">${esc(e.stance)}</span>` : ""}
         <span class="last">${g(last)}</span><span class="chg ${cls(ch)}">${arrow(ch)} ${pct(ch)}</span>
       </div>
-      <div class="facts">
+      <div class="facts">${p.watch ? `
+        <span>Typical (7 days) <b>${g(p.cost)}</b></span>
+        <span>Vendor pays <b>${g(p.vendor)}</b></span>
+        <span>Listed now <b>${(lastOf(it.qty) ?? 0).toLocaleString()}</b></span>` : `
         <span>Bought at <b>${g(p.cost)}</b></span>
         <span>Vendor pays <b>${g(p.vendor)}</b></span>
         <span>Your stack now <b class="${cls(pnl)}">${g(now)}</b> (${pct(pnl)} after the cut)</span>
-        <span>Listed now <b>${(lastOf(it.qty) ?? 0).toLocaleString()}</b></span>
+        <span>Listed now <b>${(lastOf(it.qty) ?? 0).toLocaleString()}</b></span>`}
       </div>
       <div class="brief${b?.text ? "" : " empty"}">
         <span class="who">${b?.writtenAt ? `Analyst · ${esc(when(t(b.writtenAt)))} · ${esc(ago(t(b.writtenAt)))}` : "Analyst"}</span>
@@ -406,7 +432,7 @@ function render() {
     }
 
     const tb = DATA.boughtAt ? t(DATA.boughtAt) : null;
-    if (tb && tb > t0 && tb < t1) {
+    if (!p.watch && tb && tb > t0 && tb < t1) {
       el("line", {x1:x(tb), x2:x(tb), y1:PT, y2:PT+PH, class:"boughtline"}, svg);
       txt({x:x(tb)+4, y:PT+12, class:"tag", style:"fill:var(--cost)"}, svg, "bought");
     }
@@ -436,7 +462,8 @@ function render() {
     el("polyline", {points:pts, class:"median"}, svg);
     if (ZOOM) it.median.forEach((v, i) => { if (v != null && inView[i]) el("circle", {cx:x(times[i]), cy:y(v), r:2.2, class:"mdot"}, svg); });
     if (vendorIn && p.vendor >= lo && p.vendor <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.vendor), y2:y(p.vendor), class:"vendorline"}, svg);
-    if (p.cost >= lo && p.cost <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.cost), y2:y(p.cost), class:"buyline"}, svg);
+    if (p.cost >= lo && p.cost <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.cost), y2:y(p.cost), class: p.watch ? "typline" : "buyline"}, svg);
+    if (p.ceiling && p.ceiling >= lo && p.ceiling <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.ceiling), y2:y(p.ceiling), class:"ceilline"}, svg);
 
     // tags: "word value", lower case, kept inside the plot
     const placed = [];

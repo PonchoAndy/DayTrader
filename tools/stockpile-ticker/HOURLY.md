@@ -10,7 +10,7 @@ copy in step. Page: https://claude.ai/artifact/CfWFQPhkPehTQkdktHtrHw
 |---|---|---|
 | `ticker/data` | every hourly run with new data | numbers for the last 14 days (`update.py` → `data.json`) |
 | `ticker/state` | every hourly run | `{lastHour, lastBriefingAt, pricesAtBriefing: {item id: copper}, lastRunAt}` |
-| `briefings/<item id>` | runs with a briefing due | `{text, writtenAt, reasons}`: the Analyst's note on that holding's card |
+| `briefings/<item id>` | runs with a briefing due | `{text, writtenAt, reasons}`: the Analyst's note on that item's card (held or watched) |
 | `briefings/overall` | runs with a briefing due | `{headline, watch: [status per Economist watch item], writtenAt, reasons}` |
 | `verdicts/economist` | a Claude session after an Economist review | `{asOf, headline, nextReview, items: {id: {stance, why}}, watch: [...]}` |
 
@@ -33,13 +33,15 @@ W = your scratchpad directory.
 4. If new_data: ArtifactData get ticker/data (for its version), then set ticker/data from file W/out/data.json
    (if_version = that version; omit if the doc doesn't exist).
 5. If briefing_due: read W/out/brief.json and the doc verdicts/economist (its watch list), then call the
-   analyst agent (Agent tool, subagent_type "analyst") with brief.json's contents, the watch list, and this ask:
-   "Write the Stockpile Ticker briefing. For each held item, 2-4 plain sentences for the owner: what the lowest
-   and middle price, units listed and sales did since the last briefing and over the last 24-48 hours, and
-   whether that is normal for this item and hour (label observation / pattern). Prices as gold with 4 decimals
-   (copper / 10000), times in US Eastern on the 24-hour clock with UTC in brackets, e.g. 14:25 ET (19:25 UTC). No trade calls. Also a one-sentence headline for
-   the whole stockpile, and for each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the
-   last 24 hours at 0.0300+'; no numbering). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}}."
+   analyst agent (Agent tool, subagent_type "analyst", effort "low") with brief.json's contents, the watch list, and this ask:
+   "Write the Stockpile Ticker briefing. For each held item (positions), 2-4 plain sentences for the owner: what the
+   lowest and middle price, units listed and sales did since the last briefing and over the last 24-48 hours, and
+   whether that is normal for this item and hour (label observation / pattern). For each watched item (watch), 1-2
+   sentences on the same, against its typical price (the median of its lowest prices over 7 days) and its Black Market
+   ceiling. Prices as gold with 4 decimals (copper / 10000), times in US Eastern on the 24-hour clock with UTC in
+   brackets, e.g. 14:25 ET (19:25 UTC). No trade calls. Also a one-sentence headline for the whole stockpile, and for
+   each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the last 24 hours at 0.0300+'; no
+   numbering). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}} (items covers held and watched)."
    Spot-check any hour counts and prices it quotes against brief.json and fix mistakes before writing.
    Then one ArtifactData batch: set briefings/<id> {text, writtenAt: now ISO, reasons} for each item,
    set briefings/overall {headline, watch, writtenAt, reasons}. Read the existing docs first for if_version.
