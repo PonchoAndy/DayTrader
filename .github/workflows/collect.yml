@@ -130,7 +130,8 @@ jobs:
         run: |
           F=tools/stockpile-ticker/ticker.json
           git fetch -q --depth 1 origin analyst-data && git show "FETCH_HEAD:$F" > "$RUNNER_TEMP/prev.json" 2>/dev/null || echo "No previous ticker export; reading every hour"
-          .venv/bin/python collector/ticker.py --out "$RUNNER_TEMP/ticker.json" --prev "$RUNNER_TEMP/prev.json"
+          # the ticker switch (manual) also re-reads every flow day, e.g. after a flows_rebuild
+          .venv/bin/python collector/ticker.py --out "$RUNNER_TEMP/ticker.json" --prev "$RUNNER_TEMP/prev.json" ${{ inputs.ticker && '--reread-flows' || '' }}
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # the daily pulse job pushes to the same branch: on a refused push, start again from its new tip
@@ -148,7 +149,7 @@ jobs:
   flows:
     if: ${{ inputs.flows || inputs.flows_rebuild || github.event.schedule == '35 1 * * *' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 150   # a nightly run takes ~5-12 min; a full rebuild (flows_rebuild) ~5-7 min per day still in raw/
+    timeout-minutes: 300   # a nightly run takes ~10-15 min; a full rebuild (flows_rebuild) ~9 min per region-day still in raw/ (measured 2026-11-20), ~2.5 h for 8 days x 2 regions
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

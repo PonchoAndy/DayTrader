@@ -70,6 +70,8 @@ def main() -> int:
     ap.add_argument("--positions", default=str(ROOT / "tools/stockpile-ticker/positions.json"))
     ap.add_argument("--since", default="2026-11-14", help="first UTC date to include")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--reread-flows", action="store_true",
+                    help="keep the previous export's prices but re-read every flow day (after a flows_rebuild)")
     args = ap.parse_args()
     t0 = time.time()
     pos = json.loads(Path(args.positions).read_text())
@@ -107,7 +109,8 @@ def main() -> int:
     # listing flows: one file per UTC day, built nightly; read days not in the previous export.
     # Kept per hour (the hour ending at each snapshot) and summed per UTC day. An export from before hourly
     # sales were kept (#99) re-reads every flow day once.
-    hourly_prev = bool(prev) and "flow_hours" in prev and all("sale_max" in v for v in prev["items"].values())
+    hourly_prev = (bool(prev) and "flow_hours" in prev and all("sale_max" in v for v in prev["items"].values())
+                   and not args.reread_flows)
     days = list(prev["flow_days"]) if hourly_prev else []
     flows = {str(i): {f: list(prev["flows"][str(i)][f]) for f in ("sold", "posted")} if hourly_prev else {"sold": [], "posted": []}
              for i in sorted(ids)}
@@ -141,7 +144,8 @@ def main() -> int:
         for n, f in enumerate(("sold", "posted", "sale_max")):
             items[str(i)][f] = [None if h not in fhours else (fvals.get((h, i)) or (0, 0, None))[n] for h in hours]
 
-    if prev and hourly_prev and not keys and not new_days:   # nothing new (the collector skipped this hour): leave the file as is
+    # nothing new (the collector skipped this hour): leave the file as is (never with --reread-flows)
+    if prev and hourly_prev and not keys and not new_days:
         Path(args.out).write_text(Path(args.prev).read_text())
         print(f"Ticker export: nothing new since {prev['generated_at']}; newest {hours[-1]}")
         return 0

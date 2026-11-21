@@ -75,8 +75,12 @@ def get_parquet(store, key: str, columns: list[str] | None = None) -> pd.DataFra
         return None
     try:
         return pd.read_parquet(io.BytesIO(raw), columns=columns)
-    except Exception:   # noqa: BLE001  (an older file without a column: read it whole)
-        return pd.read_parquet(io.BytesIO(raw))
+    except Exception:   # noqa: BLE001  (an older file without a column: read the columns it has)
+        if columns is None:
+            raise
+        import pyarrow.parquet as pq
+        have = set(pq.read_schema(io.BytesIO(raw)).names)
+        return pd.read_parquet(io.BytesIO(raw), columns=[c for c in columns if c in have])
 
 
 def materials(items: pd.DataFrame) -> pd.DataFrame:
