@@ -49,9 +49,10 @@ Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later on
 - new_lot_lt1s / new_lot_1_10s / new_lot_10s_1g / new_lot_1_10g / new_lot_ge10g: new listings by
   total listing value (the deposit-change baseline), plus new_lot_sizes (distinct quantities)
 - cur_min_price, depth_units_{2,5,10,25}, depth_gold_{2,5,10,25}: units and copper within +x% of cur's
-  cheapest. wall_price: on a tie in size, the cheaper listing (from 2026-11-21; before, ties were arbitrary)
+  cheapest
 - at_min_listings, at_min_lot_sizes (rough seller count): listings within 1% of cur's cheapest
-- wall_units, wall_price: the largest single listing within 5% of cur's cheapest
+- wall_units, wall_price: the largest single listing within 5% of cur's cheapest; on a tie in size, the cheaper
+  one (from 2026-11-21; before, ties were broken by row order)
 - cur_tl_{short,medium,long,very_long}_units: time-left mix now (expiry waves)
 
 Each day's log line (and runs/flows/*.json) also carries checks: new units by first time-left bucket

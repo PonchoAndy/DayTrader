@@ -144,7 +144,8 @@ def main() -> int:
         for n, f in enumerate(("sold", "posted", "sale_max")):
             items[str(i)][f] = [None if h not in fhours else (fvals.get((h, i)) or (0, 0, None))[n] for h in hours]
 
-    if prev and hourly_prev and not keys and not new_days:   # (never with --reread-flows: hourly_prev is False)   # nothing new (the collector skipped this hour): leave the file as is
+    # nothing new (the collector skipped this hour): leave the file as is (never with --reread-flows)
+    if prev and hourly_prev and not keys and not new_days:
         Path(args.out).write_text(Path(args.prev).read_text())
         print(f"Ticker export: nothing new since {prev['generated_at']}; newest {hours[-1]}")
         return 0
