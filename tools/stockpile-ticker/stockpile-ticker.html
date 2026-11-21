@@ -96,10 +96,17 @@ svg text{pointer-events:none}.daylink text{pointer-events:auto}
 .mdot{fill:var(--muted);opacity:.8}
 .boughtline{stroke:var(--cost);stroke-width:1;opacity:.5}
 .typline{stroke:var(--fg);stroke-width:1.25;stroke-dasharray:1 3;stroke-linecap:round;opacity:.85}
-.ceilline{stroke:var(--sales);stroke-width:1.25;stroke-dasharray:8 4;opacity:.8}
 .sect{display:grid;gap:4px;padding-top:12px}
 .sect h2{font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin:0;color:var(--muted)}
 .sect p{margin:0;font-size:13px;color:var(--muted);max-width:80ch}
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin-top:8px;border-bottom:1px solid var(--line)}
+.tabs button{font:600 13px var(--mono);color:var(--muted);background:transparent;border:0;border-bottom:2px solid transparent;
+  padding:8px 14px;margin-bottom:-1px;cursor:pointer}
+.tabs button span{font-weight:400;opacity:.7}
+.sect p.also{font-size:12px;font-family:var(--mono);padding-top:4px}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-selected="true"]{color:var(--brief);border-bottom-color:var(--brief)}
+.tabs button:focus-visible{outline:2px solid var(--brief);outline-offset:-2px}
 .wick line{stroke:var(--fg);stroke-width:1.25;stroke-opacity:.8}
 .wick{cursor:default}
 svg text.tick{font-weight:400;fill:var(--muted)}
@@ -208,7 +215,7 @@ function render() {
     const typ = median(it.min.filter((v, i) => times[i] > wk0 && v != null)) ?? lastOf(it.min);
     return {p: {...w, cost: typ, watch: true}, it, last: lastOf(it.min)};
   });
-  const tierText = p => p.group ? `${p.group} tier ${p.tier}${p.ceiling ? ` · Black Market ${g(p.ceiling)}` : ""}` : "";
+  const tierText = p => p.group ? `${p.group} tier ${p.tier}` : "";
 
   // Tape
   const stance = id => ECON?.items?.[id]?.stance || "";
@@ -248,13 +255,26 @@ function render() {
   const chipDate = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", {timeZone:"UTC", month:"short", day:"numeric"});
   const txt = (attrs, parent, s) => { const e = el("text", attrs, parent); e.textContent = s; return e; };
 
-  [...per, ...watched].forEach(({p, it, last, now}) => {
-    if (p.watch && p === watched[0].p) {   // heading before the first watched item
+  // Watched items sit behind one tab per profession, tier 1 to 3 (the choice is remembered on this device)
+  const groups = [...new Set(watched.map(w => w.p.group))].sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b));
+  if (!groups.includes(WTAB)) WTAB = groups[0];
+  const shownWatch = watched.filter(w => w.p.group === WTAB).sort((a, b) => a.p.tier - b.p.tier);
+  const firstWatch = shownWatch[0]?.p;
+  [...per, ...shownWatch].forEach(({p, it, last, now}) => {
+    if (p === firstWatch) {   // heading and tabs before the first watched item
       const h = document.createElement("section");
       h.className = "sect";
       h.innerHTML = `<h2>Watching: scarce gathering materials</h2><p>Not held. Bars hang from each item's typical price
-        (the middle of its lowest prices over the last 7 days, dotted white line): green above, red below. The dashed
-        purple line is the Black Market vendor's fixed price where it fits the chart.</p>`;
+        (the middle of its lowest prices over the last 7 days, dotted white line): green above, red below.</p>
+        <div class="tabs" role="tablist" aria-label="Profession">${groups.map(gr => `<button type="button" role="tab"
+          aria-selected="${gr === WTAB}" data-g="${esc(gr)}">${esc(gr)} <span>${watched.filter(w => w.p.group === gr).length}</span></button>`).join("")}</div>
+        ${(() => { const held = per.filter(x => x.p.group === WTAB);
+          return held.length ? `<p class="also">Also ${esc(WTAB.toLowerCase())}: ${held.map(x => `${esc(x.p.name)} (tier ${x.p.tier})`).join(", ")}, in your holdings above.</p>` : ""; })()}`;
+      h.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setTab(b.dataset.g));
+      h.querySelector(".tabs").addEventListener("keydown", ev => {
+        const i = groups.indexOf(WTAB), d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+        if (d) { ev.preventDefault(); ev.stopPropagation(); setTab(groups[(i + d + groups.length) % groups.length], true); }
+      });
       panels.appendChild(h);
     }
     const ch = (last/p.cost - 1)*100, pnl = p.watch ? 0 : (now/(p.cost*p.units) - 1)*100;
@@ -463,7 +483,6 @@ function render() {
     if (ZOOM) it.median.forEach((v, i) => { if (v != null && inView[i]) el("circle", {cx:x(times[i]), cy:y(v), r:2.2, class:"mdot"}, svg); });
     if (vendorIn && p.vendor >= lo && p.vendor <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.vendor), y2:y(p.vendor), class:"vendorline"}, svg);
     if (p.cost >= lo && p.cost <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.cost), y2:y(p.cost), class: p.watch ? "typline" : "buyline"}, svg);
-    if (p.ceiling && p.ceiling >= lo && p.ceiling <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.ceiling), y2:y(p.ceiling), class:"ceilline"}, svg);
 
     // tags: "word value", lower case, kept inside the plot
     const placed = [];
@@ -502,6 +521,14 @@ function render() {
 }
 
 let ZOOM = null;   // "YYYY-MM-DD": the trading day shown hour by hour; null = every day
+const GROUP_ORDER = ["Herbalism", "Mining", "Skinning"];
+let WTAB = (() => { try { return localStorage.getItem("ticker.watchTab") || "Herbalism"; } catch { return "Herbalism"; } })();
+function setTab(g, focus) {
+  WTAB = g;
+  try { localStorage.setItem("ticker.watchTab", g); } catch {}
+  render();
+  if (focus) document.querySelector(`.tabs button[data-g="${g}"]`)?.focus();
+}
 // Trading day (ADR 0014): 12:00 to 12:00 UTC, 07:00 to 07:00 ET in winter, named by the date it starts.
 // Display only: the stored data and the nightly sales counts (per UTC day) are unchanged.
 const tday = h => new Date(t(h) - 12*H).toISOString().slice(0, 10);
