@@ -41,8 +41,7 @@ W = your scratchpad directory.
    lowest and middle price, units listed and sales did since the last briefing and over the last 24-48 hours, and
    whether that is normal for this item and hour (label observation / pattern). For each watched item (watch), 1-2
    sentences on the same, against its typical price (`typical` in brief.json: the 7-day median of its lowest prices, as
-   the page shows it; don't compute your own) and its Black Market
-   ceiling. Prices as gold with 4 decimals (copper / 10000), times in US Eastern on the 24-hour clock with UTC in
+   the page shows it; don't compute your own). Prices as gold with 4 decimals (copper / 10000), times in US Eastern on the 24-hour clock with UTC in
    brackets, e.g. 14:25 ET (19:25 UTC). No trade calls. Also a one-sentence headline for the whole stockpile, and for
    each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the last 24 hours at 0.0300+'; no
    numbering). Reply with JSON only: {headline, watch: [..], items: {<item id>: text}} (items covers held and watched)."

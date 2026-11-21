@@ -1,21 +1,21 @@
 {
-  "about": "What the owner holds (items) and watches (watch), for the Stockpile Ticker (#99). Holdings are copied from the Stockpile Ledger (buys on 2026-11-15 22:31 UTC). Edit on main: the next hourly run picks it up. Money in copper per unit. ceiling = the Black Market vendor's fixed price for scarce materials (beta, 2026-09-19: 5g / 20g / 50g by tier; check live). Pitchblende as mining tier 3 is inferred from its item ID and vendor price.",
+  "about": "What the owner holds (items) and watches (watch), for the Stockpile Ticker (#99). Holdings are copied from the Stockpile Ledger (buys on 2026-11-15 22:31 UTC). Edit on main: the next hourly run picks it up. Money in copper per unit. Pitchblende as mining tier 3 is inferred from its item ID and vendor price.",
   "region": "us",
   "house": 114,
   "house_name": "US house 114 (Horde)",
   "bought_at": "2026-11-15T22:31Z",
   "items": [
-    {"id": 249391, "name": "Pyrite", "sym": "PYRT", "units": 60, "cost": 195, "vendor": 100, "group": "Mining", "tier": 1, "ceiling": 50000},
-    {"id": 249428, "name": "Pristine Hide", "sym": "HIDE", "units": 60, "cost": 251, "vendor": 250, "group": "Skinning", "tier": 2, "ceiling": 200000},
+    {"id": 249391, "name": "Pyrite", "sym": "PYRT", "units": 60, "cost": 195, "vendor": 100, "group": "Mining", "tier": 1},
+    {"id": 249428, "name": "Pristine Hide", "sym": "HIDE", "units": 60, "cost": 251, "vendor": 250, "group": "Skinning", "tier": 2},
     {"id": 1529, "name": "Jade", "sym": "JADE", "units": 10, "cost": 700, "vendor": 700}
   ],
   "watch": [
-    {"id": 249399, "name": "Frilled Lichen", "sym": "LICH", "vendor": 30, "group": "Herbalism", "tier": 1, "ceiling": 50000},
-    {"id": 249424, "name": "Rosecap", "sym": "ROSE", "vendor": 95, "group": "Herbalism", "tier": 2, "ceiling": 200000},
-    {"id": 249274, "name": "Stranglevine", "sym": "VINE", "vendor": 250, "group": "Herbalism", "tier": 3, "ceiling": 500000},
-    {"id": 249425, "name": "Bauxite", "sym": "BAUX", "vendor": 250, "group": "Mining", "tier": 2, "ceiling": 200000},
-    {"id": 249426, "name": "Pitchblende", "sym": "PTCH", "vendor": 375, "group": "Mining", "tier": 3, "ceiling": 500000},
-    {"id": 249427, "name": "Pristine Leather", "sym": "LETH", "vendor": 125, "group": "Skinning", "tier": 1, "ceiling": 50000},
-    {"id": 249429, "name": "Pristine Scale", "sym": "SCAL", "vendor": 375, "group": "Skinning", "tier": 3, "ceiling": 500000}
+    {"id": 249399, "name": "Frilled Lichen", "sym": "LICH", "vendor": 30, "group": "Herbalism", "tier": 1},
+    {"id": 249424, "name": "Rosecap", "sym": "ROSE", "vendor": 95, "group": "Herbalism", "tier": 2},
+    {"id": 249274, "name": "Stranglevine", "sym": "VINE", "vendor": 250, "group": "Herbalism", "tier": 3},
+    {"id": 249425, "name": "Bauxite", "sym": "BAUX", "vendor": 250, "group": "Mining", "tier": 2},
+    {"id": 249426, "name": "Pitchblende", "sym": "PTCH", "vendor": 375, "group": "Mining", "tier": 3},
+    {"id": 249427, "name": "Pristine Leather", "sym": "LETH", "vendor": 125, "group": "Skinning", "tier": 1},
+    {"id": 249429, "name": "Pristine Scale", "sym": "SCAL", "vendor": 375, "group": "Skinning", "tier": 3}
   ]
 }

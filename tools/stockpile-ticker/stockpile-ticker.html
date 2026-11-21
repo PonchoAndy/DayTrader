@@ -96,7 +96,6 @@ svg text{pointer-events:none}.daylink text{pointer-events:auto}
 .mdot{fill:var(--muted);opacity:.8}
 .boughtline{stroke:var(--cost);stroke-width:1;opacity:.5}
 .typline{stroke:var(--fg);stroke-width:1.25;stroke-dasharray:1 3;stroke-linecap:round;opacity:.85}
-.ceilline{stroke:var(--sales);stroke-width:1.25;stroke-dasharray:8 4;opacity:.8}
 .sect{display:grid;gap:4px;padding-top:12px}
 .sect h2{font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin:0;color:var(--muted)}
 .sect p{margin:0;font-size:13px;color:var(--muted);max-width:80ch}
@@ -216,7 +215,7 @@ function render() {
     const typ = median(it.min.filter((v, i) => times[i] > wk0 && v != null)) ?? lastOf(it.min);
     return {p: {...w, cost: typ, watch: true}, it, last: lastOf(it.min)};
   });
-  const tierText = p => p.group ? `${p.group} tier ${p.tier}${p.ceiling ? ` · Black Market ${g(p.ceiling)}` : ""}` : "";
+  const tierText = p => p.group ? `${p.group} tier ${p.tier}` : "";
 
   // Tape
   const stance = id => ECON?.items?.[id]?.stance || "";
@@ -266,8 +265,7 @@ function render() {
       const h = document.createElement("section");
       h.className = "sect";
       h.innerHTML = `<h2>Watching: scarce gathering materials</h2><p>Not held. Bars hang from each item's typical price
-        (the middle of its lowest prices over the last 7 days, dotted white line): green above, red below. The dashed
-        purple line is the Black Market vendor's fixed price where it fits the chart.</p>
+        (the middle of its lowest prices over the last 7 days, dotted white line): green above, red below.</p>
         <div class="tabs" role="tablist" aria-label="Profession">${groups.map(gr => `<button type="button" role="tab"
           aria-selected="${gr === WTAB}" data-g="${esc(gr)}">${esc(gr)} <span>${watched.filter(w => w.p.group === gr).length}</span></button>`).join("")}</div>
         ${(() => { const held = per.filter(x => x.p.group === WTAB);
@@ -485,7 +483,6 @@ function render() {
     if (ZOOM) it.median.forEach((v, i) => { if (v != null && inView[i]) el("circle", {cx:x(times[i]), cy:y(v), r:2.2, class:"mdot"}, svg); });
     if (vendorIn && p.vendor >= lo && p.vendor <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.vendor), y2:y(p.vendor), class:"vendorline"}, svg);
     if (p.cost >= lo && p.cost <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.cost), y2:y(p.cost), class: p.watch ? "typline" : "buyline"}, svg);
-    if (p.ceiling && p.ceiling >= lo && p.ceiling <= hi) el("line", {x1:PL, x2:W-PR, y1:y(p.ceiling), y2:y(p.ceiling), class:"ceilline"}, svg);
 
     // tags: "word value", lower case, kept inside the plot
     const placed = [];
