@@ -49,7 +49,7 @@ Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later on
 - new_lot_lt1s / new_lot_1_10s / new_lot_10s_1g / new_lot_1_10g / new_lot_ge10g: new listings by
   total listing value (the deposit-change baseline), plus new_lot_sizes (distinct quantities)
 - cur_min_price, depth_units_{2,5,10,25}, depth_gold_{2,5,10,25}: units and copper within +x% of cur's
-  cheapest
+  cheapest. wall_price: on a tie in size, the cheaper listing (from 2026-11-21; before, ties were arbitrary)
 - at_min_listings, at_min_lot_sizes (rough seller count): listings within 1% of cur's cheapest
 - wall_units, wall_price: the largest single listing within 5% of cur's cheapest
 - cur_tl_{short,medium,long,very_long}_units: time-left mix now (expiry waves)
@@ -254,7 +254,9 @@ def _flows_core(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_pr
         out.append((c[m]["qty"] * c[m]["price"]).groupby([c[m][k] for k in K]).sum().rename(f"depth_gold_{x}"))
     am = c[rr <= 1.01]
     out.append(am.groupby(K).agg(at_min_listings=("id", "size"), at_min_lot_sizes=("qty", "nunique")))
-    w = c[rr <= 1.05].sort_values("qty", ascending=False).drop_duplicates(K).set_index(K)
+    # the biggest listing near the cheapest; on a tie in size, the cheaper one (a fixed rule, so hourly and
+    # nightly runs pick the same listing: before 2026-11-21 ties were broken by row order, #104)
+    w = c[rr <= 1.05].sort_values(["qty", "price"], ascending=[False, True], kind="mergesort").drop_duplicates(K).set_index(K)
     out.append(w[["qty", "price"]].rename(columns={"qty": "wall_units", "price": "wall_price"}))
     out.append(cmin.rename("cur_min_price"))
     tl = cur.pivot_table(index=K, columns="tl", values="qty", aggfunc="sum", fill_value=0)
