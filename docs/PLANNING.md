@@ -20,7 +20,7 @@ cancellations can pass as sales (and 2-hour sales pass as expiries, #69). Any si
 noise is likely to be interfering (price wars, heavy relisting, cheap deposits) rather than present the number as fact.
 The player's **profile is the account's whole economic pool**: every character that can reach a market, with its
 professions, level, gold and bank space (#78). Before strategy work, **check scope first**: fit the plan to what the
-player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (**house 114** per the game files; in-game marker check pending, #13; Blackwater 117 also reachable),
+player can actually do now (#79). The owner trades on **Horde, Normal ruleset** (**house 114**, confirmed in game 2026-11-21, #13; Blackwater 117 also reachable),
 starting with 5g (2026-11-15). Sessions like 2026-11-15 are **prototyping with Claude's tools**; the app itself will
 later run outside Claude Code.
 
@@ -199,6 +199,8 @@ reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #1
   **Blackwater's deposit rate in the files is 25 (5× the faction houses)**, so probably 25/100/300%:
   unconfirmed. Vendor prices are in wago.tools `ItemSparse.SellPrice` (branch `wowf`, includes Forever's
   vendor-price cuts); we don't collect them yet (#70), and every profit figure needs them.
+  **Confirmed in game 2026-11-21 (#13) [owner, in game]:** 1 Greater Healing Potion (item 1710, vendor price 1s 25c) at
+  Orgrimmar showed a deposit of **25c for 8 h and 75c for 24 h**, exactly 20% / 60%. Blackwater's rate is still unchecked.
 - **Minimum deposit:** 1 silver per listing as of 2026-11-14 (many player tests, both house types). The
   1-copper change was pulled from the Nov 10 notes; Blizzard (Kaivax, 2026-11-12) says it goes live with
   weekly maintenance on **2026-11-17 (US)** **[official]**, and **2026-11-18 in Europe** (EU staff post,
@@ -263,7 +265,7 @@ and houses have no ruleset field (re-checked 2026-11-15). **Take the ruleset fro
 Mail between rulesets is blocked ("You can't send mail to that ruleset", client text) and characters can't change ruleset
 (Blizzard; dead Hardcore characters excepted). Factions on the same ruleset meet only at their shared Blackwater house. An
 unplaced "Auction House" (ID 122) is Blackwater in the files (FactionID 369, deposit rate 25, **15% cut** [datamined, build
-70938]), yet the redirect table points each faction to its own ruleset market; where it is in the world is unknown. Matches wowauctionhouse.com's labels. One in-game marker listing makes it firm (#13). Note: earlier docs and
+70938]), yet the redirect table points each faction to its own ruleset market; where it is in the world is unknown. Matches wowauctionhouse.com's labels. Confirmed in game on 2026-11-21 by matching the owner's order book (#13, below). Note: earlier docs and
 mock-ups treat **113 (PvP Horde)** as the owner's house; they need switching to 114.
 
 **Durations confirmed (2026-11-15, Researcher, #13) [our data]:** of 213k listings under 1 h old, 12% showed MEDIUM (30 min–2 h
@@ -271,7 +273,15 @@ left), so a 2-hour option exists; none showed SHORT. Listing lengths are 2/8/24 
 ruled out yet: a listing living over ~25 h would show it). Cut and deposit rates in the files (build 70938): faction houses
 5% cut, deposit rate 5; Blackwater 15% cut, deposit rate 25. **#13 status:** only the marker listing (house 114), one
 sale-mail cut and one Blackwater deposit still need the owner, none time-limited; the pre-maintenance 1-silver deposit is
-already confirmed by many player tests.
+already confirmed by many player tests. **Update 2026-11-21:** the home house (114) and the faction-house deposit rate are
+confirmed in game (below and above); the 1-silver minimum is gone (a 25c deposit showed). Still open: Blackwater's deposit and
+cut, and the cut on a sale mail.
+
+**Home house confirmed (2026-11-21, #13) [owner, in game + API]:** the Greater Healing Potion order book on the owner's
+Orgrimmar auction house (399 units, e.g. 3s 87c ×206, 3s 89c ×26, 3s 90c ×26) matched house 114's listings in the API
+(snapshot 03:25 UTC): **347 of the 399 units at the same prices**, against 0 on houses 113, 120 and 124 and 3–7 on
+Blackwater 116/117 (chance overlaps). The rest were listings posted or bought after the snapshot. So the owner's market is
+**house 114 (US, Normal, Horde)**, as the game files said (ADR 0012).
 
 ### Path B: In-game addon scan (how Auctionator works)
 

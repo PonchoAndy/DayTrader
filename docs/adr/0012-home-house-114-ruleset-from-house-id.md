@@ -25,6 +25,8 @@ between houses (e.g. Frilled Lichen 17.7s on 114 against 27s on 113, 2026-11-15 
 - Re-check the redirect table each game build (cheap: one CSV fetch), since Blizzard may link houses
   if a ruleset dries up.
 - The in-game marker listing on #13 confirms it; if it shows otherwise, this ADR is superseded.
+  **Confirmed 2026-11-21 (#13):** the owner's Orgrimmar order book for Greater Healing Potion matched house 114's
+  listings (347 of 399 units), and no other house. Details in PLANNING.
 
 ## Consequences
 
