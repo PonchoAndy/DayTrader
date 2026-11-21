@@ -1,5 +1,5 @@
 {
-  "about": "What the owner holds (items) and watches (watch), for the Stockpile Ticker (#99). Holdings are copied from the Stockpile Ledger (buys on 2026-11-15 22:31 UTC). Edit on main: the next hourly run picks it up. Money in copper per unit. Pitchblende as mining tier 3 is inferred from its item ID and vendor price.",
+  "about": "What the owner holds (items) and watches (watch), for the Stockpile Ticker (#99). Holdings are copied from the Stockpile Ledger (buys on 2026-11-15 22:31 UTC). Edit on main: the next hourly run picks it up. Money in copper per unit. Pitchblende is mining tier 3 (item level 60, datamined; Researcher 2026-11-21).",
   "region": "us",
   "house": 114,
   "house_name": "US house 114 (Horde)",

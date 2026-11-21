@@ -266,7 +266,8 @@ This explains "five per faction" and the always-empty houses. The API can't show
 and houses have no ruleset field (re-checked 2026-11-15). **Take the ruleset from the house ID, never from the query.**
 Mail between rulesets is blocked ("You can't send mail to that ruleset", client text) and characters can't change ruleset
 (Blizzard; dead Hardcore characters excepted). Factions on the same ruleset meet only at their shared Blackwater house. An
-unplaced "Auction House" (ID 122) is Blackwater in the files (FactionID 369, deposit rate 25, **15% cut** [datamined, build
+unplaced "Auction House" (ID 122, new in Forever) has Blackwater's settings in the files (FactionID 369, which the files
+name "Gadgetzan", the Steamwheedle faction that Blackwater houses belong to; deposit rate 25, **15% cut** [datamined, build
 70938]), yet the redirect table points each faction to its own ruleset market; where it is in the world is unknown. Matches wowauctionhouse.com's labels. Confirmed in game on 2026-11-21 by matching the owner's order book (#13, below). Note: earlier docs and
 mock-ups treat **113 (PvP Horde)** as the owner's house; they need switching to 114.
 
@@ -377,8 +378,33 @@ rewards leveling alts.
 **Scarce materials** (Forever only) come in three tiers [datamined]: item level 25 Pyrite / Frilled Lichen / Pristine Leather,
 45 Rosecap / Pristine Hide, 60 Stranglevine / Pristine Scale. Beta testers (Oct 2026) and one live player (11-08) report
 **tier 1 can only be gathered by characters level 25 or lower** [guide / forum]; untested for Pyrite. Bountiful Harvest raises
-the scarce-drop chance. A Black Market vendor (Powderfuse Port, Riverglades) sold them at fixed prices in beta: 5g tier 1,
-20g tier 2, 50g tier 3 [guide / forum, 2026-09-19; check live]. That is a price ceiling.
+the scarce-drop chance.
+
+**Black Market (Researcher, 2026-11-21, #13).** In **Powderfuse Port** (Riverglades, ~78, 52), a neutral Steamwheedle town with
+its own faction "Powderfuse" (2827) [datamined]. Two NPCs [guide / forum, beta 2026-09-19 to 10-04]:
+- **Mister Graphed:** a fixed-price vendor.
+- **Madam Swyndle:** a retail-style Black Market Auction House. Bid-only, no player listings, gear and collectibles.
+
+Graphed's beta list:
+
+| Price | Items |
+|---|---|
+| **5g** | Pyrite, Frilled Lichen, Pristine Leather |
+| **20g** | Bauxite, Rosecap, Pristine Hide |
+| **50g** | Pitchblende, Stranglevine, Pristine Scale, Fel Crystal, Torbernite, Death Lotus, Black Lotus, Arcane Crystal |
+| 150g | Gift of Galloping |
+
+Stock was "no limit" in beta [guide / forum, beta].
+- **Pitchblende is the tier-3 mining material** (item level 60, like Stranglevine and Pristine Scale) [datamined].
+- The Legacy perk **Bartering** takes 10% off all vendor gold prices [datamined].
+- **Live status:** players treat it as a live 50g cap (11-17/18). There is no live price list and no official note yet
+  [guide / forum, live]. The material prices are set on the server, so they can't be datamined.
+- **Not related to Blackwater:** the Black Market is not one of our 15 houses (see the faction note above).
+- **For trading:** it's only a ceiling. Tiers 1–2 trade hundreds of times below it today. It matters for Black Lotus, Arcane
+  Crystal and the new level-60 materials.
+- **Owner check (optional):** visit Mister Graphed and note his prices and any stock count.
+- On 2026-11-21 the owner dropped the Black Market price from the Stockpile Ticker. The name read like the Blackwater auction
+  house, and the price was far above today's market.
 
 **Recipes [datamined, build 1.60.1.70938]:** new "variant families" (same item, 5–6 versions, each with a different gem or
 flavour reagent), so classic gems substitute for each other. Forever's high-level smithing and leatherworking (skill 200–290)
