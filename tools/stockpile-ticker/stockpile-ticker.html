@@ -95,6 +95,8 @@ svg text{pointer-events:none}.daylink text{pointer-events:auto}
 .median{fill:none;stroke:var(--muted);stroke-width:1.25;opacity:.8}
 .mdot{fill:var(--muted);opacity:.8}
 .boughtline{stroke:var(--cost);stroke-width:1;opacity:.5}
+.wick line{stroke:var(--fg);stroke-width:1.25;stroke-opacity:.8}
+.wick{cursor:default}
 svg text.tick{font-weight:400;fill:var(--muted)}
 svg text.tag{font-weight:600;fill:var(--fg);paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 svg text.sales{fill:var(--sales);fill-opacity:.85}
@@ -124,6 +126,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
       <span><i style="background:var(--down)"></i>Below your buy price</span>
       <span><i style="background:var(--cost);height:2px"></i>Your buy price</span>
       <span><i style="background:repeating-linear-gradient(90deg,var(--floor) 0 6px,transparent 6px 10px);height:2px"></i>Vendor floor</span>
+      <span><i style="background:linear-gradient(90deg,transparent 6px,var(--fg) 6px 8px,transparent 8px);height:10px"></i><em class="zx">Wick: highest price paid that hour</em><em class="zn">Wick: highest paid</em></span>
       <span><i style="background:var(--muted);height:2px"></i>Middle price (median)</span>
       <span><i style="background:var(--sales);opacity:.55;height:2px"></i><em class="zx">Units sold per hour, bottom band (low estimate)</em><em class="zn">Sold/hour (low est.)</em></span>
       <span><i style="background:repeating-linear-gradient(90deg,var(--sales) 0 3px,transparent 3px 5px);height:2px"></i><em class="zx">Units listed, same band and scale (steps of ten)</em><em class="zn">Listed</em></span>
@@ -140,7 +143,7 @@ svg text.sales{fill:var(--sales);fill-opacity:.85}
 
   <section class="notes">
     <h2>About these numbers</h2>
-    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. The purple band along the bottom shows units listed (dashed steps: how many were up for sale at each snapshot) and units sold per hour (solid steps), on one scale that goes up in steps of ten (0, 10, 100, 1,000), so a day with ten times more listed is one step higher (6-hour averages on the all-days view, every hour when zoomed), from listings that vanished; it's counted each night, so the most recent 12 to 36 hours have none yet. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
+    <p>Prices are gold with 4 decimals (0.0239 = 2 silver 39 copper). Each bar is the cheapest listing on house 114 in one hourly snapshot, for the last 14 days: the price you'd have to match to sell first. The thin wick on top reaches the highest price anyone actually paid in the hour before, counting only sales that pass the cancel checks and were within 20% of the cheapest; a tall wick means buyers climbed up the listings. Wicks come from the nightly sales count, so the newest hours don't have them yet. Dates under the charts are trading days, 07:00 to 07:00 Eastern; click one to see that day hour by hour, with the price scale fitted to just that day. The purple band along the bottom shows units listed (dashed steps: how many were up for sale at each snapshot) and units sold per hour (solid steps), on one scale that goes up in steps of ten (0, 10, 100, 1,000), so a day with ten times more listed is one step higher (6-hour averages on the all-days view, every hour when zoomed), from listings that vanished; it's counted each night, so the most recent 12 to 36 hours have none yet. "Value now" is the lowest price × 0.95 (the 5% auction cut) × units held. "Pessimistic" and "Optimistic" use each item's cheapest listing at its worst and best hour of the last 24 hours, after the cut. "Realistic" uses the middle of those 24 hourly lowest prices. Pessimistic and Realistic never go below what a vendor pays, since you'd vendor instead.</p>
     <p>Numbers refresh every hour (about 15 minutes past). The Analyst writes a new briefing for each holding every 6 hours, and sooner if a lowest price moves 30% or more. Units sold comes from listing flows, built each night, and runs low: it counts only sales we can be sure of. GitHub skips about 3 hourly runs a day, so a few hours are missing. Briefings describe what the data shows; they aren't a forecast or a promise of profit.</p>
   </section>
 </div>
@@ -265,7 +268,9 @@ function render() {
 
     // price scale: only what's in view, so one day's moves fill the height. The buy price stays in (bars start
     // from it); the vendor floor only when it's near the prices shown.
-    const shown = [...it.min.filter((v, i) => inView[i]), ...it.median.filter((v, i) => inView[i])].filter(v => v != null);
+    const paidMax = it.sale_max || [];   // highest price paid in the hour ending at each snapshot (the wick)
+    const shown = [...it.min.filter((v, i) => inView[i]), ...it.median.filter((v, i) => inView[i]),
+                   ...paidMax.filter((v, i) => inView[i])].filter(v => v != null);
     const dLo = shown.length ? Math.min(...shown) : p.cost, dHi = shown.length ? Math.max(...shown) : p.cost;
     const vendorIn = !ZOOM || p.vendor >= dLo - (dHi - dLo) * 0.25;
     const vals = [...shown, p.cost, ...(vendorIn ? [p.vendor] : [])];
@@ -415,7 +420,17 @@ function render() {
       const top = Math.min(y(v), y(p.cost)), h = Math.max(1.5, Math.abs(y(v) - y(p.cost)));
       const col = v > p.cost ? "var(--up)" : v < p.cost ? "var(--down)" : "var(--muted)";
       const r = el("rect", {x:x(times[i]) - w/2, y:top, width:w, height:h, style:`fill:${col}`}, svg);
-      el("title", {}, r).textContent = `${when(times[i])}: lowest ${g(v)}, median ${g(it.median[i])}, ${it.qty[i] ?? "–"} listed`;
+      el("title", {}, r).textContent = `${when(times[i])}: lowest ${g(v)}, median ${g(it.median[i])}, ${it.qty[i] ?? "–"} listed`
+        + (paidMax[i] ? `; highest paid in the hour before: ${g(paidMax[i])}` : "");
+    });
+    // wick: from the cheapest listing up to the highest price paid in the hour ending at that snapshot
+    it.min.forEach((v, i) => {
+      const hp = paidMax[i];
+      if (v == null || !inView[i] || hp == null || hp <= v) return;
+      const cx = x(times[i]), wk = el("g", {class:"wick"}, svg);
+      el("line", {x1:cx, x2:cx, y1:y(v), y2:y(hp)}, wk);
+      el("line", {x1:cx - Math.min(4, w/2), x2:cx + Math.min(4, w/2), y1:y(hp), y2:y(hp)}, wk);
+      el("title", {}, wk).textContent = `${when(times[i])}: highest paid in the hour before ${g(hp)} (cheapest listed ${g(v)}, +${((hp/v - 1)*100).toFixed(1)}%)`;
     });
     const pts = it.median.map((v,i) => v==null || !inView[i] ? null : `${x(times[i]).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(" ");
     el("polyline", {points:pts, class:"median"}, svg);

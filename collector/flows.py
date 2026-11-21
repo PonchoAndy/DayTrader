@@ -42,6 +42,9 @@ Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later on
   - burst_units: new units this hour, if this hour was a burst for the item (else 0)
   - cancel_flag: 1 when suspect_cheap_units is at least a quarter of partial_units + early_at_min +
     early_within5 (this hour's sale signal is likely cancel noise)
+- sale_max_price (from 2026-11-21): the highest unit price paid this hour, in copper: partial buys at their price,
+  plus early vanishings within 20% of prev's cheapest that pass the cancel check and aren't relists; 0 = no sale
+  seen. For commodities (cheapest units sell first) it shows how far up the book buyers climbed (the Ticker's wick).
 - undercut_listings, undercut_units: new listings priced below prev's cheapest
 - new_lot_lt1s / new_lot_1_10s / new_lot_10s_1g / new_lot_1_10g / new_lot_ge10g: new listings by
   total listing value (the deposit-change baseline), plus new_lot_sizes (distinct quantities)
@@ -92,7 +95,7 @@ STATE_COLS = ["first_seen", "posted_after", "first_tl", "burst"]
 FIXED_COLS = (["early_units", "expired_units", "early_2h_units", "early_8h_units", "early_24h_units",
                "early_unknown_dur_units", "early_short_medium_units", "early_at_min", "early_within5",
                "early_within20", "early_above", "early_skipped_units", "early_burst_units", "early_batch_units",
-               "suspect_cancel_units", "suspect_cheap_units", "burst_units"])
+               "suspect_cancel_units", "suspect_cheap_units", "burst_units", "sale_max_price"])
 
 
 def list_keys(store, pfx: str) -> list[str]:
@@ -256,6 +259,14 @@ def _flows_core(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_pr
     out.append(cmin.rename("cur_min_price"))
     tl = cur.pivot_table(index=K, columns="tl", values="qty", aggfunc="sum", fill_value=0)
     out.append(tl.reindex(columns=TL, fill_value=0).rename(columns={t: f"cur_tl_{t.lower()}_units" for t in TL}))
+
+    # Highest price paid this hour (the Ticker's wick): units bought out of a listing that stayed up, at that
+    # listing's price, plus early vanishings within 20% of prev's cheapest that pass the cancel checks and weren't
+    # relisted. Commodity buyers take the cheapest units first, so this is how far up the book buyers climbed.
+    # 0 = no sale seen. Added 2026-11-21; older files don't have the column.
+    ok = early[~early["suspect"] & ~early["id"].isin(relisted) & early["pos"].ne("early_above")]
+    paid = pd.concat([part[K + ["price"]], ok[K + ["price"]]])
+    out.append(paid.groupby(K)["price"].max().rename("sale_max_price"))
 
     df = pd.concat(out, axis=1).fillna(0)
     df.columns = [str(c) for c in df.columns]

@@ -54,7 +54,7 @@ HOURLY_COLS = ["snapshot", "house_id", "faction", "kind", "item_id", "variant", 
 FLOW_COLS = ["snapshot", "prev_snapshot", "hours_between", "house_id", "kind", "item_id", "variant",
              "new_units", "partial_units", "partial_value", "early_at_min", "early_within5", "relist_guess_units",
              "suspect_cheap_units", "expired_units", "gone_short_units", "gone_medium_units", "cancel_flag",
-             "cur_min_price"]
+             "cur_min_price", "sale_max_price"]
 NOTES = ("Times are UTC snapshot times (Blizzard's refresh, ~:17-:30 past the hour). Eastern = UTC-5 in winter "
          "(UTC-4 in summer). A trading day runs 12:00-12:00 UTC and is named by the date it starts (ADR 0014). "
          "Prices: copper per unit, quantity-weighted percentiles; quantity = units listed; listings = listings. "
@@ -125,6 +125,7 @@ def load_flows(store, region: str, since: str, houses: set[int], ids: set[int]):
         f["sold_clean"] = (f["sold_est"] - f["suspect"]).clip(lower=0)
         f["expired"] = g("expired_units") if "expired_units" in f else g("gone_short_units") + g("gone_medium_units")
         f["cancel_flag"] = g("cancel_flag")
+        f["sale_max_price"] = g("sale_max_price")   # from 2026-11-21 (the Ticker's wick); 0 in older files
         # value: units bought out of a listing that stayed up at their own price; the rest at the previous
         # hour's cheapest (early sales counted here vanished within 5% of it). Only rows with sales are joined.
         keys_ = ["house_id", "kind", "item_id", "variant"]
@@ -151,7 +152,8 @@ def load_flows(store, region: str, since: str, houses: set[int], ids: set[int]):
         w = f[f["house_id"].isin(houses) & f["item_id"].isin(ids) & (f["variant"] == "")].rename(columns={"new_units": "posted"})
         ws.append(w.groupby(["snapshot", "house_id", "item_id"], as_index=False).agg(
             posted=("posted", "sum"), sold_est=("sold_est", "sum"), sold_clean=("sold_clean", "sum"),
-            expired=("expired", "sum"), suspect=("suspect", "sum"), cancel_flag=("cancel_flag", "max")))
+            expired=("expired", "sum"), suspect=("suspect", "sum"), cancel_flag=("cancel_flag", "max"),
+            sale_max=("sale_max_price", "max")))
     print(f"[{region}] {len(keys)} flows files read")
     if not tots:
         return pd.DataFrame(), pd.DataFrame(), pd.Series(dtype=float)
