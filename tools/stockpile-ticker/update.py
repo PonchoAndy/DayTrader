@@ -33,6 +33,14 @@ def last_value(xs: list):
     return next((v for v in reversed(xs) if v is not None), None)
 
 
+def typical(t: dict, item_id) -> int | None:
+    """Median of an item's hourly lowest prices over the last 7 days (the page's 'Typical (7 days)')."""
+    hours = t["hours"]
+    since = (ts(hours[-1]) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%MZ")
+    v = sorted(x for h, x in zip(hours, t["items"][str(item_id)]["min"]) if h > since and x is not None)
+    return v[(len(v) - 1) // 2] if v else None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", required=True)
@@ -90,7 +98,8 @@ def main() -> int:
                                    for f in ("min", "median", "qty", "sold")
                                    if f in t["items"][str(p["id"])]}} for j, h in enumerate(hours[n48:])]
         brief = {"now": now.strftime("%Y-%m-%dT%H:%MZ"), "reasons": reasons, "positions": t["positions"],
-                 "watch": t.get("watch", []),
+                 # each watched item's typical price, as the page shows it: the median of its lowest prices over 7 days
+                 "watch": [{**w, "typical": typical(t, w["id"])} for w in t.get("watch", [])],
                  "prices_at_last_briefing": state.get("pricesAtBriefing"), "last_briefing_at": last,
                  "last_48_hours": rows,
                  "flows_last_7_days": {"days": t["flow_days"][-7:],

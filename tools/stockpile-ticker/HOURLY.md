@@ -32,12 +32,16 @@ W = your scratchpad directory.
    It prints {newest_hour, new_data, briefing_due, reasons, prices}.
 4. If new_data: ArtifactData get ticker/data (for its version), then set ticker/data from file W/out/data.json
    (if_version = that version; omit if the doc doesn't exist).
-5. If briefing_due: read W/out/brief.json and the doc verdicts/economist (its watch list), then call the
-   analyst agent (Agent tool, subagent_type "analyst", effort "low") with brief.json's contents, the watch list, and this ask:
+5. If briefing_due: read W/out/brief.json and the doc verdicts/economist (its watch list). This session doesn't load
+   the project's agents, so get the Analyst's instructions with
+   git show origin/main:.claude/agents/analyst.md > W/analyst.md  (use the text after the second --- line), then call
+   the Agent tool (general-purpose, effort "low") with: those instructions, brief.json's contents, the watch list,
+   and this ask:
    "Write the Stockpile Ticker briefing. For each held item (positions), 2-4 plain sentences for the owner: what the
    lowest and middle price, units listed and sales did since the last briefing and over the last 24-48 hours, and
    whether that is normal for this item and hour (label observation / pattern). For each watched item (watch), 1-2
-   sentences on the same, against its typical price (the median of its lowest prices over 7 days) and its Black Market
+   sentences on the same, against its typical price (`typical` in brief.json: the 7-day median of its lowest prices, as
+   the page shows it; don't compute your own) and its Black Market
    ceiling. Prices as gold with 4 decimals (copper / 10000), times in US Eastern on the 24-hour clock with UTC in
    brackets, e.g. 14:25 ET (19:25 UTC). No trade calls. Also a one-sentence headline for the whole stockpile, and for
    each Economist watch item, in order, a short status (e.g. 'Not yet: 3 of the last 24 hours at 0.0300+'; no
@@ -45,8 +49,9 @@ W = your scratchpad directory.
    Spot-check any hour counts and prices it quotes against brief.json and fix mistakes before writing.
    Then one ArtifactData batch: set briefings/<id> {text, writtenAt: now ISO, reasons} for each item,
    set briefings/overall {headline, watch, writtenAt, reasons}. Read the existing docs first for if_version.
-6. Set ticker/state to {lastHour: newest_hour, lastRunAt: now ISO, lastBriefingAt and pricesAtBriefing:
-   now and `prices` if you wrote a briefing, else unchanged from the old state} (if_version from step 2).
+6. Always (even if step 5 failed) set ticker/state to {lastHour: newest_hour, lastRunAt: now ISO, lastBriefingAt and
+   pricesAtBriefing: now and `prices` if you wrote a briefing, else unchanged from the old state} (if_version from
+   step 2), so the page and Claude can see the task is alive.
 7. Reply with one line: newest hour, whether numbers and briefings were written, and why.
-If anything fails, say what failed in one line and stop; the next hour tries again.
+If anything else fails, say what failed in one line and stop; the next hour tries again.
 ```
