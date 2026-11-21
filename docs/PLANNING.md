@@ -200,7 +200,9 @@ reports otherwise), gold guides **[guide-seller]**. Full links are on #10 and #1
   unconfirmed. Vendor prices are in wago.tools `ItemSparse.SellPrice` (branch `wowf`, includes Forever's
   vendor-price cuts); we don't collect them yet (#70), and every profit figure needs them.
   **Confirmed in game 2026-11-21 (#13) [owner, in game]:** 1 Greater Healing Potion (item 1710, vendor price 1s 25c) at
-  Orgrimmar showed a deposit of **25c for 8 h and 75c for 24 h**, exactly 20% / 60%. Blackwater's rate is still unchecked.
+  Orgrimmar showed a deposit of **25c for 8 h and 75c for 24 h**, exactly 20% / 60%. **Blackwater confirmed the same day:**
+  the same potion at Booty Bay showed **3s 75c for 24 h** = 300% of vendor price, exactly 5× the faction houses, so
+  **25% per 2 h at Blackwater (25 / 100 / 300% for 2 / 8 / 24 h)**.
 - **Minimum deposit:** 1 silver per listing as of 2026-11-14 (many player tests, both house types). The
   1-copper change was pulled from the Nov 10 notes; Blizzard (Kaivax, 2026-11-12) says it goes live with
   weekly maintenance on **2026-11-17 (US)** **[official]**, and **2026-11-18 in Europe** (EU staff post,
@@ -275,7 +277,9 @@ ruled out yet: a listing living over ~25 h would show it). Cut and deposit rates
 sale-mail cut and one Blackwater deposit still need the owner, none time-limited; the pre-maintenance 1-silver deposit is
 already confirmed by many player tests. **Update 2026-11-21:** the home house (114) and the faction-house deposit rate are
 confirmed in game (below and above); the 1-silver minimum is gone (a 25c deposit showed). Still open: Blackwater's deposit and
-cut, and the cut on a sale mail.
+cut, and the cut on a sale mail. **Later the same day:** Blackwater's deposit confirmed (5× faction, see above) and Booty
+Bay identified as **house 117** (its potion order book matched 117's listings: 4s 64c ×11, 5s 00c ×3, 8s 00c ×2 exactly).
+Only the sale-mail cuts (5% faction, 15% Blackwater) are still unchecked.
 
 **Home house confirmed (2026-11-21, #13) [owner, in game + API]:** the Greater Healing Potion order book on the owner's
 Orgrimmar auction house (399 units, e.g. 3s 87c ×206, 3s 89c ×26, 3s 90c ×26) matched house 114's listings in the API
