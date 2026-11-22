@@ -419,6 +419,48 @@ space (stacks of 20). Ores trade 4–40× vendor. Pyrite is also at vendor (1s);
 weak for Malachite, Lesser Moonstone, Strange Dust. Tests: H-L1 to H-L8 in the report. Gem drop rates in Forever are
 unknown (~1% per node in TBC data, snippet only). House map: see §1 "What a house is" (Normal Horde = 114, PvP Horde = 113).
 
+### Which items NPC vendors sell (2026-11-22, Researcher, PonchoAndy/DayTrader#114, relates to #70)
+
+- **No vendor-stock table in the game files** [datamined, wago.tools `wowf`]: the only vendor tables cover
+  collectables (appearances, pets, mounts). Vendor stock is server-side.
+- **QuestieDB's `vendors` field is a usable Forever list** [community-tested, fetched 2026-11-22]: Classic Era
+  base + Wowhead-Forever additions + player traces. It can't show items Forever *removed*, and carries some Season
+  of Discovery leftovers, so filter to items seen on our houses. Licence unclear ("when in doubt, all rights
+  reserved"). **CMaNGOS** (GPLv3) gives Classic 1.12 stock limits, not Forever's.
+- **The Analyst's vendor candidates:** all vendor-sold and unlimited in Classic, except **Light Feather and Fish
+  Oil: no vendor, drops only** (their 30c "buy price" is never offered). **Expert Cookbook** (1g) is sold only in
+  Desolace (Wulan, Shadowprey Village) and Ashenvale (Shandrina), not in any AH city.
+- **Orgrimmar (house 114)**, AH at ~55.5, 63:
+  - **Kaja** (Valley of Strength, next to the AH): shot only, no arrows.
+  - **Trak'gen** and **Shimra** (by the bank): all arrows and shot; trade goods.
+  - **The Drag**: **Felika** (threads, some dyes, vials, coal, salt, spices, Dust of Decay), **Borya** and
+    **Tamar** (threads, all dyes, salt, patterns), **Xen'to** (spices, Simple Wood, Thick Logs).
+  - **Rekkul** (Cleft of Shadow): Flash Powder, poison reagents.
+  - **Kithas**: Strange Dust and Lesser Magic Essence.
+  - New Forever **Recipe Vendor Darah** (~64, 51): reagent-bag patterns.
+- **Booty Bay (Blackwater, 117)**: nearly all of these within a few steps of the AH (no Accurate Slugs).
+  Glyx Brewright sells **Greater Healing Potion 5s, 3 per hour** in Classic.
+- **Limited stock in Classic** [CMaNGOS]:
+  - Strange Dust: 4 per 2 h. Lesser Magic Essence: 2 per 2 h (enchanting vendors).
+  - Imbued Vial: 5 per 12 h, only at Edna Mullby and Burbik Gearspanner; unlimited in Orgrimmar.
+  - Engineering parts at Sovik and Mazk.
+  - 37 recipes and patterns, 1 per 1–2 h.
+- **Forever additions** [community-tested]:
+  - Cooking suppliers: Simple Wood, Flint and Tinder, **Thick Logs (20g)**.
+  - Fishing suppliers: Chef's Knife.
+  - Tailoring suppliers and Darah: Linen and Woolen Reagent Bag patterns.
+  - Leatherworking suppliers: new armor-kit patterns.
+  - Granny Finespindle (Ironforge): new leatherworking patterns.
+  - **Not vendor-sold:** Blueprints 273xxx, Basic Campfire Kit, reagent bags, most Craftsman's Writs.
+- **Engineer's Reagent Bot** (camp object, Engineering 20) [guide, Warcraft Tavern]: sells nearly all trade supplies
+  anywhere: spices, salt, threads, all dyes, Simple Wood, coal, flux, water, Thick Logs. Not vials, Flash Powder or ammo.
+- **Prices:** every trade-good *buy* price equals Classic Era's [datamined]. Forever cut mounts (80g → 20g,
+  1,000g → 200g), Mining Pick and Skinning Knife (~80c → 10c) and Small Shot Pouch (10s → 1s). The *sell* price
+  of Mild Spices went 2c → 1c (hotfix, Nov 5) [official].
+- **Discounts:** Honored reputation 10% [official, Forever hotfix notes]; Bartering 2 ranks × 5% [guide]. A player
+  may pay 80–100% of the list price.
+- **Pending:** an in-game check of five Orgrimmar vendors (stock limits, prices), listed on #114.
+
 ## 4. Rough architecture (draft)
 
 ```
