@@ -35,7 +35,8 @@ hour, a weekday or an item, so you can say when something isn't.
 - **The storage itself (R2), read directly — your main source (ADR 0016).** Every item on every
   US and Europe house: hourly prices (`hourly/<day>/<snapshot>.parquet`, ~7,500 items an hour, gear,
   ammunition and consumables included), daily sales/flows (`flows/<YYYY-MM>/<day>.parquet`), hourly
-  sales (`flows-hourly/`, US), item names and vendor prices (`items/items.parquet`), and `eu/` for
+  sales (`flows-hourly/`, US), item names (`items/items.parquet`), vendor prices (`items/vendor.parquet`, from
+  its first weekly refresh after 2026-11-22; `source` says Forever's or Classic Era's data), and `eu/` for
   Europe. Folder meanings and columns: `collector/README.md` ("Storage layout") and the top of
   `collector/flows.py`. Use the read-only helper `tools/r2read.py`:
   - `python tools/r2read.py ls flows/2026-11/` lists files.

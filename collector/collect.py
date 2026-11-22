@@ -53,6 +53,7 @@ except ImportError:  # local runs without orjson still work
 
 from blizzard import Api, faction_of
 import bonuses
+import vendor
 import items
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -428,6 +429,13 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             names["bonuses"] = {"error": f"{type(e).__name__}: {e}"[:300]}
             print(f"Bonus lookup failed: {names['bonuses']['error']}")
+        try:   # vendor prices (#70): weekly, from the game's data files on wago.tools
+            names["vendor"] = vendor.update(store, ids)
+            if names["vendor"].get("refreshed"):
+                print(f"Vendor prices: {names['vendor']}")
+        except Exception as e:  # noqa: BLE001
+            names["vendor"] = {"error": f"{type(e).__name__}: {e}"[:300]}
+            print(f"Vendor price lookup failed: {names['vendor']['error']}")
 
     # 4. Run logs, one per region, each with the whole job's duration (job_seconds) for the
     #    one-minute check (#54: median <= 45 s, 95% <= 55 s).
