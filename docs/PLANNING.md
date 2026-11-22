@@ -503,7 +503,7 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
   without code changes.
 - **Storage: Cloudflare R2** (bucket `daytrader-data`), small overage charges OK. Costs and sizes:
   `docs/SYSTEMS.md`. (ADR 0005, #6)
-- **Collector: private repo, Python, GitHub Actions hourly at :05** (moved from :27, #28; Blizzard
+- **Collector: private repo, Python, GitHub Actions hourly at :05, backup run at :35** (ADR 0017; moved from :27, #28; Blizzard
   refreshes at ~:17 US, ~:18–:19 Europe). US + Europe in one ~22 s run; each run logs its own health
   (#18). Raw pulls ~15 MB (US) and ~18 MB (Europe) gzipped per hour; summaries ~1.3–1.6 MB. (ADR 0006, 0009)
 
