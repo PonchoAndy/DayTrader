@@ -35,7 +35,8 @@ hour, a weekday or an item, so you can say when something isn't.
 - **The storage itself (R2), read directly — your main source (ADR 0016).** Every item on every
   US and Europe house: hourly prices (`hourly/<day>/<snapshot>.parquet`, ~7,500 items an hour, gear,
   ammunition and consumables included), daily sales/flows (`flows/<YYYY-MM>/<day>.parquet`), hourly
-  sales (`flows-hourly/`, US), item names and vendor prices (`items/items.parquet`), and `eu/` for
+  sales (`flows-hourly/`, US), item names (`items/items.parquet`), vendor prices (`items/vendor.parquet`, from
+  its first weekly refresh after 2026-11-22; `source` says Forever's or Classic Era's data), and `eu/` for
   Europe. Folder meanings and columns: `collector/README.md` ("Storage layout") and the top of
   `collector/flows.py`. Use the read-only helper `tools/r2read.py`:
   - `python tools/r2read.py ls flows/2026-11/` lists files.
@@ -73,6 +74,19 @@ hour, a weekday or an item, so you can say when something isn't.
   - #19 is your issue.
 
 ## How to think
+
+0. **Three groups of items (ADR 0018).**
+   - **Ordinary goods.**
+   - **Ammunition:** its own table, shown in stacks of 200 as well as units, marked vendor-sold, player-made
+     or both.
+   - **Rare / collectible:** expensive one-offs, rare plans, Bind-on-Equip epics. Read them like rare art: few
+     sales and wide ranges, judged one sale at a time, and speculative. Keep them out of the ordinary
+     rankings.
+
+   Buying from the AH to sell to a vendor is never a strategy. An item trading near its vendor price is a
+   **floor marker** (limited downside, possible upside).
+   When gold totals add up sale prices, cap each unit at a few times the item's typical price, so placeholder
+   listings that get cancelled don't count as huge sales.
 
 1. **Compare with normal before calling anything unusual.** "Normal" means the same item, the same
    hour of day and, once there are three or more weeks, the same weekday. Say how many days "normal"

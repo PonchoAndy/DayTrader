@@ -534,6 +534,11 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Claude reads R2 directly** (ADR 0016, 2026-11-22): a read-only Cloudflare API token (Workers R2 Storage:
   Read) is a network secret on the DayTrader cloud environment; `tools/r2read.py` lists and downloads any
   stored file. The Analyst now sees every item, hour and house, not just the committed exports.
+- **Backup collect run at :35** (ADR 0017, #28): a second chance each hour; ~+744 Actions minutes a month,
+  with a $5 Actions budget so an overage can't stop the collector.
+- **How analysis groups items** (ADR 0018, #118/#120/#121): ammunition gets its own table, in stacks of 200;
+  rare and expensive one-offs, Bind-on-Equip epics included, are a separate speculative "rare / collectible"
+  class; buying to vendor is never a strategy, but an item trading near its vendor price is a **floor marker**.
 
 ## 6. Open questions for you
 

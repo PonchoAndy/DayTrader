@@ -35,7 +35,16 @@ Per row (units unless noted; "prev" = the earlier snapshot, "cur" = the later on
   - early_burst_units: the listing was posted in a burst, an hour when the item got at least 3x its usual
     new units (trailing 24-hour hourly average, at least 6 hours of history) in at least 5 new listings.
   - early_batch_units: at least 3 lots with the same size, price and first-seen hour vanished together.
-  - suspect_cancel_units: skipped, or burst AND batch (a batch that went up suddenly came down whole).
+  - early_removed_units (from 2026-11-23): the item was listed on at least 3 houses of the region and is now
+    listed nowhere in the region, with no new listings: a removal by the game (e.g. Mote of Unstable Magic,
+    gone from every house in one hour on 2026-11-19), not sales.
+  - early_repost_units (auctions only, from 2026-11-23): a listing of an item the house had at most 2 listings
+    of vanished while a new listing of the same item, variant and size appeared there the same hour, at any
+    price (relist_guess_units only catches reposts at the same or a lower price). Cancel-and-repost of
+    one-off gear at a new price otherwise counts as a sale (Analyst, 2026-11-22: 26-62% of expensive
+    one-offs' counted sales).
+  - suspect_cancel_units: skipped, or burst AND batch (a batch that went up suddenly came down whole), or
+    removed, or reposted.
   - suspect_cheap_units: the suspects inside early_at_min + early_within5 (what sold estimates count),
     leaving out listings already matched as relists. A "clean" sold estimate is
     partial_units + early_at_min + early_within5 - relist_guess_units - suspect_cheap_units.
@@ -91,12 +100,15 @@ MAX_FIRST_GAP_H = 6     # after a longer gap an 8 h listing can be first seen ME
 # Cancel check (#81)
 BURST_X, BURST_MIN_LISTINGS, BURST_MIN_HOURS, BURST_WINDOW = 3, 5, 6, 24
 BATCH_MIN_LOTS = 3
+REMOVED_MIN_HOUSES = 3   # an item gone from every house of the region at once, from at least this many
+REPOST_MAX_LISTINGS = 2  # auctions: a house with at most this many listings of the item (one-offs, not crafted bulk)
 FLAG_SHARE = 0.25
 STATE_COLS = ["first_seen", "posted_after", "first_tl", "burst"]
 FIXED_COLS = (["early_units", "expired_units", "early_2h_units", "early_8h_units", "early_24h_units",
                "early_unknown_dur_units", "early_short_medium_units", "early_at_min", "early_within5",
                "early_within20", "early_above", "early_skipped_units", "early_burst_units", "early_batch_units",
-               "suspect_cancel_units", "suspect_cheap_units", "burst_units", "sale_max_price"])
+               "suspect_cancel_units", "suspect_cheap_units", "burst_units", "sale_max_price",
+               "early_removed_units", "early_repost_units"])
 
 
 def list_keys(store, pfx: str) -> list[str]:
@@ -238,12 +250,25 @@ def _flows_core(prev: pd.DataFrame, cur: pd.DataFrame, state: pd.DataFrame, t_pr
     early["burst"] = early["burst"].eq(True)
     lots = early.groupby(K + ["qty", "price", "first_seen"], dropna=True)["id"].transform("size")
     early["batch"] = lots.reindex(early.index).fillna(0) >= BATCH_MIN_LOTS
-    early["suspect"] = early["skip"] | (early["burst"] & early["batch"])
+    # removed by the game: listed on >= REMOVED_MIN_HOUSES houses, now listed nowhere in the region, nothing new
+    ik = ["kind", "item_id"]
+    spread = prev.groupby(ik)["house_id"].nunique()
+    gone_all = spread[spread >= REMOVED_MIN_HOUSES].index
+    gone_all = gone_all[~gone_all.isin(cur.set_index(ik).index) & ~gone_all.isin(newl.set_index(ik).index)]
+    early["removed"] = early.set_index(ik).index.isin(gone_all)
+    # auctions: cancel-and-repost of a one-off at any price (same house, item, variant and size, same hour)
+    nprev = prev.groupby(K)["id"].size().rename("n_prev")
+    early = early.join(nprev, on=K)
+    rp = early[(early["kind"] == "auctions") & (early["n_prev"] <= REPOST_MAX_LISTINGS)][K + ["id", "qty"]].merge(
+        newl[K + ["qty"]].drop_duplicates(), on=K + ["qty"])
+    early["repost"] = early["id"].isin(rp["id"])
+    early["suspect"] = early["skip"] | (early["burst"] & early["batch"]) | early["removed"] | early["repost"]
     early["sus_cheap"] = (early["suspect"] & early["pos"].isin(["early_at_min", "early_within5"])
                           & ~early["id"].isin(relisted))
     fl = pd.DataFrame({c: early["qty"] * early[f] for c, f in [
         ("early_skipped_units", "skip"), ("early_burst_units", "burst"), ("early_batch_units", "batch"),
-        ("suspect_cancel_units", "suspect"), ("suspect_cheap_units", "sus_cheap")]})
+        ("suspect_cancel_units", "suspect"), ("suspect_cheap_units", "sus_cheap"),
+        ("early_removed_units", "removed"), ("early_repost_units", "repost")]})
     out.append(fl.groupby([early[k] for k in K]).sum())
 
     # current book: depth, at-min crowding, wall, time-left mix

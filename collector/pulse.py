@@ -49,6 +49,11 @@ from market import get_parquet  # noqa: E402
 PRICE_FIELDS = ["min", "p10", "p25", "median", "quantity", "listings"]
 FLOW_FIELDS = ["posted", "sold_est", "sold_clean", "expired", "suspect", "cancel_flag"]
 TOTAL_FIELDS = ["listings", "units", "posted", "sold_est", "sold_clean", "value_est", "value_clean"]
+# Sale values count each unit at no more than VALUE_CAP x the item's typical price that day (the unit-weighted
+# median, across the region's houses and hours, of the price each sale is valued at). Without it, placeholder
+# listings at absurd prices (e.g. a 9,999,990g mace) that vanish count as huge sales: the Analyst's 11-22
+# full-market report found they more than doubled the US gold total (2.80M -> 1.29M a day with the cap).
+VALUE_CAP = 3
 HOURLY_COLS = ["snapshot", "house_id", "faction", "kind", "item_id", "variant", "listings", "quantity",
                "min_price", "p10_price", "p25_price", "median_price"]
 FLOW_COLS = ["snapshot", "prev_snapshot", "hours_between", "house_id", "kind", "item_id", "variant",
@@ -64,7 +69,8 @@ NOTES = ("Times are UTC snapshot times (Blizzard's refresh, ~:17-:30 past the ho
          "vanished after the listing's duration ran out; cancel_flag = 1 when suspect >= a quarter of the sale "
          "signal. Totals: listings and units listed across all items (incl. gear), and the same flows summed per "
          "house; value_* = copper value of sold_est / sold_clean (bought-out part at its own price, the rest at the "
-         "previous hour's cheapest). Flows are built nightly at ~01:35 UTC per UTC day, so the newest ~12-36 hours "
+         "previous hour's cheapest; each unit capped at 3x the item's typical price that day, so placeholder listings "
+         "at absurd prices don't count as huge sales). Flows are built nightly at ~01:35 UTC per UTC day, so the newest ~12-36 hours "
          "have flow fields null until the next night's build.")
 
 
@@ -100,6 +106,23 @@ def load_hourly(store, region: str, since: str, houses: set[int], ids: set[int],
     w = pd.concat([p[1] for p in parts], ignore_index=True)
     fac = tot.drop_duplicates("house_id").set_index("house_id")["faction"].to_dict()
     return tot.drop(columns="faction"), w, fac
+
+
+def typical_price(sold: pd.DataFrame, pmin, pu: pd.Series) -> pd.Series:
+    """Per row: the unit-weighted median price of that item_id over all of `sold` (one region-day), where
+    bought-out units count at their own price and the rest at the previous hour's cheapest. inf where unknown,
+    so the cap never removes value it can't judge."""
+    pmin = pd.Series(pmin, index=sold.index, dtype=float)
+    rest = (sold["sold_est"] - sold["partial_units"]).clip(lower=0)
+    obs = pd.concat([pd.DataFrame({"item_id": sold["item_id"], "p": pu, "w": sold["partial_units"]}),
+                     pd.DataFrame({"item_id": sold["item_id"], "p": pmin, "w": rest})])
+    obs = obs[(obs["w"] > 0) & (obs["p"] > 0)].sort_values(["item_id", "p"])
+    if not len(obs):
+        return pd.Series(float("inf"), index=sold.index)
+    cum = obs.groupby("item_id")["w"].cumsum()
+    half = obs.groupby("item_id")["w"].transform("sum") / 2
+    med = obs[cum >= half].groupby("item_id")["p"].first()
+    return sold["item_id"].map(med).fillna(float("inf"))
 
 
 def day_before(key: str, since: str) -> bool:
@@ -140,9 +163,13 @@ def load_flows(store, region: str, since: str, houses: set[int], ids: set[int]):
             pmin = sold["prev_min"].fillna(0)
         else:
             carry, pmin = None, 0
+        pu = (sold["partial_value"] / sold["partial_units"].where(sold["partial_units"] > 0)).fillna(0)   # bought-out price
+        cap = VALUE_CAP * typical_price(sold, pmin, pu)
+        pmin, pu = pd.Series(pmin, index=sold.index).clip(upper=cap), pu.clip(upper=cap)
         for c in ("sold_est", "sold_clean"):   # fewer units than the bought-out part (relists, cancels): scale it down
             part = (sold[c] / sold["partial_units"].where(sold["partial_units"] > 0)).clip(upper=1).fillna(0)
-            sold[c.replace("sold", "value")] = sold["partial_value"] * part + (sold[c] - sold["partial_units"]).clip(lower=0) * pmin
+            sold[c.replace("sold", "value")] = (pu * sold["partial_units"] * part
+                                                + (sold[c] - sold["partial_units"]).clip(lower=0) * pmin)
         if day_before(k, since):
             continue   # read only for the previous hour's prices
         hrs.append(f.drop_duplicates("snapshot").set_index("snapshot")["hours_between"])
