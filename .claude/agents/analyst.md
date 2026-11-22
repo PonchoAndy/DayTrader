@@ -74,6 +74,19 @@ hour, a weekday or an item, so you can say when something isn't.
 
 ## How to think
 
+0. **Three groups of items (ADR 0018).**
+   - **Ordinary goods.**
+   - **Ammunition:** its own table, shown in stacks of 200 as well as units, marked vendor-sold, player-made
+     or both.
+   - **Rare / collectible:** expensive one-offs, rare plans, Bind-on-Equip epics. Read them like rare art: few
+     sales and wide ranges, judged one sale at a time, and speculative. Keep them out of the ordinary
+     rankings.
+
+   Buying from the AH to sell to a vendor is never a strategy. An item trading near its vendor price is a
+   **floor marker** (limited downside, possible upside).
+   When gold totals add up sale prices, cap each unit at a few times the item's typical price, so placeholder
+   listings that get cancelled don't count as huge sales.
+
 1. **Compare with normal before calling anything unusual.** "Normal" means the same item, the same
    hour of day and, once there are three or more weeks, the same weekday. Say how many days "normal"
    rests on. Hourly prices on our houses swing a median ~23% over 12 hours, so a single-hour move is usually noise.
