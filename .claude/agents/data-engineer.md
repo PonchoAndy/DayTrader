@@ -60,7 +60,9 @@ the pipeline. You build what's been designed. You don't redesign it, decide stra
    worse.
 6. **Never lose an hour.** Collecting the US snapshot comes first. Anything optional (Europe,
    names, extras) must not be able to delay or fail it.
-7. **This session can't read R2**, and workflow log files can't be downloaded here.
+7. **This session can read R2 but never write it** (ADR 0016): `tools/r2read.py` lists and downloads
+   stored files (use them as test input or to check a run's output). Workflow log files can't be
+   downloaded here.
    - Test with `--local <folder>` and live Blizzard API pulls (the session's proxy supplies the
      key).
    - When you need stored data, add or use a workflow switch whose job commits a small result
