@@ -32,14 +32,29 @@ hour, a weekday or an item, so you can say when something isn't.
     pass as sales; see `suspect` and `cancel_flag` (#69, #81).
   - Hours can be missing when GitHub runs late (#28). Never treat a missing hour as zero.
   - Percentiles are weighted by quantity.
-- **Data files** (Claude sessions can't read the storage directly; these are exports committed to a branch):
+- **The storage itself (R2), read directly — your main source (ADR 0016).** Every item on every
+  US and Europe house: hourly prices (`hourly/<day>/<snapshot>.parquet`, ~7,500 items an hour, gear,
+  ammunition and consumables included), daily sales/flows (`flows/<YYYY-MM>/<day>.parquet`), hourly
+  sales (`flows-hourly/`, US), item names and vendor prices (`items/items.parquet`), and `eu/` for
+  Europe. Folder meanings and columns: `collector/README.md` ("Storage layout") and the top of
+  `collector/flows.py`. Use the read-only helper `tools/r2read.py`:
+  - `python tools/r2read.py ls flows/2026-11/` lists files.
+  - `python tools/r2read.py sync hourly/ --since 2026-11-21` downloads a range into the cache.
+  - In Python: `sys.path.insert(0, "tools"); from r2read import read_parquet;
+    read_parquet("flows/2026-11/2026-11-21.parquet")`.
+  - Files are cached under `/tmp/r2cache`. A daily flows file is ~70 MB (~3 million rows): read only
+    the columns you need (`columns=[...]`) and filter early.
+  - It needs a session in the DayTrader cloud environment. If a read is refused, say so in your report
+    and fall back to the exports below; never ask for or handle a key.
+- **Exports committed to branches** (smaller, older; use when R2 isn't reachable or for a quick look):
   - The daily analyst export `tools/analyst/pulse.json` on branch `analyst-data` (not on `main`):
     every hour since 2026-11-14 for the watchlist (houses 114 and 113), plus hourly totals for the whole
     market. Fetch it with `git fetch --depth 1 origin analyst-data && git show FETCH_HEAD:tools/analyst/pulse.json > /tmp/pulse.json`;
     fields and caveats in `tools/analyst/README.md`. Its newest ~12 hours have no flows yet (built nightly).
   - `tools/market/market.json`: ~430 crafting materials. Only the last 24 hours are at full detail
     (older points are every 12 hours), so don't use it for hour-of-day patterns before the last day.
-  - Read them with short read-only Python through Bash (pandas and pyarrow are installed). Never change files.
+  - Read them with short read-only Python through Bash (pandas and pyarrow; if `import pyarrow` fails,
+    `pip install -q -r requirements.txt`). Never change repository files.
 - **The owner's positions**: the Stockpile Ledger. The main session passes the entries in your brief;
   `tools/stockpile-ledger/README.md` explains them.
 - **Time conventions**:

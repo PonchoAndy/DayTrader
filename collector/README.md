@@ -7,6 +7,7 @@
 - `bonuses.py`: variant names (bonus ID → "of the Eagle"), from WoW Forever's game data on wago.tools.
 - `market.py`: the `market` switch's export of crafting-material prices for Claude sessions (below).
 - `pulse.py`: the Analyst's daily export: every hour of the watchlist and whole-market totals (below, #19).
+- `../tools/r2read.py`: read-only access to the bucket from Claude cloud sessions (`ls`, `get`, `sync`, `read_parquet`), through a read-only Cloudflare API token held by the environment (ADR 0016).
 - `items.py`: item names. IDs are permanent, so each is looked up once: WoW Forever's item database first, then retail WoW's (same IDs; Forever's own database is incomplete). Unknown IDs are retried weekly.
 
 ## What's in the bucket

@@ -489,6 +489,9 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **Stockpile Ticker live** (ADR 0015, #99): numbers refresh hourly (an export at the end of the collect job, copied
   into the page's database by an hourly Claude task at :15); the Analyst writes a briefing per holding every 6 hours
   and on a 30% price move.
+- **Claude reads R2 directly** (ADR 0016, 2026-11-22): a read-only Cloudflare API token (Workers R2 Storage:
+  Read) is a network secret on the DayTrader cloud environment; `tools/r2read.py` lists and downloads any
+  stored file. The Analyst now sees every item, hour and house, not just the committed exports.
 
 ## 6. Open questions for you
 
