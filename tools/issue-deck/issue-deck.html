@@ -77,6 +77,16 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
 .mergebar .what .sub { font-size: 12.5px; color: var(--muted); }
 .mergebar .what a { color: var(--setup); }
 .mergebar .btn[hidden] { display: none; }
+.mergebar .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.mergebar .rev { font-size: 12.5px; }
+.mergebar .rev.ok { color: var(--ok); }
+.mergebar .rev.warn { color: var(--bad); }
+.pendlist { flex: 1 1 100%; margin: 2px 0 0; padding: 8px 0 0 18px; border-top: 1px solid var(--line); font-size: 13px;
+  display: flex; flex-direction: column; gap: 6px; }
+.pendlist[hidden] { display: none; }
+.pendlist .sha { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.pendlist .notes { color: var(--muted); font-size: 12px; white-space: pre-line; }
+.pendlist .find { list-style: none; margin-left: -18px; }
 
 /* Tabs: Issues | Changes. Changes is a vertical timeline of merges into main (meta/history). */
 .tabs { display: flex; gap: 2px; margin-top: 16px; border-bottom: 1px solid var(--line); }
@@ -269,7 +279,11 @@ h1 { font: 700 26px/1.15 var(--f-display); margin: 0; text-wrap: balance; }
   <div class="notice" id="notice" hidden></div>
   <div class="mergebar" id="mergebar" hidden role="status">
     <div class="what" id="mergewhat"></div>
-    <button class="btn primary" id="mergebtn" type="button">Merge Now</button>
+    <div class="btns">
+      <button class="btn" id="reviewbtn" type="button">Review</button>
+      <button class="btn primary" id="mergebtn" type="button">Merge</button>
+    </div>
+    <ol class="pendlist" id="pendlist" hidden></ol>
   </div>
 
   <nav class="tabs" role="tablist" aria-label="Deck views">
@@ -749,43 +763,89 @@ async function dispatch(why) {
 }
 $("syncbtn").addEventListener("click", () => { $("syncbtn").disabled = true; dispatch(S.queue.length ? "replies waiting to be sent" : "refresh requested"); });
 
-// ---------- merge now ----------
-// Claude writes meta/mergeReady {ready, summary, branch, at} when work is ready to merge into main.
-// Pressing Merge Now writes meta/mergeRequest {state: "requested"} and wakes Claude the same way a reply does;
-// Claude opens and merges the pull request, then sets mergeRequest {state: "done", pr} and mergeReady {ready: false}.
-S.mergeReady = null; S.mergeReq = null;
+// ---------- unmerged work: commit -> review -> merge (owner's preference, 2026-11-22; ADR 0019) ----------
+// Claude commits and pushes often to the work branch, and after each push writes meta/pending
+// {branch, head, commits: [{sha, at, subject, notes}], files, added, removed, areas, generatedAt} (history.py --pending).
+// Review: pressing Review writes meta/reviewRequest {state: "requested", head} and wakes Claude, who reviews the whole
+// branch against main, fixes what it finds and writes meta/review {state: "running"|"findings"|"clear", head, at,
+// summary, findings: [{severity, text, status}]}. A clear review of the current head also sets meta/mergeReady.
+// Merge: enabled only when the review is clear for exactly the head on the branch. Pressing it writes
+// meta/mergeRequest {state: "requested"}; Claude opens and merges the pull request, then sets mergeRequest
+// {state: "done", pr}, mergeReady {ready: false} and an empty meta/pending.
+S.mergeReady = null; S.mergeReq = null; S.pending = null; S.review = null; S.reviewReq = null; S.showPend = false;
 function renderMerge() {
-  const bar = $("mergebar"), btn = $("mergebtn"), what = $("mergewhat");
-  const r = S.mergeReady, q = S.mergeReq;
+  const bar = $("mergebar"), btn = $("mergebtn"), rbtn = $("reviewbtn"), what = $("mergewhat"), list = $("pendlist");
+  const P = S.pending, R = S.review, RR = S.reviewReq, q = S.mergeReq;
+  const n = P?.commits?.length || 0;
   const busy = (q?.state === "requested" || q?.state === "running") && ageOf(q.requestedAt) < RUN_LIMIT_MS;
   const done = q?.state === "done" && ageOf(q.finishedAt) < 15 * 60 * 1000;
   const failed = q?.state === "failed" && ageOf(q.finishedAt) < 60 * 60 * 1000;
-  if (!S.db || !(r?.ready || busy || done || failed)) { bar.hidden = true; return; }
-  bar.hidden = false; btn.hidden = false; btn.disabled = false; btn.textContent = "Merge Now";
-  const prLink = (n) => `<a href="${REPO_URL}/pull/${n}" target="_blank" rel="noopener">#${n}</a>`;
+  const revBusy = ((RR?.state === "requested" || RR?.state === "running") && ageOf(RR.requestedAt) < RUN_LIMIT_MS)
+    || (R?.state === "running" && ageOf(R.at) < RUN_LIMIT_MS);
+  const current = R && P && R.head === P.head;
+  const clear = current && R.state === "clear";
+  if (!S.db || !(n || busy || done || failed || revBusy)) { bar.hidden = true; return; }
+  bar.hidden = false; btn.hidden = false; rbtn.hidden = false; list.hidden = true;
+  btn.textContent = "Merge"; rbtn.textContent = "Review";
+  const prLink = (x) => `<a href="${REPO_URL}/pull/${x}" target="_blank" rel="noopener">#${x}</a>`;
   if (busy) {
     what.innerHTML = `<b>Merging…</b><span class="sub">Claude is opening and merging the pull request. This bar updates when it's done.</span>`;
-    btn.disabled = true; btn.textContent = "Merging…";
-  } else if (r?.ready) {
-    what.innerHTML = `<b>Ready to merge into main</b><span class="sub">${escapeHtml(r.summary || "New work on the branch.")}${r.at ? " · " + escapeHtml(when(r.at)) : ""}</span>`;
-    if (!S.mcp) { btn.disabled = true; btn.title = "Open this page on claude.ai to use Merge Now"; }
-    if (failed) what.insertAdjacentHTML("beforeend", `<span class="sub" style="color:var(--bad)">Last try didn't finish${q.error ? ": " + escapeHtml(q.error) : ""}. Press Merge Now to try again.</span>`);
-  } else if (done) {
-    what.innerHTML = `<b>Merged${q.pr ? " " + prLink(q.pr) : ""}</b><span class="sub">main is up to date${q.finishedAt ? " as of " + escapeHtml(when(q.finishedAt)) : ""}.</span>`;
-    btn.hidden = true;
-  } else {
-    what.innerHTML = `<b>Merge didn't finish</b><span class="sub">${escapeHtml(q.error || "Ask Claude in chat to merge.")}</span>`;
-    btn.hidden = true;
+    btn.disabled = true; btn.textContent = "Merging…"; rbtn.hidden = true; return;
   }
-  what.insertAdjacentHTML("beforeend", `<span class="sub"><button type="button" class="linkbtn" data-hist="${done && q.pr ? q.pr : ""}">Change history →</button></span>`);
+  if (!n) {
+    rbtn.hidden = true; btn.hidden = true;
+    what.innerHTML = done
+      ? `<b>Merged${q.pr ? " " + prLink(q.pr) : ""}</b><span class="sub">main is up to date${q.finishedAt ? " as of " + escapeHtml(when(q.finishedAt)) : ""}.</span>`
+      : `<b>Merge didn't finish</b><span class="sub">${escapeHtml(q?.error || "Ask Claude in chat to merge.")}</span>`;
+    what.insertAdjacentHTML("beforeend", `<span class="sub"><button type="button" class="linkbtn" data-hist="${done && q?.pr ? q.pr : ""}">Change history →</button></span>`);
+    return;
+  }
+  const size = [P.files ? `${P.files} file${P.files === 1 ? "" : "s"}` : "", (P.areas || []).join(", ")].filter(Boolean).join(" · ");
+  what.innerHTML = `<b>Unmerged work: ${n} commit${n === 1 ? "" : "s"} on the branch</b>`
+    + `<span class="sub">${escapeHtml(S.mergeReady?.ready && S.mergeReady.summary ? S.mergeReady.summary : P.commits[n - 1].subject)}${size ? " · " + escapeHtml(size) : ""}</span>`;
+  let rev;
+  if (revBusy) rev = `<span class="sub rev">Review running… Claude is checking every change on the branch.</span>`;
+  else if (clear) rev = `<span class="sub rev ok">✓ Reviewed ${escapeHtml(when(R.at))}: ${escapeHtml(R.summary || "no problems left")}</span>`;
+  else if (current && R.state === "findings") {
+    const open = (R.findings || []).filter((f) => f.status !== "fixed").length;
+    rev = `<span class="sub rev warn">Review found ${(R.findings || []).length} issue${(R.findings || []).length === 1 ? "" : "s"}${open ? `, ${open} still open` : ""}. Claude fixes them and reviews again.</span>`;
+  } else if (R?.head) rev = `<span class="sub rev">New commits since the last review. Review before merging.</span>`;
+  else rev = `<span class="sub rev">Not reviewed yet. Review before merging.</span>`;
+  what.insertAdjacentHTML("beforeend", rev);
+  if (failed) what.insertAdjacentHTML("beforeend", `<span class="sub" style="color:var(--bad)">Last merge didn't finish${q.error ? ": " + escapeHtml(q.error) : ""}.</span>`);
+  if (RR?.state === "failed" && ageOf(RR.finishedAt) < 60 * 60 * 1000)
+    what.insertAdjacentHTML("beforeend", `<span class="sub" style="color:var(--bad)">Last review didn't finish${RR.error ? ": " + escapeHtml(RR.error) : ""}.</span>`);
+  what.insertAdjacentHTML("beforeend", `<span class="sub"><button type="button" class="linkbtn" data-pend="1">${S.showPend ? "Hide" : "Show"} the commits${current && R.findings?.length ? " and review notes" : ""}</button> · <button type="button" class="linkbtn" data-hist="">Change history →</button></span>`);
+  rbtn.hidden = clear; rbtn.disabled = revBusy || !S.mcp; if (revBusy) rbtn.textContent = "Reviewing…";
+  btn.disabled = !clear || !S.mcp;
+  btn.title = clear ? "" : "Review the changes first";
+  if (!S.mcp) { rbtn.title = btn.title = "Open this page on claude.ai to use these buttons"; }
+  if (S.showPend) {
+    list.hidden = false;
+    list.innerHTML = P.commits.map((c) => `<li><span class="sha">${escapeHtml(c.sha)}</span> ${escapeHtml(c.subject)}`
+      + `${c.at ? ` <span class="sha">· ${escapeHtml(when(c.at))}</span>` : ""}${c.notes ? `<div class="notes">${escapeHtml(c.notes)}</div>` : ""}</li>`).join("")
+      + (current && R.findings?.length ? `<li class="find"><b>Review notes</b></li>` + R.findings.map((f) =>
+        `<li class="find">${f.status === "fixed" ? "✓" : f.status === "wontfix" ? "–" : "•"} <b>${escapeHtml(f.severity || "")}</b> ${escapeHtml(f.text || "")}${f.status ? ` <span class="sha">(${escapeHtml(f.status)})</span>` : ""}</li>`).join("") : "");
+  }
 }
 $("mergebar").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-hist]"); if (b) setView("changes", +b.dataset.hist || null);
+  const b = e.target.closest("[data-hist]"); if (b) { setView("changes", +b.dataset.hist || null); return; }
+  if (e.target.closest("[data-pend]")) { S.showPend = !S.showPend; renderMerge(); }
+});
+$("reviewbtn").addEventListener("click", async () => {
+  if (!S.db || !S.pending?.head) return;
+  $("reviewbtn").disabled = true;
+  const req = { state: "requested", requestedAt: new Date().toISOString(), head: S.pending.head, branch: S.pending.branch || null };
+  S.reviewReq = req; renderMerge();
+  try { await S.db.doc("meta/reviewRequest").set(req); }
+  catch { S.reviewReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "couldn't save the request" }; renderMerge(); return; }
+  const ok = await dispatch("review requested");
+  if (!ok) { S.reviewReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "Claude couldn't be reached; see the note at the top" }; renderMerge(); }
 });
 $("mergebtn").addEventListener("click", async () => {
   if (!S.db) return;
   $("mergebtn").disabled = true;
-  const req = { state: "requested", requestedAt: new Date().toISOString(), branch: S.mergeReady?.branch || null };
+  const req = { state: "requested", requestedAt: new Date().toISOString(), branch: S.pending?.branch || S.mergeReady?.branch || null, head: S.pending?.head || null };
   S.mergeReq = req; renderMerge();
   try { await S.db.doc("meta/mergeRequest").set(req); }
   catch { S.mergeReq = { ...req, state: "failed", finishedAt: new Date().toISOString(), error: "couldn't save the request" }; renderMerge(); return; }
@@ -941,6 +1001,9 @@ async function undoReply(n, id, kind, btn) {
   db.doc("meta/activeSession").onSnapshot((d) => { S.active = d.exists ? d.data() : null; }, () => {});
   db.doc("meta/mergeReady").onSnapshot((d) => { S.mergeReady = d.exists ? d.data() : null; renderMerge(); }, () => {});
   db.doc("meta/mergeRequest").onSnapshot((d) => { S.mergeReq = d.exists ? d.data() : null; renderMerge(); }, () => {});
+  db.doc("meta/pending").onSnapshot((d) => { S.pending = d.exists ? d.data() : null; renderMerge(); }, () => {});
+  db.doc("meta/review").onSnapshot((d) => { S.review = d.exists ? d.data() : null; renderMerge(); }, () => {});
+  db.doc("meta/reviewRequest").onSnapshot((d) => { S.reviewReq = d.exists ? d.data() : null; renderMerge(); }, () => {});
   db.doc("meta/history").onSnapshot((d) => {
     S.history = d.exists ? d.data() : null; S.historyLoaded = true; if (S.view === "changes") renderTimeline();
   }, () => { S.historyLoaded = true; if (S.view === "changes") renderTimeline(); });

@@ -6,6 +6,12 @@ and the commits inside it (subject + notes). Output: JSON for the Deck's `meta/h
 
     git fetch origin main
     python tools/issue-deck/history.py > /tmp/history.json
+
+With --pending BRANCH it instead lists the work waiting on BRANCH that isn't on main yet (the Deck's
+"Unmerged work" panel, `meta/pending`): head sha, commits, size and areas.
+
+    git fetch origin main <branch>
+    python tools/issue-deck/history.py --pending origin/<branch> > /tmp/pending.json
 """
 import json
 import re
@@ -13,7 +19,8 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-REF = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
+PENDING = sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "--pending" else None
+REF = "origin/main" if PENDING else (sys.argv[1] if len(sys.argv) > 1 else "origin/main")
 SEP, END = "\x1f", "\x1e"
 DROP = re.compile(r"^(Co-Authored-By|Claude-Session|Signed-off-by):", re.I)
 AREAS = {".claude": "Agents", "collector": "Collector", ".github": "Workflows", "docs": "Docs", "tools": "Pages"}
@@ -35,6 +42,26 @@ def commits(a: str, b: str) -> list[dict]:
         rows.append({"sha": sha[:7], "at": when, "subject": subject.strip(), "notes": clean(body)})
     return rows
 
+
+def size(a: str, b: str) -> dict:
+    stat = git("diff", "--shortstat", a, b).strip()
+    nums = [int(x) for x in re.findall(r"(\d+) (?:file|insertion|deletion)", stat)]
+    files = git("diff", "--name-only", a, b).split()
+    return {"files": nums[0] if nums else 0, "added": nums[1] if len(nums) > 1 else 0,
+            "removed": nums[2] if len(nums) > 2 else 0,
+            "areas": sorted({AREAS.get(f.split("/")[0], "Other") if "/" in f else "Project" for f in files})}
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+if PENDING:
+    base = git("merge-base", REF, PENDING).strip()
+    out = {"branch": PENDING.removeprefix("origin/"), "head": git("rev-parse", "--short=7", PENDING).strip(),
+           "base": base[:7], "commits": commits(REF, PENDING), **size(base, PENDING), "generatedAt": now()}
+    json.dump(out, sys.stdout, ensure_ascii=False)
+    sys.exit(0)
 
 merges = []
 log = git("log", "--first-parent", "--merges", f"--format=%H{SEP}%P{SEP}%cI{SEP}%s{SEP}%b{END}", REF)

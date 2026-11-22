@@ -585,6 +585,8 @@ The full records live in [`docs/adr/`](adr/README.md). Summary:
 - **How analysis groups items** (ADR 0018, #118/#120/#121): ammunition gets its own table, in stacks of 200;
   rare and expensive one-offs, Bind-on-Equip epics included, are a separate speculative "rare / collectible"
   class; buying to vendor is never a strategy, but an item trading near its vendor price is a **floor marker**.
+- **Commit often, review, then merge** (ADR 0019, replaces "merge often"): every step is pushed to the branch at
+  once; batches are reviewed (`code-review` skill) before the Merge button and Merge Now line appear.
 
 ## 6. Open questions for you
 

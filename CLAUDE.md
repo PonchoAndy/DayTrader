@@ -8,16 +8,28 @@ analysis layer and build-helper agents in progress (`.claude/agents/`, ADR 0010)
   the relevant issue; if the user asks "what's next?", list open issues and suggest the first
   unblocked one.
 - Reference the issue in commit messages (`Refs #N`); in PR descriptions use `Closes #N`.
-- **Merge often** (owner's preference, 2026-11-15): the owner works sporadically and new sessions
-  and scheduled jobs only see `main`. When a coherent piece of work is pushed and ready, end the
-  reply with this line, last thing in the message, so it's easy to spot:
-  `> **⏵ Merge Now** — reply **merge** and I'll open the pull request and merge it (<what's in it>).`
-  Also `set` Issue Deck `meta/mergeReady` to `{ready: true, summary: "<what's in it>", branch, at: <now ISO>}`,
-  which shows a **Merge Now** button on the Deck.
-  On "merge" (in chat, or a Deck merge request, see below): open the PR (Closes/Refs issues), merge
-  it, restart the branch from `main`, then set `meta/mergeReady` to `{ready: false}` and
-  `meta/mergeRequest` to `{state: "done", pr: <number>, finishedAt: <now ISO>}`, and refresh the
-  Deck's change history (sync step 4).
+- **Commit often, review, then merge** (owner's preference, 2026-11-22, ADR 0019; replaces "merge often" of
+  2026-11-15). New sessions and scheduled jobs only see `main`, but every merge is reviewed first.
+  1. **Commit and push** each coherent step to the work branch right away (`Refs #N`). After each push,
+     refresh the Deck's "Unmerged work" panel: `git fetch origin main <branch>`, then
+     `python tools/issue-deck/history.py --pending origin/<branch> > <scratch>/pending.json` and `set`
+     `meta/pending` from that file (`file_path`).
+  2. **Review** when a meaningful batch has built up (a finished feature or a few related steps, usually by the
+     end of a stretch of work), when the owner asks, or when the Deck's **Review** button is pressed (sync step 0).
+     Set `meta/review` to `{state: "running", head, at}`, run the `code-review` skill (effort `medium`) on the
+     branch against `origin/main`, fix what it finds (as new commits), refresh `meta/pending`, and review again
+     until nothing important is left. Then `set` `meta/review` to
+     `{state: "clear", head: <pending head>, at, summary, findings: [{severity, text, status: "fixed"|"wontfix"}]}`
+     (or `state: "findings"` with what's open, and tell the owner).
+  3. **Offer the merge** only after a clear review of the exact head on the branch: `set` `meta/mergeReady` to
+     `{ready: true, summary: "<what's in it>", branch, head, at: <now ISO>}`, which enables the Deck's **Merge**
+     button, and end the reply with this line, last thing in the message:
+     `> **⏵ Merge Now** — reviewed; reply **merge** and I'll open the pull request and merge it (<what's in it>).`
+     A new commit after the review means reviewing again before merging.
+  4. On "merge" (in chat, or a Deck merge request): open the PR (Closes/Refs issues; mention the review),
+     merge it, restart the branch from `main`, then set `meta/mergeReady` to `{ready: false}`,
+     `meta/mergeRequest` to `{state: "done", pr: <number>, finishedAt: <now ISO>}`, `meta/pending` to
+     `{commits: [], head: null, generatedAt: <now ISO>}`, and refresh the Deck's change history (sync step 4).
 - **Agent questions become Deck cards** (owner's preference, 2026-11-15): when an agent's report has
   questions for the owner, open one `Decide:` issue per question with the GitHub label `agent` and
   `**From:** <Name> agent` right after the `Generated Update:` line (options, the suggested default in bold,
@@ -50,9 +62,14 @@ Page source and data model: `tools/issue-deck/`. It has no GitHub connection of 
 (ArtifactData tool, same URL). When the user says "sync the Issue Deck" (or "post my Issue Deck
 replies"):
 
-0. Merge request: read `meta/mergeRequest`. If `state` is `"requested"`, set it to `"running"`, then
-   merge as described under "Merge often" (PR from `branch` into `main`; if it can't be merged, set
-   `{state: "failed", error: "<plain reason>", finishedAt}` and say why on the Deck's next sync).
+0. Review and merge requests:
+   - Read `meta/reviewRequest`. If `state` is `"requested"`, set it to `"running"`, review as described
+     under "Commit often, review, then merge" (step 2), then set it to `{state: "done", finishedAt}` (or
+     `"failed"` with a plain `error`).
+   - Read `meta/mergeRequest`. If `state` is `"requested"`, check that `meta/review` is `clear` for the
+     branch's current head (if not, review first). Set it to `"running"`, then merge as described under
+     "Commit often, review, then merge" (PR from `branch` into `main`; if it can't be merged, set
+     `{state: "failed", error: "<plain reason>", finishedAt}` and say why on the Deck's next sync).
    A session without a local checkout of that branch can still open and merge the PR through
    GitHub; the work session restarts its branch from `main` when it next resumes.
 1. Post replies: query collection `replies` where `status == "pending"`. For each, post
@@ -82,7 +99,7 @@ Use one `batch` write where possible.
 
 ### How replies reach Claude
 
-Pressing Send reply / Mark Done / Reopen / Merge Now (or Refresh) on the page hands the work to Claude at once:
+Pressing Send reply / Mark Done / Reopen / Review / Merge (or Refresh) on the page hands the work to Claude at once:
 - If `meta/activeSession` has a `heartbeatAt` within the last 45 minutes, the page fires that
   session's own on-demand task (`triggerId`), so an `[Issue Deck] …` turn appears in its chat.
   When you get one, run the sync above, then carry on. (Messaging via `send_message` is a

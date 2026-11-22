@@ -38,15 +38,23 @@ https://claude.ai/artifact/RpKHZGqfrwCjAqB9tDBDvL
 - **Deep links:** `…/artifact/RpKHZGqfrwCjAqB9tDBDvL#i<N>` opens issue N's card, revealing it even if it's closed or filtered out. If the card isn't on the Deck yet (an issue created since the last sync),
   the page says so and opens it as soon as a sync brings it in.
 
-## Merge Now
+## Unmerged work: commit, review, merge (ADR 0019)
 
-When Claude has work ready to merge into `main`, it sets `meta/mergeReady`
-`{ready: true, summary, branch, at}` and the page shows a gold "Ready to merge" bar with a
-**Merge Now** button. Pressing it writes `meta/mergeRequest {state: "requested", requestedAt, branch}`
-and wakes Claude through the same route as a reply (`dispatch`). Claude opens and merges the pull
-request (step 0 of the sync in `CLAUDE.md`), then sets `mergeRequest {state: "done", pr, finishedAt}`
-and `mergeReady {ready: false}`; the bar shows "Merged #N" for 15 minutes. A failure shows the
-reason (`mergeRequest.error`) and leaves the button available to try again.
+The gold bar under the header shows work on Claude's branch that isn't on `main` yet.
+- **`meta/pending`**, written by Claude after every push: `{branch, head, base, commits: [{sha, at, subject,
+  notes}], files, added, removed, areas, generatedAt}`, built by `python tools/issue-deck/history.py --pending
+  origin/<branch>`. The bar says "Unmerged work: N commits"; "Show the commits" lists them.
+- **Review** button: writes `meta/reviewRequest {state: "requested", requestedAt, head, branch}` and wakes Claude
+  (same route as a reply, `dispatch`). Claude reviews the whole branch against `main` and writes **`meta/review`**
+  `{state: "running"|"findings"|"clear", head, at, summary, findings: [{severity, text, status}]}`. The bar shows
+  the review status; the findings appear under "Show the commits". A review only counts for the `head` it
+  checked; a new commit makes it "New commits since the last review".
+- **Merge** button: enabled only when `meta/review` is `clear` for the current `meta/pending.head` (Claude also
+  sets `meta/mergeReady {ready: true, summary, branch, head, at}`). Pressing it writes
+  `meta/mergeRequest {state: "requested", requestedAt, branch, head}`. Claude opens and merges the pull request
+  (step 0 of the sync in `CLAUDE.md`), then sets `mergeRequest {state: "done", pr, finishedAt}`,
+  `mergeReady {ready: false}` and an empty `meta/pending`; the bar shows "Merged #N" for 15 minutes. A failure
+  shows the reason (`mergeRequest.error`).
 
 ## Changes tab (merge history)
 
