@@ -19,7 +19,9 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-PENDING = sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "--pending" else None
+if sys.argv[1:2] == ["--pending"] and len(sys.argv) < 3:
+    sys.exit("usage: history.py --pending origin/<branch>")
+PENDING = sys.argv[2] if sys.argv[1:2] == ["--pending"] else None
 REF = "origin/main" if PENDING else (sys.argv[1] if len(sys.argv) > 1 else "origin/main")
 SEP, END = "\x1f", "\x1e"
 DROP = re.compile(r"^(Co-Authored-By|Claude-Session|Signed-off-by):", re.I)
@@ -43,12 +45,17 @@ def commits(a: str, b: str) -> list[dict]:
     return rows
 
 
+def stat_counts(a: str, b: str) -> tuple[int, int, int]:
+    """(files, insertions, deletions); --shortstat leaves out a part that is zero, so match each by name."""
+    stat = git("diff", "--shortstat", a, b)
+    n = lambda word: int(m.group(1)) if (m := re.search(rf"(\d+) {word}", stat)) else 0
+    return n("file"), n("insertion"), n("deletion")
+
+
 def size(a: str, b: str) -> dict:
-    stat = git("diff", "--shortstat", a, b).strip()
-    nums = [int(x) for x in re.findall(r"(\d+) (?:file|insertion|deletion)", stat)]
+    f, add, rem = stat_counts(a, b)
     files = git("diff", "--name-only", a, b).split()
-    return {"files": nums[0] if nums else 0, "added": nums[1] if len(nums) > 1 else 0,
-            "removed": nums[2] if len(nums) > 2 else 0,
+    return {"files": f, "added": add, "removed": rem,
             "areas": sorted({AREAS.get(f.split("/")[0], "Other") if "/" in f else "Project" for f in files})}
 
 
@@ -71,8 +78,7 @@ for rec in filter(str.strip, log.split(END)):
     p = parents.split()
     if not m or len(p) < 2:
         continue
-    stat = git("diff", "--shortstat", p[0], sha).strip()
-    nums = [int(x) for x in re.findall(r"(\d+) (?:file|insertion|deletion)", stat)]
+    nfiles, nadd, nrem = stat_counts(p[0], sha)
     files = git("diff", "--name-only", p[0], sha).split()
     areas = sorted({AREAS.get(f.split("/")[0], "Other") if "/" in f else "Project" for f in files})
     merges.append({
@@ -80,9 +86,9 @@ for rec in filter(str.strip, log.split(END)):
         "title": clean(body).splitlines()[0] if clean(body) else subject,
         "merged_at": when,
         "sha": sha[:7],
-        "files": nums[0] if nums else 0,
-        "added": nums[1] if len(nums) > 1 else 0,
-        "removed": nums[2] if len(nums) > 2 else 0,
+        "files": nfiles,
+        "added": nadd,
+        "removed": nrem,
         "areas": areas,
         "commits": commits(p[0], p[1]),
     })

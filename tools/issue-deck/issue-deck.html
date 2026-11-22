@@ -775,7 +775,11 @@ $("syncbtn").addEventListener("click", () => { $("syncbtn").disabled = true; dis
 S.mergeReady = null; S.mergeReq = null; S.pending = null; S.review = null; S.reviewReq = null; S.showPend = false;
 function renderMerge() {
   const bar = $("mergebar"), btn = $("mergebtn"), rbtn = $("reviewbtn"), what = $("mergewhat"), list = $("pendlist");
-  const P = S.pending, R = S.review, RR = S.reviewReq, q = S.mergeReq;
+  const R = S.review, RR = S.reviewReq, q = S.mergeReq;
+  // A list written before the last finished merge is out of date (the merge emptied it, or a session that
+  // didn't refresh it did the merge), so treat it as empty.
+  const stale = (x) => x?.generatedAt && q?.finishedAt && q.state === "done" && new Date(x.generatedAt) < new Date(q.finishedAt);
+  const P = stale(S.pending) ? null : S.pending;
   const n = P?.commits?.length || 0;
   const busy = (q?.state === "requested" || q?.state === "running") && ageOf(q.requestedAt) < RUN_LIMIT_MS;
   const done = q?.state === "done" && ageOf(q.finishedAt) < 15 * 60 * 1000;
@@ -784,7 +788,7 @@ function renderMerge() {
     || (R?.state === "running" && ageOf(R.at) < RUN_LIMIT_MS);
   const current = R && P && R.head === P.head;
   const clear = current && R.state === "clear";
-  if (!S.db || !(n || busy || done || failed || revBusy)) { bar.hidden = true; return; }
+  if (!S.db || !(n || busy || done || failed || revBusy || S.mergeReady?.ready)) { bar.hidden = true; return; }
   bar.hidden = false; btn.hidden = false; rbtn.hidden = false; list.hidden = true;
   btn.textContent = "Merge"; rbtn.textContent = "Review";
   const prLink = (x) => `<a href="${REPO_URL}/pull/${x}" target="_blank" rel="noopener">#${x}</a>`;
@@ -792,6 +796,13 @@ function renderMerge() {
     what.innerHTML = `<b>Merging…</b><span class="sub">Claude is opening and merging the pull request. This bar updates when it's done.</span>`;
     btn.disabled = true; btn.textContent = "Merging…"; rbtn.hidden = true; return;
   }
+  if (!n && !P && S.mergeReady?.ready && !stale(S.mergeReady) && !done) {
+    // fallback: a session that follows the older "merge often" steps set mergeReady but wrote no list
+    what.innerHTML = `<b>Ready to merge into main</b><span class="sub">${escapeHtml(S.mergeReady.summary || "New work on the branch.")}</span>`
+      + `<span class="sub rev">No commit list or review yet. Ask Claude in chat to review before merging.</span>`;
+    rbtn.hidden = true; btn.disabled = true; btn.title = "Review the changes first"; return;
+  }
+  if (!n && !done && !failed) { bar.hidden = true; return; }
   if (!n) {
     rbtn.hidden = true; btn.hidden = true;
     what.innerHTML = done
