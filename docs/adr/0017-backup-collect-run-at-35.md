@@ -44,8 +44,8 @@ Cloudflare Worker that starts the workflow on the hour; this needs a GitHub toke
 - **Cost: +744 GitHub Actions minutes a month** (GitHub bills each run as at least 1 minute). The estimate in
   `docs/SYSTEMS.md` rises to about **1,950 of the 2,000 free minutes**. If they run out, GitHub's default is
   to stop all jobs until the next month, which would lose far more hours than this saves. So:
-  - the owner should set a small Actions spending limit (Settings → Billing), so an overage costs a few
-    cents instead of stopping the collector; or
+  - the owner set an Actions budget on 2026-11-22, so an overage costs a few cents instead of stopping
+    the collector; and
   - if the minutes are short, drop the backup to the risky slots only (e.g. `35 1,7,13 * * *`, ~93 a
     month), or move to option (b).
 - At 01:35 the backup and the nightly flows job start together in the same concurrency group; the
