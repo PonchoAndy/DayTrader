@@ -36,7 +36,7 @@ sign S3 requests (their signature depends on the secret key). So the R2 S3 endpo
   downloads (the helper caches under `/tmp/r2cache`).
 - It only works in sessions on the DayTrader environment. Scheduled tasks and the background Deck
   session work only if they run there too.
-- Sessions need pandas and pyarrow: `pip install -r collector/requirements.txt` (a setup-script step on
+- Sessions need pandas and pyarrow: `pip install -r requirements.txt` (a setup-script step on
   the environment).
 - **#113 and #115** (widen and refresh the market export) matter less now: they're only needed for
   committed pages, not for analysis.

@@ -54,7 +54,7 @@ hour, a weekday or an item, so you can say when something isn't.
   - `tools/market/market.json`: ~430 crafting materials. Only the last 24 hours are at full detail
     (older points are every 12 hours), so don't use it for hour-of-day patterns before the last day.
   - Read them with short read-only Python through Bash (pandas and pyarrow; if `import pyarrow` fails,
-    `pip install -q -r collector/requirements.txt`). Never change repository files.
+    `pip install -q -r requirements.txt`). Never change repository files.
 - **The owner's positions**: the Stockpile Ledger. The main session passes the entries in your brief;
   `tools/stockpile-ledger/README.md` explains them.
 - **Time conventions**:
