@@ -461,6 +461,52 @@ unknown (~1% per node in TBC data, snippet only). House map: see §1 "What a hou
   may pay 80–100% of the list price.
 - **Pending:** an in-game check of five Orgrimmar vendors (stock limits, prices), listed on #114.
 
+### Easy daily trades on 114 (2026-11-22, Analyst; Decide cards #128–#131)
+
+Data: house 114, sales 11-15…11-21 (7 trading days), hourly prices 11-14…11-22 (~12% of hours missing,
+#28). Candidates with one week of evidence, not recommendations.
+
+**Vendor → AH flips (Orgrimmar vendors, unlimited stock; fees and expected deposit loss counted, 8-hour listings):**
+
+| Item | Vendor (where) | Vendor price | AH on 114 (worst day) | Sold/day | Net per unit (worst day) |
+|---|---|---|---|---|---|
+| Flash Powder | Rekkul, Cleft of Shadow | 0.0025 | 0.0064 (0.0036) | 3,245 | 0.0035 (0.0008) |
+| Skin of Dwarven Stout | Barkeep Morag, inn by the AH | 0.0120 | 0.0550 (0.0200) | 224 | 0.0396 (0.0064) |
+| Bottle of Dalaran Noir | Barkeep Morag | 0.0050 | 0.0134 (0.0096) | 1,019 | 0.0075 (0.0039) |
+| Rough / Sharp Arrow, Heavy Shot | Trak'gen by the bank; Kaja | 0.0010–0.0050 per stack | 1c per round, the AH floor | 618 / 2,563 / 323 stacks | 0.014–0.018 per stack |
+
+- **Total:** taking ~10% of each item's daily sales comes to ~3–3.5 g a day at typical prices, ~1 g on the worst day,
+  with under 3 g tied up and ~15–20 minutes a day.
+- **Margin gone after fees:** most trade supplies (Salt, Simple Wood, threads, flux, most dyes, Bleach; the Reagent Bot
+  competes on many).
+- **The AH is below the vendor price** for Silken Thread, Coal, Imbued and Crystal Vial, Thick Logs (17.5 g vs 20 g),
+  Strange Dust, Lesser Magic Essence and several dyes: buy these on the AH for crafting.
+- **Markups shrank** on 17 of 29 vendor goods over the week (H-T4).
+
+**Buy low, sell later:**
+- **Daily cycle:** prices are lowest around midnight–2am Eastern and highest around 11am–1pm Eastern. The swing is only
+  ~4%, under the 5% cut.
+- **H-T1 refuted:** the after-work window is ~2% *cheaper* than the morning, not dearer.
+- **Busiest sales:** 7pm–1am Eastern.
+- **Leveling materials** (Rough Blasting Powder, Deviate Scale, Boar Ribs, Briarthorn, Tin Bar) swing 13–35% night to
+  day, but a realistic replay with fees makes only pennies.
+- **Dips:** blanket dip-buying lost money (−390 g across 736 items in the week). Only half of dips recover within
+  12 hours (H-T2 not supported).
+- **Trend:** the market fell ~5% over the week (launch glut).
+
+**Ammo (#118):** counts are single rounds. In stacks of 200, the top ammo, Sharp Arrow, is #122 by volume on 114.
+
+**Hypotheses to re-test on 11-23…12-06:**
+- **H-T5:** items within 1.25× of their vendor price rise ≥10% at least twice as often as they fall ≥10% over 14 days
+  (188 items).
+- **H-T6:** steady leveling materials are ≥15% cheaper at 11pm–3am Eastern than at 10am–4pm Eastern on ≥5 of 7 days.
+- **H-T7:** "buy at 1–3am Eastern, post +20% for 8 h" nets more than 0 on ≥5 of 7 days for the five materials above.
+- **H-T8:** Flash Powder stays ≥0.0040. Refuted if ≤0.0030 on ≥3 days.
+- **H-T9:** fresh ammo listings at 1c fill ≥80% within 8 h (needs an owner trial).
+- **H-T10:** dip-buying pays only on cheap, high-volume materials.
+- **H-T11:** sales value peaks 7pm–1am Eastern on ≥6 of 7 days.
+- **H-T3 (maintenance day):** untestable until ~4 Tuesdays.
+
 ## 4. Rough architecture (draft)
 
 ```
