@@ -1,6 +1,6 @@
 # Collector
 
-- `collect.py`: the hourly collector. GitHub Actions runs it at :05 past each hour (moved from :27 on 2026-11-15, #28)
+- `collect.py`: the hourly collector. GitHub Actions runs it at :05 past each hour (moved from :27 on 2026-11-15, #28), with a backup run at :35 (ADR 0017)
   (`.github/workflows/collect.yml`), writing to the Cloudflare R2 bucket `daytrader-data`.
 - `probe.py`: one-off exploration: pulls a snapshot and reports sizes, houses and item-name coverage.
 - `blizzard.py`: shared API client.

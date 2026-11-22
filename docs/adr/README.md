@@ -24,6 +24,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0014](0014-trading-day-starts-12-utc.md) | A trading day starts at 12:00 UTC (7am US Eastern in winter) | Accepted |
 | [0015](0015-stockpile-ticker-live-from-page-database.md) | Stockpile Ticker updates itself: numbers hourly, Analyst briefings every 6 hours | Accepted |
 | [0016](0016-claude-sessions-read-r2-directly.md) | Claude sessions read the R2 storage directly, read-only | Accepted |
+| [0017](0017-backup-collect-run-at-35.md) | A backup collect run at :35 past each hour | Accepted |
 
 ## Statuses
 

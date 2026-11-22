@@ -1,12 +1,17 @@
 # Hourly WoW Forever auction collector (PonchoAndy/DayTrader#9, ADR 0005).
-# Blizzard refreshes the data at :17 past each hour; a run must start between :18 and :16 of the next
-# hour to catch each refresh. GitHub starts scheduled runs 29-63 min late (measured 2026-11-14, #28), so
-# the slot is :05: it lands runs at ~:34-:08, inside that window. The collector skips runs with no new data.
+# Blizzard refreshes the data once an hour (at :17 until 2026-11-18, now ~:25 US / ~:22 EU); a run must
+# start after one refresh and before the next to catch it. GitHub usually starts scheduled runs 29-63 min
+# late (measured 2026-11-14, #28), so the main slot is :05. Some runs start 95-110 min late (most often the
+# 02, 08 and 14 UTC slots, 2026-11-18..22), which loses that hour for good, so a backup slot at :35 gives
+# every hour a second chance (#28, ADR 0017). The collector stores nothing when Blizzard has no new data, so
+# whichever run comes second just exits; each run is still billed 1 minute.
 name: Collect auctions
 
 on:
   schedule:
     - cron: "5 * * * *"
+    # Backup slot (#28, ADR 0017): catches the hour when GitHub starts the :05 run too late.
+    - cron: "35 * * * *"
     # Daily listing flows (#37): every complete UTC day still in raw/ that has no flows file yet.
     - cron: "35 1 * * *"
     # Daily Analyst export (#19), after the trading day closes at 12:00 UTC (ADR 0014). GitHub starts

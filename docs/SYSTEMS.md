@@ -20,7 +20,8 @@ Prices are as we last checked them; confirm on each provider's billing page befo
 ## What's committed (running or decided)
 
 **Data collection** (ADR 0002, 0003, 0006)
-- Hourly collector on GitHub Actions at **:05** past each hour (moved from :27 on 2026-11-15, #28).
+- Hourly collector on GitHub Actions at **:05** past each hour (moved from :27 on 2026-11-15, #28), plus a
+  **backup run at :35** (ADR 0017, 2026-11-22) that stores nothing when the hour is already saved.
 - **US and Europe** (ADR 0009), all 15 auction houses each, auctions and commodities, in **one run**:
   downloads in parallel, processing on both CPU cores, US stored first, Europe skipped for the hour
   if it's late. ~62 Blizzard API calls an hour, far under Blizzard's limit (36,000 an hour).
@@ -66,13 +67,13 @@ Gzip level 1 (for speed, #54) made raw files ~25% bigger than the first estimate
 | Workload | Minutes a month (est.) |
 |---|---|
 | Hourly collector, US + Europe (1 min × 24 × 31) | ~744 |
-| Nightly flows, US (measured 2026-11-15: ~5 min a day, billed 6; the #69/#81 columns add ~4% locally, still billed 6) | ~190 |
+| Backup collect run at :35 (ADR 0017, #28; 1 min × 24 × 31, even when it finds no new data) | ~744 |
+| Nightly flows, US + Europe (US alone measured 2026-11-15 at ~5 min, billed 6; both regions 670–746 s on 11-21/11-22, billed ~12–13) | ~390 |
 | One-off flows rebuild (`flows_rebuild` switch, #69/#81): ~5–8 min per region per day still in raw/, e.g. ~4 days × US + EU ≈ 50 min, once | (+~50 once) |
-| Nightly flows, Europe, if chosen (#56; estimate ~7–8 min a day) | (+~250) |
 | Daily roll-up (#26, not built yet) | (+~30–60) |
 | Manual report / demo / health / market runs (1 min each; market ~1–3 min once the bucket holds weeks of hourly files) | ~20–30 |
 | Daily Analyst export (`pulse`, #19, from 2026-11-20): re-reads the last 3 days (~85 hourly + 4 flows files, est. 35–60 s); a manual full rebuild grows to ~5–10 min at 90 days | ~30–60 |
-| **Total today** | **~1,000 of 2,000** (~1,250 with Europe flows) |
+| **Total today** (hourly 744 + backup 744 + nightly flows US+EU ~390 + pulse ~45 + manual ~25) | **~1,950 of 2,000**: the owner set an Actions budget on 2026-11-22, so an overage costs cents instead of stopping the collector; fallbacks in ADR 0017 |
 
 - If the free minutes run out, GitHub's default is to **stop running jobs until the next month**
   (unless a spending limit is set; check Settings → Billing). For a collector, that means lost hours
