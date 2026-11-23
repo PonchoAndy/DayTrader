@@ -326,6 +326,10 @@ it needs you in-game, it's manual, and it's throttled.
   targets. There's no city or continent split. #133's Undercity sighting matched house 114's 01:25 snapshot (621 units
   at 97c); the first comparison had used the 00:25 snapshot. **Lesson:** match a sighting to the nearest snapshot,
   at listing level.
+- **The owner's realm** (#133, closed 2026-11-23): `GetRealmName()`/`GetRealmID()` now return blank and 0 (hidden by
+  Blizzard), but `UnitGUID("player")` still carries the realm: `Player-6929-…`. Players' posted IDs (6930 = US2 Realm 4 PvP,
+  6931 = US2 Realm 5 PvE, 6934 = US2 Realm 8 PvP) put **6929 = US2 Realm 3, PvE (Normal)**, so house 114. That's inferred from
+  the sequence; the addon should record the GUID's realm number.
 - **What an addon can record** [datamined, build 71037]:
   - on `AUCTION_HOUSE_SHOW`: realm name and ID, faction, zone and map, the auctioneer (`UnitGUID("npc")`);
   - auction IDs, unit prices and seconds left in search results;
