@@ -47,7 +47,8 @@ confirm it ourselves with our own key.
 | Item details | `GET /data/wow/item/{itemId}` (static namespace) |
 
 How the Forever AH is organized (per the forum thread, checked 2026-11-13 — verify):
-- No realms. Rulesets replace them: `/data/wow/ruleset/index`. US/EU have 1 PvP, 2 Normal,
+- No visible realms: each ruleset is made of hidden realms (e.g. "CAMWOW US1 Realm 7 PvE", shown by
+  `/run print(GetRealmName(), GetRealmID())`), which share one house per faction (2026-11-23, #134). The API lists rulesets: `/data/wow/ruleset/index`. US/EU have 1 PvP, 2 Normal,
   3 Roleplay, 15 Roleplay PvP; KR/TW have 1 and 2.
 - Auction data went live **2026-11-06**. Each ruleset lists **15 auction houses** (IDs 110–121
   and 123–125): five each of Alliance, Horde and Blackwater (neutral). Why five of each is
@@ -310,6 +311,39 @@ the API is missing, and can record *your own* buys/sales. It's not a good primar
 it needs you in-game, it's manual, and it's throttled.
 
 **Recommendation:** start with Path A. Add a small addon later (Path B) only if we hit gaps.
+
+### Path B confirmed for Forever: the in-game addon (2026-11-23, Researcher, PonchoAndy/DayTrader#134, #133)
+
+- **The client uses retail's auction toolkit** [datamined]. Forever's interface files (build 1.60.1.71037, game type
+  "camelot") contain only `C_AuctionHouse`: full scan `ReplicateItems`, commodity buy/sell, owned auctions.
+  Classic's `QueryAuctionItems` window is gone.
+- **Full-scan throttle:** 15 min per account in retail [community-tested, retail]; unmeasured in Forever.
+- **Existing addons** [guide / forum, Nov 2026]: players report Auctionator scanning, and an "Auctioneer Revisited"
+  port exists. wowauctionhouse.com takes uploads from a "TheWoWDB - Forever" addon. TSM's Forever status is unconfirmed.
+  (Undermine Exchange reads the API; it has no uploader.)
+- **Houses** [datamined]: `AuctionHouseRedirect` (rechecked at build 71037, unchanged) redirects only the faction bases
+  2/6/7/122, by ruleset. The legacy city houses (1 Stormwind, 3 Darnassus, 4 Undercity, 5 Thunder Bluff) are never
+  targets. There's no city or continent split. #133's Undercity sighting matched house 114's 01:25 snapshot (621 units
+  at 97c); the first comparison had used the 00:25 snapshot. **Lesson:** match a sighting to the nearest snapshot,
+  at listing level.
+- **What an addon can record** [datamined, build 71037]:
+  - on `AUCTION_HOUSE_SHOW`: realm name and ID, faction, zone and map, the auctioneer (`UnitGUID("npc")`);
+  - auction IDs, unit prices and seconds left in search results;
+  - your own auctions (`GetOwnedAuctionInfo`);
+  - post, purchase, sold and expired events;
+  - AH mail invoices (`GetInboxInvoiceInfo`: sale, buyout, **deposit, consignment = the cut**);
+  - vendor items (`C_MerchantFrame.GetItemInfo`: price, stack, numAvailable);
+  - reputation and profession skill.
+
+  No function returns an auction-house ID. Matching recorded auction IDs to our API pulls identifies the house.
+- **Getting data out:** only the SavedVariables file, written on logout, `/reload`, quit or disconnect (not on a
+  crash). It's plain Lua, probably at `World of Warcraft\_forever_\WTF\Account\<ACCOUNT>\SavedVariables\` (folder
+  name from guides). A beta loading bug was fixed by build 70009. Uploaders only read the file, never while WoW runs.
+- **Rules** (Blizzard UI Add-On Development Policy [official]): free; code visible; no harm to realms or players; no
+  ads or donation requests; Blizzard may disable anything. Ours stays read-only: it never posts, buys, bids or cancels,
+  doesn't scan in a loop, and doesn't keep other players' names.
+- **Minimal v1** (for the Architect): identity on AH open; your own listings; posts, purchases and AH mail invoices;
+  the search results you look at (auction IDs, no names). No full scan, no automation. Decide cards #135–#138.
 
 ---
 
