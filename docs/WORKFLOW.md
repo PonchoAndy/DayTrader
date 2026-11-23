@@ -19,11 +19,15 @@ Each issue says **Who** does it, what it's **Blocked by**, and when it's **Done*
 
 1. **Pick an issue.** Start a Claude session with "work on #9" (or ask "what's next?").
 2. **Claude works on a branch**, and commit messages mention the issue (`Refs #9`).
-3. **Merge often.** Whenever a coherent piece of work is done (an agent, a design, a fix, a
-   decision recorded), Claude ends its reply with a **Merge Now** line. Reply "merge" and Claude
-   opens a pull request and merges it. `Closes #9` in the description closes finished issues.
-4. **Why often:** work on a branch is already saved on GitHub, but only `main` counts. Scheduled
-   jobs run from `main`, and new Claude sessions start from `main`, so anything unmerged is
+3. **Commit often.** Claude saves and pushes each finished step to its branch right away. The Issue
+   Deck's gold bar lists this "unmerged work".
+4. **Review, then merge** (ADR 0019). When a meaningful batch has built up, Claude reviews every change
+   on the branch against `main`, fixes what the review finds, and only then ends its reply with a
+   **Merge Now** line and enables the Deck's **Merge** button. You can also press **Review** on the Deck
+   at any time. Reply "merge" (or press Merge) and Claude opens a pull request and merges it.
+   `Closes #9` in the description closes finished issues.
+5. **Why merge regularly:** work on a branch is already saved on GitHub, but only `main` counts.
+   Scheduled jobs run from `main`, and new Claude sessions start from `main`, so anything unmerged is
    invisible to them. Questions and decisions still go in issue comments, so they stay with the work.
 
 ## Rules
