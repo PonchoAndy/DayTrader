@@ -27,6 +27,7 @@ They're short, numbered, and never deleted. If a decision changes, we write a ne
 | [0017](0017-backup-collect-run-at-35.md) | A backup collect run at :35 past each hour | Accepted |
 | [0018](0018-item-classes-rare-items-and-vendor-floors.md) | Ammunition on its own, rare items as a separate class, vendor price as a floor marker | Accepted |
 | [0019](0019-commit-often-review-then-merge.md) | Commit often, review every batch, then merge | Accepted |
+| [0020](0020-addon-polite-scanning-rules.md) | The addon scans the auction house only within the game's own limits | Proposed |
 
 ## Statuses
 

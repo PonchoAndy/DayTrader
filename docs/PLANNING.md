@@ -348,6 +348,10 @@ it needs you in-game, it's manual, and it's throttled.
   doesn't scan in a loop, and doesn't keep other players' names.
 - **Minimal v1** (for the Architect): identity on AH open; your own listings; posts, purchases and AH mail invoices;
   the search results you look at (auction IDs, no names). No full scan, no automation. Decide cards #135–#138.
+- **Update (2026-11-23/25):** the owner chose **full scans as often as the game allows** (#136) and **only the owner**
+  installs the addon (#138). The wiki's retail notes add: a full scan returns **no auction IDs** and no seller names, the
+  game delivers ~2,000 listings per frame, and scans disconnected players on houses over 80k listings before patch 9.0.2.
+  Plan and scanning rules: `docs/designs/2026-11-25-addon-scan-plan.md`, proposed ADR 0020.
 
 ---
 
